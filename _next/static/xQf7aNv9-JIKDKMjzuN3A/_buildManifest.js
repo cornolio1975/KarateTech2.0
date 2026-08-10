@@ -3,8 +3,8 @@ self.__BUILD_MANIFEST = {
     "afterFiles": [],
     "beforeFiles": [
       {
-        "source": "/KarateTech//_next/:path+",
-        "destination": "/KarateTech/_next/:path+"
+        "source": "/KarateTech2.0//_next/:path+",
+        "destination": "/KarateTech2.0/_next/:path+"
       }
     ],
     "fallback": []
