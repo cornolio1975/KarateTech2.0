@@ -154,8 +154,13 @@ export default function ScoreboardDashboardPage() {
                 onChange={e => {
                   setSelectedCatId(e.target.value);
                   setSelectedBoutIdFilter('ALL');
+                  if (window.innerWidth < 1024) {
+                    setTimeout(() => {
+                      document.getElementById('kumite-bouts-list-panel')?.scrollIntoView({ behavior: 'smooth' });
+                    }, 50);
+                  }
                 }}
-                className="w-full bg-[#101015] border border-white/10 rounded-xl px-3 py-2.5 text-xs text-white focus:outline-none focus:border-yellow-400 transition"
+                className="w-full bg-[#101015] border border-white/10 rounded-xl px-3 py-2.5 text-xs text-white focus:outline-none focus:border-yellow-400 transition cursor-pointer"
               >
                 <option value="ALL">All Kumite Categories ({kumiteCategories.length})</option>
                 {kumiteCategories.map(cat => (
@@ -206,7 +211,7 @@ export default function ScoreboardDashboardPage() {
         </div>
 
         {/* Bouts List */}
-        <div className="lg:col-span-3">
+        <div id="kumite-bouts-list-panel" className="lg:col-span-3">
           {loading ? (
             <div className="flex flex-col items-center justify-center py-24 bg-white/[0.01] border border-white/5 rounded-2xl">
               <RefreshCw className="h-8 w-8 text-yellow-400 animate-spin mb-4" />

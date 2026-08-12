@@ -25,13 +25,15 @@ export function KataControlPanelContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const urlBoutId = searchParams.get('boutId');
-  const { tournamentName } = useTournament();
+  const catId = searchParams.get('catId');
+  const { tournamentName, acquireLock, releaseLock, activeTournamentId } = useTournament();
   
   const spectatorWindowRef = React.useRef<Window | null>(null);
   const broadcastChannelRef = React.useRef<BroadcastChannel | null>(null);
   const scoringConsoleRef = useRef<HTMLDivElement>(null);
   const [mounted, setMounted] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [isLockedByOther, setIsLockedByOther] = useState<boolean>(false);
   const [bouts, setBouts] = useState<Bout[]>([]);
   const [participants, setParticipants] = useState<Participant[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
@@ -79,6 +81,26 @@ export function KataControlPanelContent() {
       if (timerRef.current) clearInterval(timerRef.current);
     };
   }, [isTimerRunning, timeLeft]);
+
+  // Category Lock Management
+  useEffect(() => {
+    let isActive = true;
+    
+    if (catId && activeTournamentId) {
+      acquireLock(catId).then(res => {
+        if (isActive && !res.success) {
+          setIsLockedByOther(true);
+        }
+      });
+    }
+
+    return () => {
+      isActive = false;
+      if (catId && activeTournamentId && !isLockedByOther) {
+        releaseLock(catId);
+      }
+    };
+  }, [catId, activeTournamentId, acquireLock, releaseLock, isLockedByOther]);
 
   const formatMainTime = (tenths: number) => {
     const mins = Math.floor(tenths / 600);
@@ -503,8 +525,8 @@ export function KataControlPanelContent() {
         });
       }
       
-      // Redirect to the Match Console Hub (Kata) for the next match
-      router.push('/dashboard/kata-scoreboard');
+      // Auto-navigate back to Match Console Hub (Kata) to easily start the next match
+      router.push(`/dashboard/kata-scoreboard`);
     } catch (err) {
       console.error('Error completing Kata bout:', err);
       alert('Failed to save bout results.');
@@ -585,6 +607,27 @@ export function KataControlPanelContent() {
   };
 
   if (!mounted) return null;
+
+  if (isLockedByOther) {
+    return (
+      <div className="min-h-screen bg-background p-6 flex flex-col items-center justify-center">
+        <div className="max-w-md w-full bg-card border shadow-xl rounded-2xl p-8 text-center space-y-6">
+          <div className="w-16 h-16 bg-red-100 dark:bg-red-900/30 text-red-600 rounded-full flex items-center justify-center mx-auto">
+            <ShieldAlert size={32} strokeWidth={3} />
+          </div>
+          <div>
+            <h2 className="text-2xl font-bold mb-2">Category Locked</h2>
+            <p className="text-muted-foreground">
+              Another Tatami PC currently controls this category. You cannot score this bout while they hold the lock.
+            </p>
+          </div>
+          <Link href="/categories" className="block w-full py-3 bg-primary text-primary-foreground rounded-xl font-bold hover:brightness-110 transition-all">
+            Return to Categories
+          </Link>
+        </div>
+      </div>
+    );
+  }
 
   // Kata-only categories
   const kataCategories = categories.filter(isKataCategory);

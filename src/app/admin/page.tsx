@@ -2,11 +2,13 @@
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { db } from '@/db/dbClient';
-import { Participant, Club, Country } from '@/db/types';
+import { db, supabase } from '@/db/dbClient';
+import { Participant, Club, Country, TournamentPC, CategoryLock, Category } from '@/db/types';
+import { useTournament } from '@/context/TournamentContext';
 import { 
   Users, UserCheck, Flame, HeartPulse, CreditCard, ShieldAlert, 
-  MapPin, Landmark, ArrowRight, ArrowUpRight, TrendingUp, RefreshCw 
+  MapPin, Landmark, ArrowRight, ArrowUpRight, TrendingUp, RefreshCw,
+  Monitor, Lock, Unlock, Server, Shield
 } from 'lucide-react';
 
 export default function AdminDashboard() {
@@ -15,18 +17,29 @@ export default function AdminDashboard() {
   const [participants, setParticipants] = useState<Participant[]>([]);
   const [clubs, setClubs] = useState<Club[]>([]);
   const [countries, setCountries] = useState<Country[]>([]);
+  const [pcs, setPcs] = useState<TournamentPC[]>([]);
+  const [locks, setLocks] = useState<CategoryLock[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
+  
+  const { userRole, activeTournamentId } = useTournament();
 
   const loadData = async () => {
     try {
       setLoading(true);
-      const [pList, cList, cntList] = await Promise.all([
+      const [pList, cList, cntList, pcList, lockList, catList] = await Promise.all([
         db.participants.list(),
         db.clubs.list(),
-        db.countries.list()
+        db.countries.list(),
+        activeTournamentId ? db.pcControl.getPcs(activeTournamentId) : Promise.resolve([]),
+        activeTournamentId ? db.pcControl.getActiveLocks(activeTournamentId) : Promise.resolve([]),
+        db.categories.list()
       ]);
       setParticipants(pList);
       setClubs(cList);
       setCountries(cntList);
+      setPcs(pcList);
+      setLocks(lockList);
+      setCategories(catList);
     } catch (e) {
       console.error(e);
     } finally {
@@ -34,10 +47,69 @@ export default function AdminDashboard() {
     }
   };
 
+  const handleAdminOverride = async (categoryId: string) => {
+    if (userRole !== 'Admin') {
+      alert("Only Admins can force release locks.");
+      return;
+    }
+    if (!window.confirm("Are you sure you want to forcibly release this lock?")) return;
+    if (!activeTournamentId) return;
+    try {
+      await db.pcControl.overrideLock(activeTournamentId, categoryId, 'admin');
+      loadData();
+    } catch (err: any) {
+      alert("Error overriding lock: " + err.message);
+    }
+  };
+
   useEffect(() => {
     setMounted(true);
     loadData();
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTournamentId]);
+
+  useEffect(() => {
+    if (!activeTournamentId) return;
+    
+    const refreshData = async () => {
+      try {
+        const [pcList, lockList] = await Promise.all([
+          db.pcControl.getPcs(activeTournamentId),
+          db.pcControl.getActiveLocks(activeTournamentId)
+        ]);
+        setPcs(pcList);
+        setLocks(lockList);
+      } catch (err) {
+        console.error("Failed to fetch PCs", err);
+      }
+    };
+
+    // Initial fetch
+    refreshData();
+
+    // Poll for PC status and locks every 15 seconds as a fallback
+    const interval = setInterval(refreshData, 15000);
+
+    let channel: any = null;
+    if (supabase) {
+      // Use unique name to avoid "callbacks after subscribe" error in StrictMode
+      channel = supabase.channel(`admin-pcs-${activeTournamentId}-${Date.now()}`)
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'tournament_pcs' }, () => {
+          refreshData();
+        })
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'category_locks' }, () => {
+          refreshData();
+        })
+        .subscribe();
+    }
+
+    return () => {
+      clearInterval(interval);
+      if (channel && supabase) {
+        supabase.removeChannel(channel);
+      }
+    };
+  }, [activeTournamentId]);
 
   if (!mounted) return null;
 
@@ -164,6 +236,104 @@ export default function AdminDashboard() {
               </div>
               <div className="h-10 w-10 rounded-lg bg-red-500/10 text-red-500 flex items-center justify-center">
                 <HeartPulse className="h-5 w-5" />
+              </div>
+            </div>
+          </div>
+
+          {/* PC Control & Active Locks Dashboard */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 font-sans">
+            <div className="bg-card border border-border rounded-xl p-5 shadow-xs space-y-4">
+              <div className="flex items-center gap-2 mb-2">
+                <Server className="h-5 w-5 text-indigo-400" />
+                <h3 className="text-sm font-bold text-foreground">Registered Devices (PCs)</h3>
+              </div>
+              <div className="space-y-2">
+                {pcs.length === 0 && <p className="text-xs text-muted-foreground">No PCs connected yet.</p>}
+                {pcs.map(pc => {
+                  const rawDate = pc.last_heartbeat || pc.updated_at;
+                  const dateStr = (rawDate.endsWith('Z') || rawDate.includes('+')) ? rawDate : rawDate + 'Z';
+                  const lastSeen = new Date(dateStr).getTime();
+                  const secondsAgo = Math.floor((Date.now() - lastSeen) / 1000);
+                  const isOnline = secondsAgo <= 120; // 120s timeout to survive background tab throttling
+                  
+                  let timeAgoStr = '';
+                  if (secondsAgo < 60) timeAgoStr = `${secondsAgo} sec ago`;
+                  else timeAgoStr = `${Math.floor(secondsAgo / 60)}m ${secondsAgo % 60}s ago`;
+
+                  return (
+                    <div key={pc.id} className="flex items-center justify-between p-3 rounded-lg bg-secondary/30 border border-border">
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <span className={`w-2 h-2 rounded-full ${isOnline ? 'bg-emerald-500 animate-pulse' : 'bg-red-500'}`} />
+                          <span className="font-bold text-sm">{pc.pc_name}</span>
+                        </div>
+                        <div className="text-[10px] text-muted-foreground mt-1">
+                          ID: {pc.pc_identifier} | User: {pc.username || 'System'} | Seen: {timeAgoStr}
+                        </div>
+                      </div>
+                      <span className={`px-2 py-1 rounded-md text-[10px] font-bold ${isOnline ? 'bg-emerald-500/10 text-emerald-400' : 'bg-red-500/10 text-red-400'}`}>
+                        {isOnline ? 'ONLINE' : 'OFFLINE'}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div className="bg-card border border-border rounded-xl p-5 shadow-xs space-y-4">
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-2">
+                  <Lock className="h-5 w-5 text-red-400" />
+                  <h3 className="text-sm font-bold text-foreground">Active Category Locks</h3>
+                </div>
+              </div>
+              <div className="space-y-2">
+                {locks.length === 0 && <p className="text-xs text-muted-foreground">No categories currently locked.</p>}
+                {locks.map(lock => {
+                  const cat = categories.find(c => c.id === lock.category_id);
+                  const pc = pcs.find(p => p.id === lock.pc_id);
+                  
+                  let lastSeen = 0;
+                  if (pc) {
+                    const rawDate = pc.last_heartbeat || pc.updated_at;
+                    const dateStr = (rawDate.endsWith('Z') || rawDate.includes('+')) ? rawDate : rawDate + 'Z';
+                    lastSeen = new Date(dateStr).getTime();
+                  }
+                  
+                  const secondsAgo = Math.floor((Date.now() - lastSeen) / 1000);
+                  const isOnline = pc ? secondsAgo <= 120 : false;
+                  
+                  let timeAgoStr = '';
+                  if (!pc) timeAgoStr = 'Unknown';
+                  else if (secondsAgo < 60) timeAgoStr = `${secondsAgo} sec ago`;
+                  else timeAgoStr = `${Math.floor(secondsAgo / 60)} min ${secondsAgo % 60} sec ago`;
+
+                  return (
+                    <div key={lock.id} className={`flex flex-col sm:flex-row sm:items-center justify-between p-4 rounded-xl border ${isOnline ? 'bg-secondary/20 border-border' : 'bg-red-500/10 border-red-500/20'}`}>
+                      <div className="space-y-1.5 mb-3 sm:mb-0">
+                        <span className="font-black text-sm block">{cat?.name || 'Unknown Category'}</span>
+                        <div className="flex items-center gap-2">
+                          <span className={`flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider ${isOnline ? 'text-emerald-500' : 'text-red-500'}`}>
+                            <span className={`w-2 h-2 rounded-full ${isOnline ? 'bg-emerald-500 animate-pulse' : 'bg-red-500'}`} />
+                            {isOnline ? 'ONLINE' : 'OFFLINE'} — {pc?.tatami || pc?.pc_name || lock.pc_id}
+                          </span>
+                        </div>
+                        <span className="text-[10px] text-muted-foreground block font-medium">
+                          Last heartbeat: {timeAgoStr}
+                        </span>
+                      </div>
+                      <button
+                        onClick={() => handleAdminOverride(lock.category_id)}
+                        disabled={userRole !== 'Admin'}
+                        className="flex items-center justify-center gap-1.5 px-4 py-2.5 bg-red-600 hover:bg-red-500 text-white rounded-lg text-xs font-black uppercase tracking-wider transition cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed shadow-lg shadow-red-900/20 w-full sm:w-auto"
+                        title={userRole === 'Admin' ? "Force release this lock" : "Only Admin can force release"}
+                      >
+                        <Shield className="w-3.5 h-3.5" />
+                        Force Release
+                      </button>
+                    </div>
+                  );
+                })}
               </div>
             </div>
           </div>

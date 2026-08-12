@@ -1,31 +1,71 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useRef, useState, useEffect } from 'react';
 import { db, basePath } from '@/db/dbClient';
 import { DisplayPlaylist, DisplayPlaylistSlide } from '@/db/types';
 import { 
-  Tv, Plus, Trash2, Edit3, Save, X, Play, Clock, Sparkles, 
-  ChevronUp, ChevronDown, CheckCircle, Layers, Monitor, Award, Calendar, Volume2 
+  Tv, Plus, Trash2, Edit3, Save, X, Play, Clock,
+  ChevronUp, ChevronDown, Layers, Monitor, Award, Calendar, Volume2, Image as ImageIcon, Film, Radio
 } from 'lucide-react';
 
 interface DisplayPlaylistModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSelectPlaylist?: (playlist: DisplayPlaylist) => void;
+  inline?: boolean;
+  createTriggerKey?: number;
+  createTriggerMode?: 'default' | 'empty';
+  addMediaTriggerKey?: number;
+  addMediaSlideType?: DisplayPlaylistSlide['type'];
 }
 
 const DEFAULT_SLIDE_TYPES = [
-  { type: 'live_scoreboard', name: 'Live Kumite Scoreboard', icon: Tv, defaultDuration: 25 },
-  { type: 'kata_scoreboard', name: 'WKF 7-Judge Kata Scoreboard', icon: Award, defaultDuration: 25 },
-  { type: 'bracket', name: 'Category Brackets & Draws', icon: Layers, defaultDuration: 20 },
-  { type: 'medals', name: 'Club Medal Standings Leaderboard', icon: Award, defaultDuration: 15 },
-  { type: 'schedule', name: 'Upcoming Tatami Match Schedule', icon: Calendar, defaultDuration: 15 },
-  { type: 'announcement', name: 'Custom Announcement / Sponsor Banner', icon: Volume2, defaultDuration: 12 },
+  { type: 'live_scoreboard', name: 'Live Kumite Scoreboard', shortLabel: 'Live-Kumite', icon: Tv, defaultDuration: 25 },
+  { type: 'kata_scoreboard', name: 'Live Kata Scoreboard', shortLabel: 'Live-Kata', icon: Award, defaultDuration: 25 },
+  { type: 'bracket', name: 'Category Brackets & Draws', shortLabel: 'Bracket', icon: Layers, defaultDuration: 20 },
+  { type: 'medals', name: 'Club Medal Standings Leaderboard', shortLabel: 'Medals', icon: Award, defaultDuration: 15 },
+  { type: 'schedule', name: 'Upcoming Tatami Match Schedule', shortLabel: 'Schedule', icon: Calendar, defaultDuration: 15 },
+  { type: 'announcement', name: 'Custom Announcement / Sponsor Banner', shortLabel: 'Announcement', icon: Volume2, defaultDuration: 12 },
+  { type: 'image', name: 'Image Media Slide', shortLabel: 'Image', icon: ImageIcon, defaultDuration: 15 },
+  { type: 'video', name: 'Video Media Slide', shortLabel: 'Video', icon: Film, defaultDuration: 30 },
+  { type: 'live_stream', name: 'Live Stream @ Arena', shortLabel: 'Stream', icon: Radio, defaultDuration: 60 },
 ] as const;
 
-export default function DisplayPlaylistModal({ isOpen, onClose, onSelectPlaylist }: DisplayPlaylistModalProps) {
+const MAX_IMAGE_UPLOAD_MB = 5;
+
+const compressImage = (file: File, callback: (base64: string) => void) => {
+  const reader = new FileReader();
+  reader.onerror = () => alert('Failed to read the image file.');
+  reader.onload = (e) => {
+    const img = new Image();
+    img.onerror = () => alert('Invalid or unsupported image file.');
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      let width = img.width;
+      let height = img.height;
+      const MAX_DIM = 800;
+      if (width > height && width > MAX_DIM) {
+        height *= MAX_DIM / width;
+        width = MAX_DIM;
+      } else if (height > MAX_DIM) {
+        width *= MAX_DIM / height;
+        height = MAX_DIM;
+      }
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext('2d');
+      ctx?.drawImage(img, 0, 0, width, height);
+      callback(canvas.toDataURL('image/webp', 0.6));
+    };
+    img.src = e.target?.result as string;
+  };
+  reader.readAsDataURL(file);
+};
+
+export default function DisplayPlaylistModal({ isOpen, onClose, onSelectPlaylist, inline = false, createTriggerKey, createTriggerMode = 'default', addMediaTriggerKey, addMediaSlideType = 'announcement' }: DisplayPlaylistModalProps) {
   const [playlists, setPlaylists] = useState<DisplayPlaylist[]>([]);
   const [loading, setLoading] = useState(true);
+  const slideIdCounterRef = useRef(1);
 
   // Edit / New state
   const [isEditing, setIsEditing] = useState(false);
@@ -35,11 +75,48 @@ export default function DisplayPlaylistModal({ isOpen, onClose, onSelectPlaylist
   const [tatami, setTatami] = useState('ALL');
   const [slides, setSlides] = useState<DisplayPlaylistSlide[]>([]);
 
+  const nextSlideId = () => {
+    return `slide-local-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+  };
+
   useEffect(() => {
-    if (isOpen) {
+    if (isOpen || inline) {
       loadPlaylists();
     }
-  }, [isOpen]);
+  }, [isOpen, inline]);
+
+  useEffect(() => {
+    if (typeof createTriggerKey === 'number' && createTriggerKey > 0) {
+      handleCreateNew(createTriggerMode === 'empty');
+    }
+  }, [createTriggerKey, createTriggerMode]);
+
+  useEffect(() => {
+    if (typeof addMediaTriggerKey !== 'number' || addMediaTriggerKey <= 0) return;
+
+    const meta = DEFAULT_SLIDE_TYPES.find(slideType => slideType.type === addMediaSlideType);
+    const nextSlide: DisplayPlaylistSlide = {
+      id: nextSlideId(),
+      type: addMediaSlideType,
+      title: meta?.name || 'Custom Presentation Slide',
+      duration_seconds: meta?.defaultDuration || 20,
+      tatami_filter: isEditing ? tatami : 'ALL',
+      announcement_text: addMediaSlideType === 'announcement' ? 'Welcome to KarateTech Championship 2026!' : undefined,
+      media_url: addMediaSlideType === 'image' || addMediaSlideType === 'video' || addMediaSlideType === 'live_stream' ? '' : undefined
+    };
+
+    if (!isEditing) {
+      setEditingId(null);
+      setName('New Display Presentation');
+      setDescription('Custom presentation sequence for spectator screen.');
+      setTatami('ALL');
+      setSlides([nextSlide]);
+      setIsEditing(true);
+      return;
+    }
+
+    setSlides(prev => [...prev, nextSlide]);
+  }, [addMediaTriggerKey, addMediaSlideType, isEditing, tatami]);
 
   const loadPlaylists = async () => {
     try {
@@ -53,16 +130,19 @@ export default function DisplayPlaylistModal({ isOpen, onClose, onSelectPlaylist
     }
   };
 
-  const handleCreateNew = () => {
+  const handleCreateNew = (startEmpty = false) => {
     setEditingId(null);
     setName('New Display Presentation');
     setDescription('Custom presentation sequence for spectator screen.');
     setTatami('ALL');
-    setSlides([
-      { id: 'slide-1', type: 'live_scoreboard', title: 'Live Kumite Scoreboard', duration_seconds: 25, tatami_filter: 'ALL' },
-      { id: 'slide-2', type: 'kata_scoreboard', title: 'WKF Kata Scoreboard', duration_seconds: 25, tatami_filter: 'ALL' },
-      { id: 'slide-3', type: 'medals', title: 'Club Medal Standings', duration_seconds: 15 }
-    ]);
+    setSlides(startEmpty
+      ? []
+      : [
+          { id: 'slide-1', type: 'live_scoreboard', title: 'Live Kumite Scoreboard', duration_seconds: 25, tatami_filter: 'ALL' },
+          { id: 'slide-2', type: 'kata_scoreboard', title: 'Live Kata Scoreboard', duration_seconds: 25, tatami_filter: 'ALL' },
+          { id: 'slide-3', type: 'medals', title: 'Club Medal Standings', duration_seconds: 15 }
+        ]
+    );
     setIsEditing(true);
   };
 
@@ -92,14 +172,15 @@ export default function DisplayPlaylistModal({ isOpen, onClose, onSelectPlaylist
   const handleAddSlide = (type: DisplayPlaylistSlide['type']) => {
     const meta = DEFAULT_SLIDE_TYPES.find(t => t.type === type);
     const newSlide: DisplayPlaylistSlide = {
-      id: `slide-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
+      id: nextSlideId(),
       type,
       title: meta?.name || 'Custom Presentation Slide',
       duration_seconds: meta?.defaultDuration || 20,
       tatami_filter: tatami,
-      announcement_text: type === 'announcement' ? 'Welcome to KarateTech Championship 2026!' : undefined
+      announcement_text: type === 'announcement' ? 'Welcome to KarateTech Championship 2026!' : undefined,
+      media_url: type === 'image' || type === 'video' || type === 'live_stream' ? '' : undefined
     };
-    setSlides([...slides, newSlide]);
+    setSlides(prev => [...prev, newSlide]);
   };
 
   const handleRemoveSlide = (idx: number) => {
@@ -123,6 +204,14 @@ export default function DisplayPlaylistModal({ isOpen, onClose, onSelectPlaylist
     }
     if (slides.length === 0) {
       alert('Playlist must contain at least one slide.');
+      return;
+    }
+
+    const invalidMediaSlide = slides.find(slide => (
+      (slide.type === 'image' || slide.type === 'video' || slide.type === 'live_stream') && !slide.media_url?.trim()
+    ));
+    if (invalidMediaSlide) {
+      alert(`Please provide a media URL for "${invalidMediaSlide.title}".`);
       return;
     }
 
@@ -154,8 +243,60 @@ export default function DisplayPlaylistModal({ isOpen, onClose, onSelectPlaylist
     }
   };
 
+  const handleMediaFileChange = (idx: number, event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    const slide = slides[idx];
+    if (!slide || slide.type === 'live_stream') {
+      event.target.value = '';
+      return;
+    }
+
+    // Relaxed MIME validation since HTML input `accept` already handles it
+    // and some OS/browser combos return empty types for valid videos
+
+    const maxBytes = (slide.type === 'video' ? 15 : MAX_IMAGE_UPLOAD_MB) * 1024 * 1024;
+    if (file.size > maxBytes) {
+      alert(`${slide.type === 'video' ? 'Video' : 'Image'} file is too large. Maximum size is ${slide.type === 'video' ? 15 : MAX_IMAGE_UPLOAD_MB}MB.`);
+      event.target.value = '';
+      return;
+    }
+
+    if (slide.type === 'video') {
+      const reader = new FileReader();
+      reader.onload = () => {
+        const result = typeof reader.result === 'string' ? reader.result : '';
+        if (!result) {
+          alert('Failed to read selected video file. Please try again.');
+          return;
+        }
+        setSlides(prev => prev.map((entry, entryIdx) => (
+          entryIdx === idx ? { ...entry, media_url: result } : entry
+        )));
+        event.target.value = '';
+      };
+      reader.readAsDataURL(file);
+      return;
+    }
+
+    compressImage(file, (result) => {
+      setSlides(prev => prev.map((entry, entryIdx) => (
+        entryIdx === idx ? { ...entry, media_url: result } : entry
+      )));
+      event.target.value = '';
+    });
+  };
+
   const handleLaunchDisplay = (pl: DisplayPlaylist) => {
-    const targetUrl = `${basePath}/display?playlistId=${pl.id}`;
+    let targetUrl = `${basePath}/display?playlistId=${pl.id}`;
+    if (typeof window !== 'undefined') {
+      const activeTournamentId = localStorage.getItem('ts_active_tournament_id');
+      if (activeTournamentId) {
+        targetUrl += `&tournament=${activeTournamentId}`;
+      }
+    }
+    
     if (onSelectPlaylist) {
       onSelectPlaylist(pl);
     }
@@ -164,31 +305,32 @@ export default function DisplayPlaylistModal({ isOpen, onClose, onSelectPlaylist
     }
   };
 
-  if (!isOpen) return null;
+  if (!isOpen && !inline) return null;
 
-  return (
-    <div className="fixed inset-0 z-[300] bg-black/80 backdrop-blur-md flex items-center justify-center p-4 sm:p-6 overflow-y-auto">
-      <div className="bg-card border border-border rounded-2xl w-full max-w-4xl max-h-[90vh] flex flex-col shadow-2xl overflow-hidden text-foreground animate-in fade-in zoom-in-95 duration-200">
+  const content = (
+    <div className={`bg-card border border-border w-full flex flex-col overflow-hidden text-foreground ${inline ? 'rounded-xl shadow-sm h-[800px]' : 'rounded-2xl max-w-4xl max-h-[90vh] shadow-2xl animate-in fade-in zoom-in-95 duration-200'}`}>
         
         {/* Header */}
-        <div className="px-6 py-4 border-b border-border flex items-center justify-between shrink-0 bg-secondary/20">
-          <div className="flex items-center gap-3">
-            <div className="p-2.5 bg-primary/10 border border-primary/20 text-primary rounded-xl">
-              <Tv className="h-6 w-6" />
+        {!inline && (
+          <div className="px-6 py-4 border-b border-border flex items-center justify-between shrink-0 bg-secondary/20">
+            <div className="flex items-center gap-3">
+              <div className="p-2.5 bg-primary/10 border border-primary/20 text-primary rounded-xl">
+                <Tv className="h-6 w-6" />
+              </div>
+              <div>
+                <h2 className="text-lg font-bold tracking-tight">Display Playlists & Presentation Manager</h2>
+                <p className="text-xs text-muted-foreground">Configure live display playlists saved in the database for any device/platform.</p>
+              </div>
             </div>
-            <div>
-              <h2 className="text-lg font-bold tracking-tight">Display Playlists & Presentation Manager</h2>
-              <p className="text-xs text-muted-foreground">Configure live display playlists saved in the database for any device/platform.</p>
-            </div>
-          </div>
 
-          <button
-            onClick={onClose}
-            className="p-2 text-muted-foreground hover:text-foreground hover:bg-secondary rounded-lg transition-colors cursor-pointer"
-          >
-            <X className="h-5 w-5" />
-          </button>
-        </div>
+            <button
+              onClick={onClose}
+              className="p-2 text-muted-foreground hover:text-foreground hover:bg-secondary rounded-lg transition-colors cursor-pointer"
+            >
+              <X className="h-5 w-5" />
+            </button>
+          </div>
+        )}
 
         {/* Content Body */}
         <div className="flex-1 overflow-y-auto p-6 space-y-6">
@@ -201,7 +343,7 @@ export default function DisplayPlaylistModal({ isOpen, onClose, onSelectPlaylist
                   <p className="text-xs text-muted-foreground">Select a playlist to edit, modify, or launch on the live display screen.</p>
                 </div>
                 <button
-                  onClick={handleCreateNew}
+                  onClick={() => handleCreateNew()}
                   className="px-4 py-2 bg-primary text-primary-foreground hover:bg-primary/95 rounded-lg text-xs font-bold transition flex items-center gap-2 cursor-pointer shadow-sm"
                 >
                   <Plus className="h-4 w-4" />
@@ -218,7 +360,7 @@ export default function DisplayPlaylistModal({ isOpen, onClose, onSelectPlaylist
                   <Monitor className="h-10 w-10 text-muted-foreground/30 mx-auto" />
                   <div className="text-xs text-muted-foreground font-semibold">No custom playlists created yet.</div>
                   <button
-                    onClick={handleCreateNew}
+                    onClick={() => handleCreateNew()}
                     className="px-3.5 py-1.5 bg-secondary hover:bg-secondary/80 border border-border text-foreground rounded-lg text-xs font-bold transition inline-flex items-center gap-1.5 cursor-pointer"
                   >
                     <Plus className="h-3.5 w-3.5" />
@@ -367,7 +509,7 @@ export default function DisplayPlaylistModal({ isOpen, onClose, onSelectPlaylist
                         className="px-2.5 py-1 bg-secondary hover:bg-primary/20 hover:border-primary/40 border border-border rounded-lg text-[10px] font-bold text-foreground transition flex items-center gap-1 cursor-pointer"
                       >
                         <st.icon className="h-3 w-3 text-primary" />
-                        <span>{st.name.split(' ')[0]}</span>
+                        <span>{st.shortLabel}</span>
                       </button>
                     ))}
                   </div>
@@ -425,6 +567,58 @@ export default function DisplayPlaylistModal({ isOpen, onClose, onSelectPlaylist
                               placeholder="Enter custom announcement banner message..."
                               className="w-full px-2 py-1 bg-secondary/80 border border-border rounded text-[11px] font-medium text-foreground focus:outline-none"
                             />
+                          )}
+                          {(s.type === 'image' || s.type === 'video' || s.type === 'live_stream') && (
+                            <div className="space-y-2">
+                              <input
+                                type="text"
+                                value={s.media_url || ''}
+                                onChange={e => {
+                                  const copy = [...slides];
+                                  copy[idx].media_url = e.target.value;
+                                  setSlides(copy);
+                                }}
+                                placeholder={s.type === 'video' ? 'Paste MP4/WebM video URL...' : s.type === 'live_stream' ? 'Paste YouTube stream URL (e.g. https://youtube.com/watch?v=...)' : 'Paste JPG/PNG/WebP image URL...'}
+                                className="w-full px-2 py-1 bg-secondary/80 border border-border rounded text-[11px] font-medium text-foreground focus:outline-none"
+                              />
+                              {s.type !== 'live_stream' && (
+                                <div className="flex flex-col gap-1">
+                                  <label className="text-[10px] font-semibold text-muted-foreground">
+                                    or upload {s.type} from local drive
+                                  </label>
+                                  <input
+                                    type="file"
+                                    accept={s.type === 'video' ? 'video/*' : 'image/*'}
+                                    onChange={e => handleMediaFileChange(idx, e)}
+                                    className="block w-full text-[10px] text-muted-foreground file:mr-3 file:rounded-md file:border-0 file:bg-primary/15 file:px-2.5 file:py-1.5 file:text-[10px] file:font-bold file:text-primary hover:file:bg-primary/25"
+                                  />
+                                  <p className="text-[10px] text-muted-foreground/80">
+                                    {s.type === 'video'
+                                      ? `MP4/WebM recommended. Max 15MB for embedded upload.`
+                                      : `PNG/JPG/WebP recommended. Max ${MAX_IMAGE_UPLOAD_MB}MB.`}
+                                  </p>
+                                </div>
+                              )}
+                              {s.media_url && s.type !== 'live_stream' ? (
+                                <div className="rounded-lg border border-border bg-secondary/30 p-2">
+                                  {s.type === 'image' ? (
+                                    <img
+                                      src={s.media_url}
+                                      alt={s.title || 'Image preview'}
+                                      className="max-h-36 w-full rounded-md object-contain bg-black/40"
+                                    />
+                                  ) : (
+                                    <video
+                                      src={s.media_url}
+                                      className="max-h-36 w-full rounded-md bg-black/60"
+                                      controls
+                                      muted
+                                      playsInline
+                                    />
+                                  )}
+                                </div>
+                              ) : null}
+                            </div>
                           )}
                         </div>
                       </div>
@@ -490,6 +684,15 @@ export default function DisplayPlaylistModal({ isOpen, onClose, onSelectPlaylist
           )}
         </div>
       </div>
+  );
+
+  if (inline) {
+    return content;
+  }
+
+  return (
+    <div className="fixed inset-0 z-[300] bg-black/80 backdrop-blur-md flex items-center justify-center p-4 sm:p-6 overflow-y-auto">
+      {content}
     </div>
   );
 }

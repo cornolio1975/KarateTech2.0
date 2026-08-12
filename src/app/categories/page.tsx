@@ -7,12 +7,13 @@ import { db } from '@/db/dbClient';
 import { Category, Participant, Club, Bout, isKumiteCategory, isKataCategory } from '@/db/types';
 import { basePath } from '@/db/dbClient';
 import { 
-  Plus, Tags, Merge, Split, Move, X, Check, AlertCircle, RefreshCw, Trash2, Edit2, Monitor, ChevronRight, Upload, Search, Filter, Download, Users, UserPlus, Sparkles, Settings2, Save
+  Plus, Tags, Merge, Split, Move, X, Check, AlertCircle, RefreshCw, Trash2, Edit2, Monitor, ChevronRight, Upload, Search, Filter, Download, Users, UserPlus, Sparkles, Settings2, Save, Lock, Unlock
 } from 'lucide-react';
 import ImportCategoryModal from '@/components/ImportCategoryModal';
 
 export default function CategoriesPage() {
-  const { refreshKey, triggerRefresh, canModify } = useTournament();
+  const { refreshKey, triggerRefresh, canModify, activeLocks, pcId, tatamiId, userEmail, activeTournamentId, acquireLock, releaseLock } = useTournament();
+  const [lockingCatId, setLockingCatId] = useState<string | null>(null);
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -129,6 +130,35 @@ export default function CategoriesPage() {
       });
     }
   }, [mounted, refreshKey]);
+
+  const handleConsoleClick = async (cat: Category) => {
+    if (!pcId) {
+      alert("PC Identity not established. Please relogin.");
+      return;
+    }
+    
+    // Check if we already own it
+    const existingLock = activeLocks.find(l => l.category_id === cat.id);
+    if (existingLock && existingLock.pc_id === pcId) {
+      setConsoleCat(cat);
+      return;
+    }
+    
+    setLockingCatId(cat.id);
+    try {
+      const result = await acquireLock(cat.id);
+      if (result.success) {
+        setConsoleCat(cat);
+        triggerRefresh();
+      } else {
+        alert("This category is currently locked by another Tatami/PC.");
+      }
+    } catch (err: any) {
+      alert("Error acquiring lock: " + err.message);
+    } finally {
+      setLockingCatId(null);
+    }
+  };
 
   // Handle move participant validation preview
   useEffect(() => {
@@ -369,6 +399,19 @@ export default function CategoriesPage() {
       if (!matchesName && !matchesGender && !matchesWeight) return false;
     }
     return true;
+  }).sort((a, b) => {
+    if (a.gender !== b.gender) {
+      const order = { 'Male': 1, 'Female': 2, 'Mixed': 3 };
+      const gA = order[a.gender as keyof typeof order] || 99;
+      const gB = order[b.gender as keyof typeof order] || 99;
+      if (gA !== gB) return gA - gB;
+      return a.gender.localeCompare(b.gender);
+    }
+    if (a.min_age !== b.min_age) return a.min_age - b.min_age;
+    if (a.max_age !== b.max_age) return a.max_age - b.max_age;
+    if (a.min_weight !== b.min_weight) return a.min_weight - b.min_weight;
+    if (a.max_weight !== b.max_weight) return a.max_weight - b.max_weight;
+    return a.name.localeCompare(b.name);
   });
 
   const calculateAge = (dobString: string): number => {
@@ -748,6 +791,31 @@ export default function CategoriesPage() {
                           Active
                         </span>
                       )}
+                      {(() => {
+                        const lock = activeLocks.find(l => l.category_id === cat.id);
+                        if (!lock) {
+                          return (
+                            <span className="text-[9px] font-bold bg-green-500/10 text-green-700 dark:text-green-400 border border-green-500/20 px-2 py-0.5 rounded-full uppercase tracking-wider flex items-center gap-1">
+                              <Unlock className="w-2.5 h-2.5" />
+                              Available
+                            </span>
+                          );
+                        }
+                        if (lock.pc_id === pcId) {
+                          return (
+                            <span className="text-[9px] font-bold bg-blue-500/10 text-blue-700 dark:text-blue-400 border border-blue-500/20 px-2 py-0.5 rounded-full uppercase tracking-wider flex items-center gap-1">
+                              <Lock className="w-2.5 h-2.5" />
+                              Owned By This PC
+                            </span>
+                          );
+                        }
+                        return (
+                          <span className="text-[9px] font-bold bg-red-500/10 text-red-700 dark:text-red-400 border border-red-500/20 px-2 py-0.5 rounded-full uppercase tracking-wider flex items-center gap-1">
+                            <Lock className="w-2.5 h-2.5" />
+                            {lock.tatami || lock.username || 'In Use'}
+                          </span>
+                        );
+                      })()}
                     </div>
                     {canModify && (
                       <div className="flex items-center gap-1">
@@ -845,16 +913,33 @@ export default function CategoriesPage() {
                       </button>
                     </div>
                   )}
-                  {bouts.some(b => b.category_id === cat.id) && (
-                    <button
-                      onClick={() => setConsoleCat(cat)}
-                      className="w-full flex items-center justify-center gap-1.5 py-1.5 px-3 rounded-lg text-[11px] font-bold border bg-card hover:bg-secondary border-border text-foreground transition cursor-pointer"
-                      title="Open match console hub for this category"
-                    >
-                      <Monitor className="h-3.5 w-3.5" />
-                      <span>Console</span>
-                    </button>
-                  )}
+                  {bouts.some(b => b.category_id === cat.id) && (() => {
+                    const lock = activeLocks.find(l => l.category_id === cat.id);
+                    const isLockedByOther = lock && lock.pc_id !== pcId;
+                    const isLocking = lockingCatId === cat.id;
+
+                    return (
+                      <button
+                        onClick={() => handleConsoleClick(cat)}
+                        disabled={isLockedByOther || isLocking}
+                        className={`w-full flex items-center justify-center gap-1.5 py-1.5 px-3 rounded-lg text-[11px] font-bold border transition ${
+                          isLockedByOther 
+                            ? 'bg-secondary/50 border-border/50 text-muted-foreground cursor-not-allowed opacity-60'
+                            : 'bg-card hover:bg-secondary border-border text-foreground cursor-pointer'
+                        }`}
+                        title={isLockedByOther ? 'Category is locked by another PC' : 'Open match console hub for this category'}
+                      >
+                        {isLocking ? (
+                          <RefreshCw className="h-3.5 w-3.5 animate-spin" />
+                        ) : isLockedByOther ? (
+                          <Lock className="h-3.5 w-3.5" />
+                        ) : (
+                          <Monitor className="h-3.5 w-3.5" />
+                        )}
+                        <span>{isLocking ? 'Locking...' : isLockedByOther ? 'Locked' : 'Console'}</span>
+                      </button>
+                    );
+                  })()}
                 </div>
               </div>
             );
@@ -894,12 +979,33 @@ export default function CategoriesPage() {
                     </span>
                   </div>
                 </div>
-                <button
-                  onClick={() => setConsoleCat(null)}
-                  className="p-1.5 hover:bg-secondary text-muted-foreground hover:text-foreground rounded-lg transition-colors cursor-pointer"
-                >
-                  <X className="h-4 w-4" />
-                </button>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={async () => {
+                      if (pcId) {
+                        try {
+                          await releaseLock(consoleCat.id);
+                          triggerRefresh();
+                        } catch (err) {
+                          console.error("Error releasing lock", err);
+                        }
+                      }
+                      setConsoleCat(null);
+                    }}
+                    className="flex items-center gap-1.5 px-3 py-1.5 bg-red-500/10 hover:bg-red-500/20 text-red-500 dark:text-red-400 rounded-lg text-[10px] font-bold border border-red-500/20 transition cursor-pointer"
+                    title="Release the lock on this category so other Tatamis can control it"
+                  >
+                    <Unlock className="w-3.5 h-3.5" />
+                    <span>Release Category</span>
+                  </button>
+                  <button
+                    onClick={() => setConsoleCat(null)}
+                    className="p-1.5 hover:bg-secondary text-muted-foreground hover:text-foreground rounded-lg transition-colors cursor-pointer"
+                    title="Close (Keep Lock)"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                </div>
               </div>
 
               {/* Bout List */}

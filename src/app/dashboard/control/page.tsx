@@ -7,7 +7,7 @@ import { db, basePath } from '@/db/dbClient';
 import { Bout, Participant } from '@/db/types';
 import {
   Zap, Play, Square, RotateCcw, X, Award, Timer,
-  ChevronLeft, Volume2, VolumeX, RefreshCw, Undo, Save, Check, Award as MedalIcon, Tv, Maximize2, Minimize2, List
+  ChevronLeft, Volume2, VolumeX, RefreshCw, Undo, Save, Check, Award as MedalIcon, Tv, Maximize2, Minimize2, List, MonitorPlay, ExternalLink, LayoutDashboard, ArrowRight, Trophy
 } from 'lucide-react';
 import { useTournament } from '@/context/TournamentContext';
 import DisplayPlaylistModal from '@/components/DisplayPlaylistModal';
@@ -17,12 +17,13 @@ export default function ScoreboardControlPage() {
   const searchParams = useSearchParams();
   const boutId = searchParams.get('boutId');
   const catId = searchParams.get('catId'); // passed from categories page
-  const { tournamentName } = useTournament();
+  const { tournamentName, acquireLock, releaseLock, activeTournamentId } = useTournament();
 
   const [isPlaylistModalOpen, setIsPlaylistModalOpen] = useState(false);
 
   const [mounted, setMounted] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [isLockedByOther, setIsLockedByOther] = useState<boolean>(false);
   const [bout, setBout] = useState<Bout | null>(null);
   const [competitorAka, setCompetitorAka] = useState<Participant | null>(null);
   const [competitorAo, setCompetitorAo] = useState<Participant | null>(null);
@@ -38,6 +39,7 @@ export default function ScoreboardControlPage() {
 
   // Track which fighters scored their first valid point in the current stoppage sequence
   const [stoppageScorers, setStoppageScorers] = useState<('aka' | 'ao')[]>([]);
+  const [stoppageInitialSenshu, setStoppageInitialSenshu] = useState<'aka' | 'ao' | 'none' | null>(null);
 
   // Penalties WKF System: C1, C2, C3, HC, H (0 to 5)
   const [c1Aka, setC1Aka] = useState<number>(0);
@@ -71,6 +73,7 @@ export default function ScoreboardControlPage() {
   const [spectatorConnected, setSpectatorConnected] = useState<boolean>(false);
   const [popupBlocked, setPopupBlocked] = useState<boolean>(false);
   const [isSpectatorModalOpen, setIsSpectatorModalOpen] = useState<boolean>(false);
+
   const [isFullscreen, setIsFullscreen] = useState<boolean>(false);
   const lastSpectatorHeartbeat = useRef<number>(0);
   const spectatorWindowRef = useRef<Window | null>(null);
@@ -98,12 +101,53 @@ export default function ScoreboardControlPage() {
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const broadcastChannelRef = useRef<BroadcastChannel | null>(null);
   const soundPlayedRef = useRef<string | null>(null);
+  const audioCtxRef = useRef<AudioContext | null>(null);
+
+  // Auto-unlock AudioContext on first user interaction so sounds work without manual click
+  useEffect(() => {
+    const getOrCreateAudioCtx = () => {
+      if (!audioCtxRef.current) {
+        audioCtxRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
+      }
+      return audioCtxRef.current;
+    };
+
+    const unlock = () => {
+      try {
+        const ctx = getOrCreateAudioCtx();
+        if (ctx.state === 'suspended') {
+          ctx.resume();
+        }
+      } catch { /* ignore */ }
+    };
+
+    // Try immediately (works if page was opened via user gesture)
+    unlock();
+
+    // Also unlock on first interaction as a fallback
+    document.addEventListener('click', unlock, { once: true });
+    document.addEventListener('keydown', unlock, { once: true });
+    document.addEventListener('touchstart', unlock, { once: true });
+
+    return () => {
+      document.removeEventListener('click', unlock);
+      document.removeEventListener('keydown', unlock);
+      document.removeEventListener('touchstart', unlock);
+    };
+  }, []);
 
   // Open Spectator Window helper
-  const openSpectatorWindow = useCallback((mode: 'default' | 'new-tab' | 'new-window' = 'default') => {
+  const openSpectatorWindow = useCallback((mode: 'default' | 'new-tab' | 'new-window' | 'same-page' = 'default') => {
     if (typeof window === 'undefined') return;
-    const specUrl = `${window.location.origin}${basePath}/display?boutId=${boutId}`;
+    const activeTournamentId = localStorage.getItem('ts_active_tournament_id');
+    const tournamentParam = activeTournamentId ? `&tournament=${encodeURIComponent(activeTournamentId)}` : '';
+    const specUrl = `${window.location.origin}${basePath}/display?boutId=${boutId}&liveOnly=true${tournamentParam}`;
     let specWindow: Window | null = null;
+    
+    if (mode === 'same-page') {
+      window.location.href = specUrl;
+      return;
+    }
     
     if (mode === 'default') {
       specWindow = window.open(specUrl, 'KarateTechSpectator');
@@ -141,16 +185,44 @@ export default function ScoreboardControlPage() {
       // Send initial handshake ping
       channel.postMessage({ type: 'PING' });
 
+      // Helper to broadcast full state
+      const broadcastFullState = async () => {
+        const activeTournamentId = localStorage.getItem('ts_active_tournament_id');
+        if (activeTournamentId && channel) {
+          try {
+            const { localStore } = await import('@/db/localStore');
+            const tournamentDb = await localStore.loadTournament(activeTournamentId);
+            if (tournamentDb) {
+              channel.postMessage({
+                type: 'SYNC_FULL_STATE',
+                allBouts: tournamentDb.bouts || [],
+                allParticipants: tournamentDb.participants || [],
+                allCategories: tournamentDb.categories || [],
+                allClubs: tournamentDb.clubs || [],
+                playlists: tournamentDb.display_playlists || []
+              });
+            }
+          } catch (e) {
+            console.warn('Failed to broadcast full state', e);
+          }
+        }
+      };
+
       // Handle message events
-      channel.onmessage = (event) => {
+      channel.onmessage = async (event) => {
         const data = event.data;
         if (data.type === 'PONG' || data.type === 'SPECTATOR_CONNECTED') {
           lastSpectatorHeartbeat.current = Date.now();
           setSpectatorConnected(true);
         } else if (data.type === 'SPECTATOR_DISCONNECTED') {
           setSpectatorConnected(false);
+        } else if (data.type === 'REQUEST_FULL_STATE') {
+          await broadcastFullState();
         }
       };
+
+      // Save helper to ref so we can use it outside useEffect
+      (window as any)._broadcastFullState = broadcastFullState;
     }
 
     // Ping interval to maintain keep-alive
@@ -283,6 +355,17 @@ export default function ScoreboardControlPage() {
         setMatchDuration(currentBout.timer_seconds ?? 180);
         setHasTimerRun(false);
 
+        let loadedWinnerSide: 'aka' | 'ao' | null = null;
+        if (currentBout.status === 'Completed' && currentBout.winner_id) {
+          if (currentBout.winner_id === currentBout.participant_a_id) {
+            loadedWinnerSide = 'aka';
+          } else if (currentBout.winner_id === currentBout.participant_b_id) {
+            loadedWinnerSide = 'ao';
+          }
+        }
+        setWinnerSide(loadedWinnerSide);
+        setWinMethod(loadedWinnerSide ? 'Points' : ''); // Provide fallback string
+
         // Seed history with clean match start state for complete undo support
         const initialSnap = {
           scoreAka: currentBout.score_a ?? 0,
@@ -298,8 +381,8 @@ export default function ScoreboardControlPage() {
           stoppageScorers: [],
           eventsAka: parsedEventsAka,
           eventsAo: parsedEventsAo,
-          winnerSide: null,
-          winMethod: '',
+          winnerSide: loadedWinnerSide,
+          winMethod: loadedWinnerSide ? 'Points' : '',
           timeLeft: (currentBout.timer_seconds ?? 180) * 10
         };
         setHistory([initialSnap]);
@@ -379,6 +462,7 @@ export default function ScoreboardControlPage() {
       const saveDraft = async () => {
         try {
           await db.bouts.updateBoutState(boutId!, {
+            status: bout?.status === 'Completed' ? 'Completed' : 'Running',
             score_a: scoreAka,
             score_b: scoreAo,
             senshu_a: senshuAka,
@@ -413,7 +497,11 @@ export default function ScoreboardControlPage() {
   const triggerBuzzer = () => {
     if (!soundEnabled) return;
     try {
-      const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
+      if (!audioCtxRef.current) {
+        audioCtxRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
+      }
+      const audioCtx = audioCtxRef.current;
+      if (audioCtx.state === 'suspended') audioCtx.resume();
       const oscillator = audioCtx.createOscillator();
       const gainNode = audioCtx.createGain();
 
@@ -436,7 +524,11 @@ export default function ScoreboardControlPage() {
   const triggerBeep = () => {
     if (!soundEnabled) return;
     try {
-      const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
+      if (!audioCtxRef.current) {
+        audioCtxRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
+      }
+      const audioCtx = audioCtxRef.current;
+      if (audioCtx.state === 'suspended') audioCtx.resume();
       
       const playBellRing = (startTime: number) => {
         const gainNode = audioCtx.createGain();
@@ -466,7 +558,11 @@ export default function ScoreboardControlPage() {
   const playSuperiorPointsSound = () => {
     if (!soundEnabled) return;
     try {
-      const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
+      if (!audioCtxRef.current) {
+        audioCtxRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
+      }
+      const audioCtx = audioCtxRef.current;
+      if (audioCtx.state === 'suspended') audioCtx.resume();
       
       const playTone = (freq: number, start: number, duration: number) => {
         const osc = audioCtx.createOscillator();
@@ -493,7 +589,11 @@ export default function ScoreboardControlPage() {
   const playHansokuAlarm = () => {
     if (!soundEnabled) return;
     try {
-      const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
+      if (!audioCtxRef.current) {
+        audioCtxRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
+      }
+      const audioCtx = audioCtxRef.current;
+      if (audioCtx.state === 'suspended') audioCtx.resume();
       
       const playAlarmTone = (start: number) => {
         const osc = audioCtx.createOscillator();
@@ -525,10 +625,18 @@ export default function ScoreboardControlPage() {
       return { side: 'ao', method: 'Points' };
     }
 
-    // Tie score: check superior scoring techniques first (highest scoring technique achieved)
+    // 1. Tie score: First tiebreaker is Senshu (first scorer advantage)
+    if (senshuAka) {
+      return { side: 'aka', method: 'SENSHU' };
+    }
+    if (senshuAo) {
+      return { side: 'ao', method: 'SENSHU' };
+    }
+
+    // 2. Senshu is OFF for both: Second tiebreaker is superior scoring techniques (highest scoring technique achieved)
     const countTech = (arr: number[], tech: number) => arr.filter(x => x === tech).length;
 
-    // 1. Check Ippon (3 points)
+    // 2a. Check Ippon (3 points)
     const ipponAka = countTech(pointsAka, 3);
     const ipponAo = countTech(pointsAo, 3);
     if (ipponAka !== ipponAo) {
@@ -537,7 +645,7 @@ export default function ScoreboardControlPage() {
         : { side: 'ao', method: 'Superior Points' };
     }
 
-    // 2. Check Waza-ari (2 points)
+    // 2b. Check Waza-ari (2 points)
     const wazaAka = countTech(pointsAka, 2);
     const wazaAo = countTech(pointsAo, 2);
     if (wazaAka !== wazaAo) {
@@ -546,21 +654,13 @@ export default function ScoreboardControlPage() {
         : { side: 'ao', method: 'Superior Points' };
     }
 
-    // 3. Check Yuko (1 point)
+    // 2c. Check Yuko (1 point)
     const yukoAka = countTech(pointsAka, 1);
     const yukoAo = countTech(pointsAo, 1);
     if (yukoAka !== yukoAo) {
       return yukoAka > yukoAo
         ? { side: 'aka', method: 'Superior Points' }
         : { side: 'ao', method: 'Superior Points' };
-    }
-
-    // 4. Tie score and identical techniques: check Senshu (first scorer advantage)
-    if (senshuAka) {
-      return { side: 'aka', method: 'SENSHU' };
-    }
-    if (senshuAo) {
-      return { side: 'ao', method: 'SENSHU' };
     }
 
     // Complete tie: default suggestion is Hantei (referee decision)
@@ -619,6 +719,7 @@ export default function ScoreboardControlPage() {
     prevPointsAka = pointsAka,
     prevPointsAo = pointsAo,
     prevStoppageScorers = stoppageScorers,
+    prevStoppageInitialSenshu = stoppageInitialSenshu,
     prevEventsAka = eventsAka,
     prevEventsAo = eventsAo,
     prevWinnerSide = winnerSide,
@@ -639,6 +740,7 @@ export default function ScoreboardControlPage() {
         pointsAka: prevPointsAka,
         pointsAo: prevPointsAo,
         stoppageScorers: prevStoppageScorers,
+        stoppageInitialSenshu: prevStoppageInitialSenshu,
         eventsAka: prevEventsAka,
         eventsAo: prevEventsAo,
         winnerSide: prevWinnerSide,
@@ -650,7 +752,7 @@ export default function ScoreboardControlPage() {
 
   // Undo action: undoes actions all the way back to match start
   const handleUndo = useCallback(() => {
-    if (history.length === 0) return;
+    if (history.length <= 1) return;
     const lastState = history[history.length - 1];
     setScoreAka(lastState.scoreAka);
     setScoreAo(lastState.scoreAo);
@@ -665,6 +767,7 @@ export default function ScoreboardControlPage() {
     setEventsAka(lastState.eventsAka ?? []);
     setEventsAo(lastState.eventsAo ?? []);
     setStoppageScorers(lastState.stoppageScorers ?? []);
+    setStoppageInitialSenshu(lastState.stoppageInitialSenshu ?? null);
     setWinnerSide(lastState.winnerSide ?? null);
     setWinMethod(lastState.winMethod ?? '');
     if (lastState.timeLeft !== undefined) {
@@ -776,12 +879,30 @@ export default function ScoreboardControlPage() {
       if (!timerActive) {
         setStoppageScorers((prev) => {
           const next = prev.includes(side) ? prev : [...prev, side];
+          
+          let initialSenshu = stoppageInitialSenshu;
+          if (prev.length === 0) {
+            initialSenshu = firstScorer;
+            setStoppageInitialSenshu(initialSenshu);
+          }
+
           if (next.includes('aka') && next.includes('ao')) {
-            // Rule 4: Both fighters score in the same stoppage sequence -> Senshu remains OFF
-            setFirstScorer('none');
-          } else if (firstScorer === null || firstScorer === 'none') {
-            // Only one scored in this stoppage sequence and Senshu was OFF -> award Senshu to them
-            setFirstScorer(side);
+            // Simultaneous scoring!
+            if (initialSenshu === null || initialSenshu === 'none') {
+              // No one had Senshu before this stoppage -> neither gets it
+              setFirstScorer('none');
+            } else {
+              // Restore Senshu to original owner (already locked in from previous exchanges)
+              setFirstScorer(initialSenshu);
+            }
+          } else {
+            // Only one scored so far in this stoppage sequence
+            if (initialSenshu === null || initialSenshu === 'none') {
+              // Award Senshu to the first scorer
+              setFirstScorer(side);
+            }
+            // If initialSenshu is already set to 'aka' or 'ao', DO NOTHING.
+            // Senshu is retained by the first owner permanently.
           }
           return next;
         });
@@ -790,12 +911,14 @@ export default function ScoreboardControlPage() {
         if (firstScorer === null || firstScorer === 'none') {
           setFirstScorer(side);
         }
+        // If firstScorer is already set, DO NOTHING. It is locked in.
       }
     } else {
       // Points subtraction (undo/correction)
       if (finalScoreAka === 0 && finalScoreAo === 0) {
         setFirstScorer(null);
         setStoppageScorers([]);
+        setStoppageInitialSenshu(null);
       } else if (finalScoreAka === 0) {
         setFirstScorer('ao');
         setStoppageScorers((prev) => prev.filter(s => s !== 'aka'));
@@ -836,6 +959,31 @@ export default function ScoreboardControlPage() {
       setTimerActive(false);
       playHansokuAlarm();
       const opponentSide = isAka ? 'ao' : 'aka';
+
+      // Auto-clear active scoring data and force 8-0 result to the opponent on Hansoku.
+      setScoreAka(isAka ? 0 : 8);
+      setScoreAo(isAka ? 8 : 0);
+      setPointsAka([]);
+      setPointsAo([]);
+      setEventsAka([]);
+      setEventsAo([]);
+      setSenshuAka(false);
+      setSenshuAo(false);
+      setFirstScorer(null);
+      setStoppageScorers([]);
+      setStoppageInitialSenshu(null);
+      setHasTimerRun(false);
+      setTimeLeft(matchDuration * 10);
+
+      // Keep disqualification marker visible on the losing side.
+      if (isAka) {
+        setC1Aka(5);
+        setC1Ao(0);
+      } else {
+        setC1Ao(5);
+        setC1Aka(0);
+      }
+
       setWinnerSide(opponentSide);
       setWinMethod('HANSOKU');
     } else if ((isAka && c1Aka >= 5) || (!isAka && c1Ao >= 5)) {
@@ -892,6 +1040,7 @@ export default function ScoreboardControlPage() {
     if (timerActive) {
       setHasTimerRun(true);
       setStoppageScorers([]);
+      setStoppageInitialSenshu(null);
     }
   }, [timerActive]);
 
@@ -966,6 +1115,43 @@ export default function ScoreboardControlPage() {
     return `.${tenths % 10}`;
   };
 
+  const akaTechniqueCounts = {
+    ippon: eventsAka.filter((event) => event.points === 3).length,
+    wazaAri: eventsAka.filter((event) => event.points === 2).length,
+    yuko: eventsAka.filter((event) => event.points === 1).length
+  };
+
+  const aoTechniqueCounts = {
+    ippon: eventsAo.filter((event) => event.points === 3).length,
+    wazaAri: eventsAo.filter((event) => event.points === 2).length,
+    yuko: eventsAo.filter((event) => event.points === 1).length
+  };
+
+  const akaTwoDigitScore = scoreAka >= 10;
+  const aoTwoDigitScore = scoreAo >= 10;
+
+  const akaScoreShiftClass = '';
+  const aoScoreShiftClass = '';
+
+  const akaScoreSizeClass = 'text-[clamp(52px,9vh,190px)] lg:text-[clamp(120px,16vh,210px)]';
+  const aoScoreSizeClass = 'text-[clamp(52px,9vh,190px)] lg:text-[clamp(120px,16vh,210px)]';
+
+  const akaSummaryBoxClass = akaTwoDigitScore ? 'h-full px-0.5 py-1' : 'h-full px-1 py-1';
+  const aoSummaryBoxClass = aoTwoDigitScore ? 'h-full px-0.5 py-1' : 'h-full px-1 py-1';
+
+  const akaSummaryGridClass = akaTwoDigitScore ? 'gap-x-0 text-[8px] lg:text-[10px]' : 'gap-x-0 text-[9px] lg:text-[11px]';
+  const aoSummaryGridClass = aoTwoDigitScore ? 'gap-x-0 text-[8px] lg:text-[10px]' : 'gap-x-0 text-[9px] lg:text-[11px]';
+
+  const akaSummaryValueClass = akaTwoDigitScore ? 'px-0 min-w-3.5' : 'px-0.5 min-w-4';
+  const aoSummaryValueClass = aoTwoDigitScore ? 'px-0 min-w-3.5' : 'px-0.5 min-w-4';
+
+  const akaSummarySlotClass = akaTwoDigitScore
+    ? 'w-[74px] lg:w-[82px] h-[44px] lg:h-[54px]'
+    : 'w-[84px] lg:w-[92px] h-[50px] lg:h-[60px]';
+  const aoSummarySlotClass = aoTwoDigitScore
+    ? 'w-[74px] lg:w-[82px] h-[46px] lg:h-[56px]'
+    : 'w-[84px] lg:w-[92px] h-[52px] lg:h-[62px]';
+
   // Finish Match saving result
   const handleSaveResult = async () => {
     if (!boutId || !bout) return;
@@ -1004,9 +1190,14 @@ export default function ScoreboardControlPage() {
         victory_method: winMethod
       });
 
+      // Broadcast full state to display screen hub so bracket updates instantly
+      if (typeof window !== 'undefined' && (window as any)._broadcastFullState) {
+        (window as any)._broadcastFullState();
+      }
+
       setShowFinishModal(false);
       // Auto-navigate back to Match Console Hub (Kumite) to easily start the next match
-      router.push(`/dashboard/scoreboard?boutId=${boutId}`);
+      router.push(`/dashboard/scoreboard`);
     } catch (err) {
       console.error('Error saving bout result:', err);
       alert('Failed to save result. Please try again.');
@@ -1059,16 +1250,58 @@ export default function ScoreboardControlPage() {
     }
   };
 
+  const handleClearAllResult = async () => {
+    if (!boutId) return;
+
+    const confirmClear = window.confirm(
+      'Clear all current match results? This will reset scores, penalties, winner, and timer state for this bout.'
+    );
+    if (!confirmClear) return;
+
+    try {
+      setSaving(true);
+
+      const resetBout = await db.bouts.resetBoutResult(boutId, matchDuration);
+      if (resetBout) {
+        setBout(resetBout);
+      }
+
+      setScoreAka(0);
+      setScoreAo(0);
+      setC1Aka(0);
+      setC1Ao(0);
+      setSenshuAka(false);
+      setSenshuAo(false);
+      setFirstScorer(null);
+      setPointsAka([]);
+      setPointsAo([]);
+      setEventsAka([]);
+      setEventsAo([]);
+      setWinnerSide(null);
+      setWinMethod('');
+      setTimeLeft(matchDuration * 10);
+      setTimerActive(false);
+      setStoppageScorers([]);
+      setStoppageInitialSenshu(null);
+      setHasTimerRun(false);
+      setShowFinishModal(false);
+      setHistory([]);
+
+      alert('All match results cleared. Scoreboard is reset.');
+    } catch (err) {
+      console.error('Error clearing match results:', err);
+      alert('Failed to clear match results. Please try again.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const handleSpectatorIndicatorClick = () => {
-    openSpectatorWindow('default');
+    setIsSpectatorModalOpen(true);
   };
 
   const handleSpectatorButtonClick = () => {
-    if (spectatorConnected) {
-      setIsSpectatorModalOpen(true);
-    } else {
-      openSpectatorWindow('default');
-    }
+    setIsSpectatorModalOpen(true);
   };
 
   if (!mounted || loading) {
@@ -1093,11 +1326,11 @@ export default function ScoreboardControlPage() {
   }
 
   return (
-    <div className="min-h-full lg:h-full w-full overflow-y-auto lg:overflow-hidden bg-[#0b0b10] text-white flex flex-col">
+    <div className="min-h-[100dvh] w-full overflow-y-auto bg-[#0b0b10] text-white flex flex-col">
       {/* Header */}
       <header className="bg-[#0b0b10] border-b border-white/5 px-4 py-1.5 flex items-center justify-between shrink-0">
         <div className="flex items-center gap-3">
-          <Link href="/bouts" className="p-1 hover:bg-white/5 rounded-lg transition">
+          <Link href="/dashboard/scoreboard" className="p-1 hover:bg-white/5 rounded-lg transition">
             <ChevronLeft className="h-4 w-4" />
           </Link>
           <div>
@@ -1117,7 +1350,7 @@ export default function ScoreboardControlPage() {
             title={spectatorConnected ? "Focus existing spectator view" : "Launch spectator view"}
           >
             <span className={`w-1.5 h-1.5 rounded-full ${spectatorConnected ? 'bg-emerald-400 animate-pulse' : 'bg-red-500'}`} />
-            <span>{spectatorConnected ? 'Spectator Connected' : 'Spectator Closed'}</span>
+            <span>{spectatorConnected ? 'Referee Screen Connected' : 'Referee Screen Closed'}</span>
           </button>
 
           {/* Spectator View button */}
@@ -1126,7 +1359,7 @@ export default function ScoreboardControlPage() {
             className="flex items-center gap-1 px-2.5 py-1 bg-yellow-500 hover:bg-yellow-400 text-black rounded-lg text-[10px] font-bold transition cursor-pointer"
           >
             <Tv className="h-3 w-3" />
-            <span>Spectator View</span>
+            <span>Referee Screen</span>
           </button>
 
           {/* Display Playlists button */}
@@ -1159,13 +1392,72 @@ export default function ScoreboardControlPage() {
           </button>
           <button
             onClick={handleUndo}
-            disabled={history.length === 0}
+            disabled={history.length <= 1}
             className="flex items-center gap-1 px-2 py-0.5 bg-white/5 hover:bg-white/10 disabled:opacity-30 rounded-lg text-[10px] font-bold transition"
           >
             <Undo className="h-3 w-3" /> Undo
           </button>
         </div>
       </header>
+
+      {/* Spectator View Management Modal */}
+      {isSpectatorModalOpen && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-[100] p-4">
+          <div className="bg-[#0f172a] border border-cyan-500/30 rounded-2xl w-full max-w-md shadow-2xl overflow-hidden relative">
+            <button 
+              onClick={() => setIsSpectatorModalOpen(false)}
+              className="absolute top-4 right-4 p-2 bg-white/5 hover:bg-white/10 rounded-full text-slate-400 hover:text-white transition"
+            >
+              <X className="h-5 w-5" />
+            </button>
+            <div className="p-6">
+              <div className="flex items-center justify-center w-12 h-12 bg-cyan-500/10 rounded-xl mb-4 border border-cyan-500/20 mx-auto">
+                <Tv className="h-6 w-6 text-cyan-400" />
+              </div>
+              <h2 className="text-xl font-black text-center text-white mb-2">Launch Referee Screen</h2>
+              <p className="text-sm text-slate-400 text-center mb-6">
+                Choose how you want to open the live referee screen for this tatami.
+              </p>
+              
+              <div className="space-y-3">
+                <button
+                  onClick={() => {
+                    openSpectatorWindow('new-tab');
+                    setIsSpectatorModalOpen(false);
+                  }}
+                  className="w-full flex items-center justify-between p-4 bg-white/5 hover:bg-cyan-500/10 border border-white/5 hover:border-cyan-500/30 rounded-xl transition cursor-pointer group"
+                >
+                  <div className="flex items-center gap-3 text-left">
+                    <ExternalLink className="h-5 w-5 text-slate-400 group-hover:text-cyan-400" />
+                    <div>
+                      <div className="font-bold text-sm text-white">Open in New Tab</div>
+                      <div className="text-[10px] text-slate-400">Standard browser tab</div>
+                    </div>
+                  </div>
+                  <ArrowRight className="h-4 w-4 text-slate-500 group-hover:text-cyan-400" />
+                </button>
+
+                <button
+                  onClick={() => {
+                    openSpectatorWindow('new-window');
+                    setIsSpectatorModalOpen(false);
+                  }}
+                  className="w-full flex items-center justify-between p-4 bg-cyan-500/10 hover:bg-cyan-500/20 border border-cyan-500/30 hover:border-cyan-500/50 rounded-xl transition cursor-pointer group"
+                >
+                  <div className="flex items-center gap-3 text-left">
+                    <LayoutDashboard className="h-5 w-5 text-cyan-400" />
+                    <div>
+                      <div className="font-bold text-sm text-cyan-100">Open in Clean Window (Recommended)</div>
+                      <div className="text-[10px] text-cyan-400/80">Popup window without browser chrome, best for external screens</div>
+                    </div>
+                  </div>
+                  <ArrowRight className="h-4 w-4 text-cyan-400" />
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Popup Blocked Warning */}
       {popupBlocked && (
@@ -1200,7 +1492,7 @@ export default function ScoreboardControlPage() {
               ? 'bg-red-950/90 text-red-400 border-red-500 shadow-[0_0_30px_rgba(239,68,68,0.5)]'
               : 'bg-blue-950/90 text-blue-400 border-blue-500 shadow-[0_0_30px_rgba(59,130,246,0.5)]'
           }`}>
-            {winMethod === 'HANSOKU' ? '🚨' : '🏆'} WINNER BY {
+            {winMethod === 'HANSOKU' ? '🚨' : <Trophy className="h-4 w-4 mx-1 lg:h-5 lg:w-5 inline-block" />} WINNER BY {
               winMethod === 'Points' ? 'POINTS ADVANTAGE' :
               winMethod === 'SENSHU' ? 'SENSHU ADVANTAGE' :
               winMethod === 'Superior Points' ? 'SUPERIOR POINTS' :
@@ -1208,15 +1500,15 @@ export default function ScoreboardControlPage() {
               winMethod === 'HANSOKU' ? 'HANSOKU DISQUALIFICATION' :
               winMethod === 'Kiken' ? 'KIKEN (WITHDRAWAL)' :
               winMethod || 'POINTS ADVANTAGE'
-            }: {winnerSide === 'aka' ? (competitorAka?.full_name || 'AKA RED') : (competitorAo?.full_name || 'AO BLUE')} {winMethod === 'HANSOKU' ? '🚨' : '🏆'}
+            }: {winnerSide === 'aka' ? (competitorAka?.full_name || 'AKA RED') : (competitorAo?.full_name || 'AO BLUE')} {winMethod === 'HANSOKU' ? '🚨' : <Trophy className="h-4 w-4 mx-1 lg:h-5 lg:w-5 inline-block" />}
           </div>
         )}
 
         {/* ROW 1: Visual Displays & Controls (3-Column Layout: AKA | TIMER | AO) */}
-        <div className="grid grid-cols-2 lg:grid-cols-12 gap-1 lg:gap-2 flex-1 min-h-0">
+        <div className="grid grid-cols-2 xl:grid-cols-12 gap-1 lg:gap-2 flex-1 min-h-0">
           
           {/* AKA Display & Control Panel */}
-          <section className={`col-span-1 lg:col-span-4 order-2 lg:order-1 border rounded-xl p-1.5 lg:p-3 flex flex-col justify-between items-center transition-all duration-500 overflow-hidden flex-1 min-h-0 ${
+          <section className={`col-span-1 xl:col-span-4 order-2 xl:order-1 border rounded-xl p-1.5 lg:p-3 flex flex-col justify-between items-center transition-all duration-500 overflow-hidden flex-1 min-h-0 ${
             winnerSide === 'aka'
               ? 'bg-red-950/80 border-red-500 shadow-[inset_0_0_80px_rgba(239,68,68,0.3),0_0_40px_rgba(239,68,68,0.6)]'
               : 'bg-gradient-to-b from-red-950/20 via-red-950/5 to-transparent border-red-900/30'
@@ -1242,10 +1534,10 @@ export default function ScoreboardControlPage() {
               </div>
             </div>
 
-            {/* Score & Point History */}
-            <div className="flex-1 flex flex-row items-center justify-center min-h-0 py-0.5 w-full relative">
-              <div className="flex-1 flex justify-center">
-                <span className={`font-din text-[clamp(40px,8vh,170px)] lg:text-[clamp(90px,13.5vh,170px)] font-black leading-none tracking-tight select-none transition-all duration-300 ${
+            {/* Score & Technique Summary */}
+            <div className="flex-1 min-h-0 py-0.5 w-full flex items-center gap-2">
+              <div className={`flex-1 min-h-0 flex items-center justify-center ${akaScoreShiftClass}`}>
+                <span className={`font-din ${akaScoreSizeClass} font-black leading-none tracking-tight select-none transition-all duration-300 ${
                   winnerSide === 'aka'
                     ? 'text-red-500 animate-blink drop-shadow-[0_0_50px_rgba(239,68,68,0.95)] scale-105'
                     : scoreAka - scoreAo >= 8
@@ -1256,21 +1548,18 @@ export default function ScoreboardControlPage() {
                 </span>
               </div>
 
-              {showPointHistory && eventsAka.length > 0 && (
-                <div className="absolute right-0 top-1/2 -translate-y-1/2 grid grid-rows-5 grid-flow-col gap-x-0.5 gap-y-0.5 h-auto items-center justify-start max-w-[45%] pr-1">
-                  {eventsAka.map((ev, idx) => (
-                    <div key={idx} className="flex items-center">
-                      <span className={`inline-flex items-center gap-0.5 rounded bg-red-950/80 border border-red-500/30 whitespace-nowrap transition-all ${
-                        eventsAka.length > 15 ? 'px-1 py-[1px] text-[5px] lg:text-[6px]' :
-                        eventsAka.length > 5 ? 'px-1 py-[2px] text-[6px] lg:text-[8px]' :
-                        'px-1.5 py-[2px] text-[7px] lg:text-[9px]'
-                      }`}>
-                        <span className="font-black text-red-400 uppercase tracking-widest">+{ev.points}({ev.technique.substring(0, 1)})</span>
-                      </span>
+              <div className={`${akaSummarySlotClass} shrink-0 self-center mr-1 lg:mr-2`}>
+                  <div className={`w-full rounded-lg border border-red-400/60 bg-red-950/65 shadow-[0_0_12px_rgba(239,68,68,0.25)] ${akaSummaryBoxClass}`}>
+                    <div className={`grid grid-cols-[auto_auto] justify-end gap-y-0.5 font-black uppercase tracking-wide text-red-100 ${akaSummaryGridClass}`}>
+                      <span>Ippon</span>
+                      <span className={`rounded bg-red-500/20 border border-red-400/30 text-right ${akaSummaryValueClass}`}>{akaTechniqueCounts.ippon}</span>
+                      <span>Waza-Ari</span>
+                      <span className={`rounded bg-red-500/20 border border-red-400/30 text-right ${akaSummaryValueClass}`}>{akaTechniqueCounts.wazaAri}</span>
+                      <span>Yuko</span>
+                      <span className={`rounded bg-red-500/20 border border-red-400/30 text-right ${akaSummaryValueClass}`}>{akaTechniqueCounts.yuko}</span>
                     </div>
-                  ))}
-                </div>
-              )}
+                  </div>
+              </div>
             </div>
 
             {/* AKA Controls: Score Buttons + Penalties */}
@@ -1309,7 +1598,7 @@ export default function ScoreboardControlPage() {
                   <button
                     onClick={() => handleToggleSenshu('aka')}
                     disabled={bout.status === 'Completed'}
-                    className={`text-[8px] font-black uppercase px-1.5 py-0.5 rounded border transition cursor-pointer ${senshuAka
+                    className={`text-xs font-black uppercase px-2 py-1 rounded border transition cursor-pointer ${senshuAka
                         ? 'bg-yellow-500 text-black border-yellow-400 shadow-[0_0_8px_rgba(234,179,8,0.4)]'
                         : 'bg-transparent text-white/40 border-white/15'
                       } disabled:opacity-25 disabled:cursor-not-allowed`}
@@ -1341,7 +1630,7 @@ export default function ScoreboardControlPage() {
           </section>
 
           {/* TIMER Display & Control Panel (Middle Column) */}
-          <section className="col-span-2 lg:col-span-4 order-1 lg:order-2 bg-white/[0.02] border border-white/5 rounded-xl p-1.5 lg:p-3 flex flex-col justify-between items-center text-center overflow-hidden flex-1 min-h-0">
+          <section className="col-span-2 xl:col-span-4 order-1 xl:order-2 bg-white/[0.02] border border-white/5 rounded-xl p-1.5 lg:p-3 flex flex-col justify-between items-center text-center overflow-hidden flex-1 min-h-0">
             <span className="text-xs md:text-sm lg:text-xl uppercase font-black text-white/80 tracking-[0.3em] shrink-0 mb-0.5 lg:mb-0">MATCH TIMER</span>
             
             {/* Giant Timer */}
@@ -1435,7 +1724,7 @@ export default function ScoreboardControlPage() {
                 <div className="flex flex-col justify-end">
                   <button
                     onClick={handleUndo}
-                    disabled={history.length === 0}
+                    disabled={history.length <= 1}
                     className="w-full py-0.5 bg-yellow-500/10 hover:bg-yellow-500/20 text-yellow-500 disabled:opacity-30 border border-yellow-500/20 rounded-md font-black text-[9px] uppercase transition cursor-pointer flex items-center justify-center gap-1"
                   >
                     <RotateCcw className="h-2.5 w-2.5" /> Undo Action
@@ -1446,7 +1735,7 @@ export default function ScoreboardControlPage() {
           </section>
 
           {/* AO Display & Control Panel */}
-          <section className={`col-span-1 lg:col-span-4 order-3 lg:order-3 border rounded-xl p-1.5 lg:p-3 flex flex-col justify-between items-center transition-all duration-500 overflow-hidden flex-1 min-h-0 ${
+          <section className={`col-span-1 xl:col-span-4 order-3 xl:order-3 border rounded-xl p-1.5 lg:p-3 flex flex-col justify-between items-center transition-all duration-500 overflow-hidden flex-1 min-h-0 ${
             winnerSide === 'ao'
               ? 'bg-blue-950/80 border-blue-500 shadow-[inset_0_0_80px_rgba(59,130,246,0.3),0_0_40px_rgba(59,130,246,0.6)]'
               : 'bg-gradient-to-b from-blue-950/20 via-blue-950/5 to-transparent border-blue-900/30'
@@ -1464,10 +1753,10 @@ export default function ScoreboardControlPage() {
               </div>
             </div>
 
-            {/* Score & Point History */}
-            <div className="flex-1 flex flex-row items-center justify-center min-h-0 py-0.5 w-full relative">
-              <div className="flex-1 flex justify-center">
-                <span className={`font-din text-[clamp(40px,8vh,170px)] lg:text-[clamp(90px,13.5vh,170px)] font-black leading-none tracking-tight select-none transition-all duration-300 ${
+            {/* Score & Technique Summary */}
+            <div className="flex-1 min-h-0 py-0.5 w-full flex items-center gap-2">
+              <div className={`flex-1 min-h-0 flex items-center justify-center ${aoScoreShiftClass}`}>
+                <span className={`font-din ${aoScoreSizeClass} font-black leading-none tracking-tight select-none transition-all duration-300 ${
                   winnerSide === 'ao'
                     ? 'text-blue-400 animate-blink drop-shadow-[0_0_50px_rgba(59,130,246,0.95)] scale-105'
                     : scoreAo - scoreAka >= 8
@@ -1478,21 +1767,18 @@ export default function ScoreboardControlPage() {
                 </span>
               </div>
 
-              {showPointHistory && eventsAo.length > 0 && (
-                <div className="absolute right-0 top-1/2 -translate-y-1/2 grid grid-rows-5 grid-flow-col gap-x-0.5 gap-y-0.5 h-auto items-center justify-start max-w-[45%] pr-1">
-                  {eventsAo.map((ev, idx) => (
-                    <div key={idx} className="flex items-center">
-                      <span className={`inline-flex items-center gap-0.5 rounded bg-blue-950/80 border border-blue-500/30 whitespace-nowrap transition-all ${
-                        eventsAo.length > 15 ? 'px-1 py-[1px] text-[5px] lg:text-[6px]' :
-                        eventsAo.length > 5 ? 'px-1 py-[2px] text-[6px] lg:text-[8px]' :
-                        'px-1.5 py-[2px] text-[7px] lg:text-[9px]'
-                      }`}>
-                        <span className="font-black text-blue-400 uppercase tracking-widest">+{ev.points}({ev.technique.substring(0, 1)})</span>
-                      </span>
+              <div className={`${aoSummarySlotClass} shrink-0 self-center mr-1 lg:mr-2`}>
+                  <div className={`w-full rounded-lg border border-blue-400/60 bg-blue-950/65 shadow-[0_0_12px_rgba(59,130,246,0.25)] ${aoSummaryBoxClass}`}>
+                    <div className={`grid grid-cols-[auto_auto] justify-end gap-y-0.5 font-black uppercase tracking-wide text-blue-100 ${aoSummaryGridClass}`}>
+                      <span>Ippon</span>
+                      <span className={`rounded bg-blue-500/20 border border-blue-400/30 text-right ${aoSummaryValueClass}`}>{aoTechniqueCounts.ippon}</span>
+                      <span>Waza-Ari</span>
+                      <span className={`rounded bg-blue-500/20 border border-blue-400/30 text-right ${aoSummaryValueClass}`}>{aoTechniqueCounts.wazaAri}</span>
+                      <span>Yuko</span>
+                      <span className={`rounded bg-blue-500/20 border border-blue-400/30 text-right ${aoSummaryValueClass}`}>{aoTechniqueCounts.yuko}</span>
                     </div>
-                  ))}
-                </div>
-              )}
+                  </div>
+              </div>
             </div>
 
             {/* AO Controls: Score Buttons + Penalties */}
@@ -1531,7 +1817,7 @@ export default function ScoreboardControlPage() {
                   <button
                     onClick={() => handleToggleSenshu('ao')}
                     disabled={bout.status === 'Completed'}
-                    className={`text-[8px] font-black uppercase px-1.5 py-0.5 rounded border transition cursor-pointer ${senshuAo
+                    className={`text-xs font-black uppercase px-2 py-1 rounded border transition cursor-pointer ${senshuAo
                         ? 'bg-yellow-500 text-black border-yellow-400 shadow-[0_0_8px_rgba(234,179,8,0.4)]'
                         : 'bg-transparent text-white/40 border-white/15'
                       } disabled:opacity-25 disabled:cursor-not-allowed`}
@@ -1578,6 +1864,14 @@ export default function ScoreboardControlPage() {
         </div>
 
         <div className="flex gap-1.5 items-center ml-auto">
+          <button
+            onClick={handleClearAllResult}
+            disabled={saving}
+            className="flex items-center gap-1 px-2.5 py-1 bg-white/5 hover:bg-white/10 disabled:opacity-40 text-white font-black text-[10px] uppercase tracking-wider rounded-lg transition cursor-pointer active:scale-95 border border-white/15"
+          >
+            <RotateCcw className="h-3 w-3" /> Clear All Result
+          </button>
+
           {(winnerSide || bout.status === 'Completed') && (
             <button
               onClick={handleRematch}
@@ -1713,65 +2007,6 @@ export default function ScoreboardControlPage() {
                     <Check className="h-4 w-4" /> Confirm & Save
                   </>
                 )}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Spectator View Management Modal */}
-      {isSpectatorModalOpen && (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-xs flex items-center justify-center z-50 p-4">
-          <div className="bg-[#121218] border border-white/10 rounded-2xl max-w-sm w-full p-6 space-y-4 shadow-2xl">
-            <div className="text-center space-y-1.5">
-              <div className="w-12 h-12 bg-yellow-500/10 text-yellow-500 rounded-full flex items-center justify-center mx-auto">
-                <Tv className="h-6 w-6" />
-              </div>
-              <h3 className="text-base font-black uppercase tracking-wider text-white">Spectator View Running</h3>
-              <p className="text-xs text-gray-400 font-medium">
-                Spectator View is already running. Choose an option:
-              </p>
-            </div>
-
-            <div className="flex flex-col gap-2 pt-2">
-              <button
-                onClick={() => {
-                  openSpectatorWindow('default');
-                  setIsSpectatorModalOpen(false);
-                }}
-                className="w-full py-3 bg-white/5 hover:bg-white/10 border border-white/10 text-white rounded-xl text-xs font-bold transition text-left px-4 flex items-center justify-between cursor-pointer"
-              >
-                <span>Focus Existing Window</span>
-                <span className="text-[10px] text-gray-500 font-semibold">Reuses active tab</span>
-              </button>
-
-              <button
-                onClick={() => {
-                  openSpectatorWindow('new-tab');
-                  setIsSpectatorModalOpen(false);
-                }}
-                className="w-full py-3 bg-white/5 hover:bg-white/10 border border-white/10 text-white rounded-xl text-xs font-bold transition text-left px-4 flex items-center justify-between cursor-pointer"
-              >
-                <span>Open New Tab</span>
-                <span className="text-[10px] text-gray-500 font-semibold">Creates another tab</span>
-              </button>
-
-              <button
-                onClick={() => {
-                  openSpectatorWindow('new-window');
-                  setIsSpectatorModalOpen(false);
-                }}
-                className="w-full py-3 bg-white/5 hover:bg-white/10 border border-white/10 text-white rounded-xl text-xs font-bold transition text-left px-4 flex items-center justify-between cursor-pointer"
-              >
-                <span>Open New Browser Window</span>
-                <span className="text-[10px] text-gray-500 font-semibold">For dual screens</span>
-              </button>
-
-              <button
-                onClick={() => setIsSpectatorModalOpen(false)}
-                className="w-full py-3 bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 text-red-400 rounded-xl text-xs font-bold transition text-center mt-2 cursor-pointer"
-              >
-                Cancel
               </button>
             </div>
           </div>

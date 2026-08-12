@@ -1,7 +1,7 @@
 import { 
   Country, Club, Coach, Category, Team, Participant, 
   TeamMember, ParticipantCategory, Payment, MedicalRecord, 
-  Document, ActivityLog, AuditLog, Bout, Official, Tournament
+  Document, ActivityLog, AuditLog, Bout, Official, Tournament, DisplayPlaylist
 } from './types';
 
 // Seed data
@@ -43,6 +43,40 @@ const SEED_CATEGORIES: Category[] = [
   { id: 'cat-10', name: 'Junior Male Kumite -55kg (16-17)', gender: 'Male', min_age: 16, max_age: 17, min_weight: 0, max_weight: 55, capacity: 16, status: 'Open', format: 'knockout' },
   { id: 'cat-11', name: 'Junior Male Kumite -61kg (16-17)', gender: 'Male', min_age: 16, max_age: 17, min_weight: 55.01, max_weight: 61, capacity: 16, status: 'Open', format: 'knockout' },
   { id: 'cat-12', name: 'Junior Female Kumite -48kg (16-17)', gender: 'Female', min_age: 16, max_age: 17, min_weight: 0, max_weight: 48, capacity: 16, status: 'Open', format: 'knockout' }
+];
+
+const SEED_DISPLAY_PLAYLISTS: DisplayPlaylist[] = [
+  {
+    id: 'playlist-default-main',
+    name: 'Main Stage Arena Presentation',
+    description: 'Complete rotation of Live Scoreboards, Category Brackets, Medals Leaderboard, and Match Schedule.',
+    tatami: 'ALL',
+    is_active: true,
+    slides: [
+      { id: 's1', type: 'live_scoreboard', title: 'Live Kumite Scoreboard', duration_seconds: 25, tatami_filter: 'ALL' },
+      { id: 's2', type: 'kata_scoreboard', title: 'WKF Kata Scoreboard', duration_seconds: 25, tatami_filter: 'ALL' },
+      { id: 's3', type: 'bracket', title: 'Category Brackets & Draws', duration_seconds: 20 },
+      { id: 's4', type: 'medals', title: 'Club Medal Standings Leaderboard', duration_seconds: 15 },
+      { id: 's5', type: 'schedule', title: 'Upcoming Tatami Match Schedule', duration_seconds: 15 },
+      { id: 's6', type: 'announcement', title: 'Official Championship Announcement', duration_seconds: 12, announcement_text: 'Welcome to KarateTech Open Championship 2026! Respect rules, honor opponents.' }
+    ],
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString()
+  },
+  {
+    id: 'playlist-tatami-1',
+    name: 'Tatami 1 Arena Dedicated Loop',
+    description: 'Focused rotation for Ring 1 featuring live match scoreboard and Tatami 1 schedule.',
+    tatami: 'Tatami 1',
+    is_active: false,
+    slides: [
+      { id: 't1-s1', type: 'live_scoreboard', title: 'Tatami 1 Live Match', duration_seconds: 30, tatami_filter: 'Tatami 1' },
+      { id: 't1-s2', type: 'schedule', title: 'Tatami 1 Upcoming Bouts', duration_seconds: 15, tatami_filter: 'Tatami 1' },
+      { id: 't1-s3', type: 'medals', title: 'Medal Standings', duration_seconds: 15 }
+    ],
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString()
+  }
 ];
 
 const SEED_PARTICIPANTS: Participant[] = [
@@ -466,7 +500,8 @@ const keyMap: Record<string, keyof TournamentDatabase> = {
   'ts_documents': 'documents',
   'ts_activity_logs': 'activity_logs',
   'ts_bouts': 'bouts',
-  'ts_officials': 'officials'
+  'ts_officials': 'officials',
+  'ts_display_playlists': 'display_playlists'
 };
 
 // Fetch a key from active DB, localStorage, or return default seed data
@@ -517,7 +552,8 @@ const SEED_KEYS = [
   'ts_countries', 'ts_clubs', 'ts_coaches', 'ts_categories',
   'ts_teams', 'ts_team_members', 'ts_participant_categories',
   'ts_participants', 'ts_payments', 'ts_medical_records',
-  'ts_documents', 'ts_activity_logs', 'ts_bouts', 'ts_officials'
+  'ts_documents', 'ts_activity_logs', 'ts_bouts', 'ts_officials',
+  'ts_display_playlists'
 ];
 
 function initSeedStore() {
@@ -1818,6 +1854,51 @@ export const mockStore = {
       const list = getStoreData<Tournament>('ts_tournaments', SEED_TOURNAMENTS);
       const filtered = list.filter(t => t.id !== id);
       saveStoreData('ts_tournaments', filtered);
+    }
+  },
+  // 15. Display Playlists
+  displayPlaylists: {
+    list: (): DisplayPlaylist[] => getStoreData('ts_display_playlists', SEED_DISPLAY_PLAYLISTS),
+    replaceAll: (playlists: DisplayPlaylist[]): DisplayPlaylist[] => {
+      saveStoreData('ts_display_playlists', playlists);
+      return playlists;
+    },
+    add: (playlist: Omit<DisplayPlaylist, 'id'>): DisplayPlaylist => {
+      const list = getStoreData('ts_display_playlists', SEED_DISPLAY_PLAYLISTS);
+      const newPlaylist: DisplayPlaylist = {
+        ...playlist,
+        id: `playlist-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      };
+      list.unshift(newPlaylist);
+      saveStoreData('ts_display_playlists', list);
+      return newPlaylist;
+    },
+    upsert: (playlist: DisplayPlaylist): DisplayPlaylist => {
+      const list = getStoreData('ts_display_playlists', SEED_DISPLAY_PLAYLISTS);
+      const idx = list.findIndex(p => p.id === playlist.id);
+      if (idx === -1) {
+        list.unshift(playlist);
+      } else {
+        list[idx] = playlist;
+      }
+      saveStoreData('ts_display_playlists', list);
+      return playlist;
+    },
+    update: (id: string, updates: Partial<DisplayPlaylist>): DisplayPlaylist => {
+      const list = getStoreData('ts_display_playlists', SEED_DISPLAY_PLAYLISTS);
+      const idx = list.findIndex(p => p.id === id);
+      if (idx === -1) throw new Error('DisplayPlaylist not found');
+      const updated = { ...list[idx], ...updates, updated_at: new Date().toISOString() };
+      list[idx] = updated;
+      saveStoreData('ts_display_playlists', list);
+      return updated;
+    },
+    delete: (id: string): void => {
+      const list = getStoreData('ts_display_playlists', SEED_DISPLAY_PLAYLISTS);
+      const filtered = list.filter(p => p.id !== id);
+      saveStoreData('ts_display_playlists', filtered);
     }
   },
 

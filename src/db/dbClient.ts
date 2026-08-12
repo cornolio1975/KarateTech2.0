@@ -2,8 +2,9 @@ import { createClient } from '@/utils/supabase/client';
 import { mockStore } from './mockStore';
 import { 
   Country, Club, Coach, Category, Team, Participant, 
-  TeamMember, ParticipantCategory, Payment, MedicalRecord, Document, ActivityLog, AuditLog, Bout, Official, Tournament, DisplayPlaylist, DisplayPlaylistSlide
+  TeamMember, ParticipantCategory, Payment, MedicalRecord, Document, ActivityLog, AuditLog, Bout, Official, Tournament, DisplayPlaylist, DisplayPlaylistSlide, TournamentPC, CategoryLock
 } from './types';
+import * as pcActions from '@/app/actions/pcControl';
 
 // Read Supabase credentials
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
@@ -85,6 +86,43 @@ export const dbManager = {
   }
 };
 
+const resolveActiveTournamentDb = async (): Promise<TournamentDatabase | null> => {
+  const activeDb = dbManager.getActiveTournament();
+  if (activeDb?.tournament?.id) {
+    return activeDb;
+  }
+
+  if (typeof window !== 'undefined') {
+    const activeTournamentId = localStorage.getItem('ts_active_tournament_id');
+    if (activeTournamentId) {
+      const loadedDb = await localStore.loadTournament(activeTournamentId);
+      if (loadedDb) {
+        setActiveTournamentDb(loadedDb);
+        return loadedDb;
+      }
+    }
+  }
+
+  return null;
+};
+
+const persistTournamentPlaylists = async (playlists: DisplayPlaylist[]): Promise<void> => {
+  const activeDb = await resolveActiveTournamentDb();
+  if (!activeDb) {
+    mockStore.displayPlaylists.replaceAll(playlists);
+    return;
+  }
+
+  const updatedDb: TournamentDatabase = {
+    ...activeDb,
+    display_playlists: playlists
+  };
+
+  setActiveTournamentDb(updatedDb);
+  mockStore.displayPlaylists.replaceAll(playlists);
+  await localStore.saveTournament(updatedDb);
+};
+
 export const db = {
   isSupabase: (): boolean => !!supabase,
 
@@ -104,9 +142,13 @@ export const db = {
   clubs: {
     list: async (): Promise<Club[]> => {
       if (supabase) {
-        const { data, error } = await supabase.from('clubs').select('*').order('name');
-        if (error) throw error;
-        return data || [];
+        try {
+          const { data, error } = await supabase.from('clubs').select('*').order('name');
+          if (error) throw error;
+          return data || [];
+        } catch (e: unknown) {
+          console.warn('Supabase clubs list error, falling back to mockStore:', describeError(e));
+        }
       }
       return mockStore.clubs.list();
     },
@@ -160,9 +202,13 @@ export const db = {
   categories: {
     list: async (): Promise<Category[]> => {
       if (supabase) {
-        const { data, error } = await supabase.from('categories').select('*').order('name');
-        if (error) throw error;
-        return data || [];
+        try {
+          const { data, error } = await supabase.from('categories').select('*').order('name');
+          if (error) throw error;
+          return data || [];
+        } catch (e: unknown) {
+          console.warn('Supabase categories list error, falling back to mockStore:', describeError(e));
+        }
       }
       return mockStore.categories.list();
     },
@@ -205,7 +251,8 @@ export const db = {
           min_weight: minWeight,
           max_weight: maxWeight,
           capacity: 32,
-          status: 'Open'
+          status: 'Open',
+          format: selected[0].format || 'knockout'
         });
 
         // Reassign mapping
@@ -226,10 +273,23 @@ export const db = {
       }
       return mockStore.categories.merge(catIds, mergedName);
     },
-    split: async (catId: string, split1: Omit<Category, 'id' | 'status'>, split2: Omit<Category, 'id' | 'status'>): Promise<[Category, Category]> => {
+    split: async (catId: string, split1: Partial<Category>, split2: Partial<Category>): Promise<[Category, Category]> => {
       if (supabase) {
-        const cat1 = await db.categories.add({ ...split1, status: 'Open' });
-        const cat2 = await db.categories.add({ ...split2, status: 'Open' });
+        const original = (await db.categories.list()).find(c => c.id === catId);
+        if (!original) throw new Error('Original category not found');
+
+        const { id: _originalId, ...originalWithoutId } = original;
+
+        const cat1 = await db.categories.add({ 
+          ...originalWithoutId, 
+          ...split1, 
+          status: 'Open' 
+        });
+        const cat2 = await db.categories.add({ 
+          ...originalWithoutId, 
+          ...split2, 
+          status: 'Open' 
+        });
 
         // Redistribute participants based on age/weight
         const participants = await db.participants.list();
@@ -258,7 +318,7 @@ export const db = {
         await supabase.from('categories').update({ status: 'Closed' }).eq('id', catId);
         return [cat1, cat2];
       }
-      return mockStore.categories.split(catId, split1, split2);
+      return mockStore.categories.split(catId, split1 as any, split2 as any);
     },
     delete: async (id: string): Promise<void> => {
       if (supabase) {
@@ -383,9 +443,13 @@ export const db = {
   participants: {
     list: async (): Promise<Participant[]> => {
       if (supabase) {
-        const { data, error } = await supabase.from('participants').select('*').is('deleted_at', null).order('created_at', { ascending: false });
-        if (error) throw error;
-        return data || [];
+        try {
+          const { data, error } = await supabase.from('participants').select('*').is('deleted_at', null).order('created_at', { ascending: false });
+          if (error) throw error;
+          return data || [];
+        } catch (e: unknown) {
+          console.warn('Supabase participants list error, falling back to mockStore:', describeError(e));
+        }
       }
       return mockStore.participants.list();
     },
@@ -773,9 +837,13 @@ export const db = {
   bouts: {
     list: async (): Promise<Bout[]> => {
       if (supabase) {
-        const { data, error } = await supabase.from('bouts').select('*');
-        if (error) throw error;
-        return data || [];
+        try {
+          const { data, error } = await supabase.from('bouts').select('*');
+          if (error) throw error;
+          return data || [];
+        } catch (e: unknown) {
+          console.warn('Supabase bouts list error, falling back to mockStore:', describeError(e));
+        }
       }
       return mockStore.bouts.list();
     },
@@ -966,6 +1034,7 @@ export const db = {
             if (updates.score_b !== undefined) coreUpdates.score_b = updates.score_b;
             if (updates.status !== undefined) coreUpdates.status = updates.status;
             if (updates.winner_id !== undefined) coreUpdates.winner_id = updates.winner_id;
+            if (updates.victory_method !== undefined) coreUpdates.victory_method = updates.victory_method;
             
             const { data: coreData, error: coreErr } = await supabase.from('bouts').update(coreUpdates).eq('id', id).select().single();
             if (coreErr) throw coreErr;
@@ -1129,7 +1198,10 @@ export const db = {
     list: async (): Promise<Tournament[]> => {
       if (supabase) {
         try {
-          const { data, error } = await supabase.from('tournaments').select('*');
+          const { data, error } = await supabase
+            .from('tournaments')
+            .select('id, name, organizer, status, date, date_iso, venue, city, featured, deleted_at, settings, registration_close, registration_close_iso, discipline, medals_gold, medals_silver, medals_bronze, total_participants, total_clubs');
+
           if (error) throw error;
           return data || [];
         } catch (e: unknown) {
@@ -1179,82 +1251,146 @@ export const db = {
   // 17. Display Playlists
   displayPlaylists: {
     list: async (): Promise<DisplayPlaylist[]> => {
+      const activeDb = await resolveActiveTournamentDb();
+      if (activeDb) {
+        const playlists = activeDb.display_playlists || [];
+        mockStore.displayPlaylists.replaceAll(playlists);
+        return playlists;
+      }
+
       if (supabase) {
         try {
+          // If we had a tournament scope in supabase, we'd filter here.
+          // For now, we fetch all or just rely on the local active tournament mockStore sync.
           const { data, error } = await supabase.from('display_playlists').select('*').order('created_at', { ascending: false });
-          if (!error && data && data.length > 0) return data;
+          if (!error && data && data.length > 0) {
+            mockStore.displayPlaylists.replaceAll(data);
+            return data;
+          }
         } catch (e: unknown) {
-          console.warn('Supabase display_playlists list error, falling back to LocalStorage:', describeError(e));
+          console.warn('Supabase display_playlists list error, falling back to mockStore:', describeError(e));
         }
       }
-      if (typeof window !== 'undefined') {
-        const stored = localStorage.getItem('ts_display_playlists');
-        if (stored) {
-          try {
-            return JSON.parse(stored);
-          } catch (e) {}
-        }
-        localStorage.setItem('ts_display_playlists', JSON.stringify(DEFAULT_PLAYLISTS));
-      }
-      return DEFAULT_PLAYLISTS;
+      return mockStore.displayPlaylists.list();
     },
     add: async (playlist: Omit<DisplayPlaylist, 'id'>): Promise<DisplayPlaylist> => {
-      const newPlaylist: DisplayPlaylist = {
-        ...playlist,
-        id: `playlist-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
-      };
+      const activeDb = await resolveActiveTournamentDb();
+      if (activeDb) {
+        const newPlaylist: DisplayPlaylist = {
+          ...playlist,
+          id: `playlist-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        };
+        const nextPlaylists = [newPlaylist, ...(activeDb.display_playlists || [])];
+        await persistTournamentPlaylists(nextPlaylists);
+        return newPlaylist;
+      }
+
       if (supabase) {
+        const newPlaylist: DisplayPlaylist = {
+          ...playlist,
+          id: `playlist-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        };
         try {
           const { data, error } = await supabase.from('display_playlists').insert([newPlaylist]).select().single();
-          if (!error && data) return data;
+          if (!error && data) {
+            mockStore.displayPlaylists.upsert(data);
+            return data;
+          }
         } catch (e: unknown) {
-          console.warn('Supabase display_playlists add error, saving to LocalStorage fallback:', describeError(e));
+          console.warn('Supabase display_playlists add error, falling back to mockStore:', describeError(e));
         }
       }
-      if (typeof window !== 'undefined') {
-        const current = await db.displayPlaylists.list();
-        const updated = [newPlaylist, ...current];
-        localStorage.setItem('ts_display_playlists', JSON.stringify(updated));
-      }
-      return newPlaylist;
+      return mockStore.displayPlaylists.add(playlist);
     },
     update: async (id: string, updates: Partial<DisplayPlaylist>): Promise<DisplayPlaylist> => {
-      const updatedPayload = { ...updates, updated_at: new Date().toISOString() };
+      const activeDb = await resolveActiveTournamentDb();
+      if (activeDb) {
+        const currentPlaylists = activeDb.display_playlists || [];
+        const idx = currentPlaylists.findIndex(playlist => playlist.id === id);
+        if (idx === -1) {
+          throw new Error('DisplayPlaylist not found');
+        }
+
+        const updatedPlaylist: DisplayPlaylist = {
+          ...currentPlaylists[idx],
+          ...updates,
+          updated_at: new Date().toISOString()
+        };
+        const nextPlaylists = [...currentPlaylists];
+        nextPlaylists[idx] = updatedPlaylist;
+        await persistTournamentPlaylists(nextPlaylists);
+        return updatedPlaylist;
+      }
+
       if (supabase) {
+        const updatedPayload = { ...updates, updated_at: new Date().toISOString() };
         try {
           const { data, error } = await supabase.from('display_playlists').update(updatedPayload).eq('id', id).select().single();
-          if (!error && data) return data;
+          if (!error && data) {
+            mockStore.displayPlaylists.upsert(data);
+            return data;
+          }
         } catch (e: unknown) {
-          console.warn('Supabase display_playlists update error, saving to LocalStorage fallback:', describeError(e));
+          console.warn('Supabase display_playlists update error, falling back to mockStore:', describeError(e));
         }
       }
-      const list = await db.displayPlaylists.list();
-      const idx = list.findIndex(p => p.id === id);
-      if (idx !== -1) {
-        list[idx] = { ...list[idx], ...updatedPayload };
-        if (typeof window !== 'undefined') {
-          localStorage.setItem('ts_display_playlists', JSON.stringify(list));
-        }
-        return list[idx];
-      }
-      throw new Error(`Playlist ${id} not found`);
+      return mockStore.displayPlaylists.update(id, updates);
     },
     delete: async (id: string): Promise<void> => {
+      const activeDb = await resolveActiveTournamentDb();
+      if (activeDb) {
+        const nextPlaylists = (activeDb.display_playlists || []).filter(playlist => playlist.id !== id);
+        await persistTournamentPlaylists(nextPlaylists);
+        return;
+      }
+
       if (supabase) {
         try {
           const { error } = await supabase.from('display_playlists').delete().eq('id', id);
-          if (!error) return;
+          if (!error) {
+            mockStore.displayPlaylists.delete(id);
+            return;
+          }
         } catch (e: unknown) {
-          console.warn('Supabase display_playlists delete error, falling back to LocalStorage:', describeError(e));
+          console.warn('Supabase display_playlists delete error, falling back to mockStore:', describeError(e));
         }
       }
-      const list = await db.displayPlaylists.list();
-      const filtered = list.filter(p => p.id !== id);
-      if (typeof window !== 'undefined') {
-        localStorage.setItem('ts_display_playlists', JSON.stringify(filtered));
-      }
+      mockStore.displayPlaylists.delete(id);
+    }
+  },
+
+  // 15. PC Control & Category Locks
+  pcControl: {
+    acquireLock: async (tournamentId: string, categoryId: string, pcId: string, tatami?: string, username?: string): Promise<{ success: boolean; lock?: CategoryLock }> => {
+      return await pcActions.acquireLockAction(tournamentId, categoryId, pcId, tatami, username);
+    },
+
+    releaseLock: async (tournamentId: string, categoryId: string, pcId?: string): Promise<void> => {
+      return await pcActions.releaseLockAction(tournamentId, categoryId, pcId);
+    },
+
+    getActiveLocks: async (tournamentId: string): Promise<CategoryLock[]> => {
+      return await pcActions.getActiveLocks(tournamentId);
+    },
+
+    registerPC: async (pcIdentifier: string, pcName: string, tournamentId?: string, tatami?: string, userId?: string, username?: string): Promise<TournamentPC> => {
+      return await pcActions.registerPC(pcIdentifier, pcName, tournamentId, tatami, userId, username);
+    },
+
+    heartbeat: async (pcId: string): Promise<void> => {
+      return await pcActions.heartbeat(pcId);
+    },
+
+    overrideLock: async (tournamentId: string, categoryId: string, operatorUsername: string): Promise<void> => {
+      return await pcActions.overrideLock(tournamentId, categoryId, operatorUsername);
+    },
+    
+    getPcs: async (tournamentId?: string): Promise<TournamentPC[]> => {
+      return await pcActions.getPcs(tournamentId);
     }
   }
 };

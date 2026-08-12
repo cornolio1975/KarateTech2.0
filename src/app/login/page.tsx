@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { useTournament } from '@/context/TournamentContext';
+import { useTournament, INITIAL_ACCOUNT_RULES } from '@/context/TournamentContext';
 import { 
   Users, Eye, Mail, Lock, EyeOff, Shield, ArrowRight, 
   User, KeyRound, Send, ArrowLeft, Globe, ExternalLink, Home 
@@ -161,7 +161,7 @@ export default function LoginPage() {
       if (isSupabaseConfigured && supabase) {
         const { data, error: signInError } = await supabase.auth.signInWithPassword({
           email: email.trim(),
-          password: password,
+          password: password.trim(),
         });
 
         if (signInError) {
@@ -171,18 +171,53 @@ export default function LoginPage() {
         }
 
         // On successful sign in, make sure user is in local usersList
-        const userEmail = data.user?.email || email.trim();
-        let matchedUser = usersList.find(u => u.email.toLowerCase() === userEmail.toLowerCase());
+        const userEmail = (data.user?.email || email).trim().toLowerCase();
+        
+        let authoritativeRole: 'Admin' | 'Co-Admin' | 'Viewer' | null = null;
+        let pcId: string | null = null;
+        let tatami: number | null = null;
+
+        if (userEmail in INITIAL_ACCOUNT_RULES) {
+          const rule = INITIAL_ACCOUNT_RULES[userEmail as keyof typeof INITIAL_ACCOUNT_RULES];
+          authoritativeRole = rule.role;
+          pcId = rule.pcId;
+          tatami = rule.tatami;
+        }
+        
+        let matchedUser = usersList.find(u => u.email.toLowerCase() === userEmail);
+        
+        // Determine actual role
+        const actualRole = authoritativeRole || (matchedUser ? matchedUser.role : 'Viewer');
+
+        if (matchedUser && matchedUser.status === 'Suspended') {
+          setError('Your access has been suspended by the Tournament Director.');
+          await supabase.auth.signOut();
+          setLoading(false);
+          return;
+        }
+
+        // Tab selection validation
+        if (activeRole !== actualRole) {
+           if (authoritativeRole === 'Co-Admin') {
+              setError(`Access denied. This account is registered for Tatami ${tatami}.`);
+           } else if (actualRole === 'Admin') {
+              setError(`Access denied. This account is registered for Director.`);
+           } else {
+              setError(`Access denied. Your account is registered as a ${actualRole}.`);
+           }
+           await supabase.auth.signOut();
+           setLoading(false);
+           return;
+        }
+
         if (!matchedUser) {
           const displayName = data.user?.user_metadata?.name || userEmail.split('@')[0];
-          // Use the role the user selected on the login page (not metadata), so Admin logins work correctly
-          const assignedRole = activeRole;
           const newUser = {
             name: displayName,
             email: userEmail,
-            role: assignedRole,
+            role: actualRole,
             status: 'Active' as const,
-            canModify: assignedRole === 'Admin' || assignedRole === 'Co-Admin',
+            canModify: actualRole === 'Admin' || actualRole === 'Co-Admin',
             accessibility: {
               themeContrast: 'standard' as const,
               textScale: 'standard' as const,
@@ -194,38 +229,71 @@ export default function LoginPage() {
           matchedUser = newUser;
         }
 
-        if (matchedUser.status === 'Suspended') {
-          setError('Your access has been suspended by the Tournament Director.');
-          await supabase.auth.signOut();
-          setLoading(false);
-          return;
+        if (actualRole === 'Admin') {
+          setMessage('Access granted: Tournament Director.');
+        } else if (actualRole === 'Co-Admin') {
+          setMessage(`Access granted: Tatami ${tatami}.`);
         }
 
-        login(matchedUser.role, matchedUser.email);
-        window.location.href = `${basePath}/admin`;
+        login(actualRole, matchedUser.email, pcId, tatami);
+        
+        // Short delay to show success message before redirect
+        setTimeout(() => {
+          window.location.href = `${basePath}/admin`;
+        }, 800);
+        return;
       } else {
         // Mock Sign In
-        const userObj = usersList.find(u => u.email.toLowerCase() === email.trim().toLowerCase());
-        if (!userObj) {
+        const userEmail = email.trim().toLowerCase();
+        let authoritativeRole: 'Admin' | 'Co-Admin' | 'Viewer' | null = null;
+        let pcId: string | null = null;
+        let tatami: number | null = null;
+
+        if (userEmail in INITIAL_ACCOUNT_RULES) {
+          const rule = INITIAL_ACCOUNT_RULES[userEmail as keyof typeof INITIAL_ACCOUNT_RULES];
+          authoritativeRole = rule.role;
+          pcId = rule.pcId;
+          tatami = rule.tatami;
+        }
+
+        const userObj = usersList.find(u => u.email.toLowerCase() === userEmail);
+        const actualRole = authoritativeRole || (userObj ? userObj.role : 'Viewer');
+
+        if (!userObj && !authoritativeRole) {
           setError(`No account found for ${email}. Please contact the administrator.`);
           setLoading(false);
           return;
         }
 
-        if (userObj.status === 'Suspended') {
+        if (userObj && userObj.status === 'Suspended') {
           setError('Your access has been suspended by the Tournament Director.');
           setLoading(false);
           return;
         }
 
-        if (userObj.role !== activeRole) {
-          setError(`Access denied. Your account is registered as a ${userObj.role}, not ${activeRole}.`);
-          setLoading(false);
-          return;
+        if (actualRole !== activeRole) {
+           if (authoritativeRole === 'Co-Admin') {
+              setError(`Access denied. This account is registered for Tatami ${tatami}.`);
+           } else if (actualRole === 'Admin') {
+              setError(`Access denied. This account is registered for Director.`);
+           } else {
+              setError(`Access denied. Your account is registered as a ${actualRole}.`);
+           }
+           setLoading(false);
+           return;
         }
 
-        login(activeRole, userObj.email);
-        window.location.href = `${basePath}/admin`;
+        if (actualRole === 'Admin') {
+          setMessage('Access granted: Tournament Director.');
+        } else if (actualRole === 'Co-Admin') {
+          setMessage(`Access granted: Tatami ${tatami}.`);
+        }
+
+        login(actualRole, userEmail, pcId, tatami);
+        setTimeout(() => {
+          window.location.href = `${basePath}/admin`;
+        }, 800);
+        return;
       }
     } catch (err: any) {
       setError(err?.message || 'An unexpected error occurred.');

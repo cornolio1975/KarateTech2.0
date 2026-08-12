@@ -44,6 +44,7 @@ export default function DrawsPage() {
   // Emergency Override Protocol state
   const [unlockedCategories, setUnlockedCategories] = useState<string[]>([]);
   const [isUnlockModalOpen, setIsUnlockModalOpen] = useState(false);
+  const [unlockUsername, setUnlockUsername] = useState('');
   const [unlockPassword, setUnlockPassword] = useState('');
   const [unlockError, setUnlockError] = useState('');
   const [pendingAction, setPendingAction] = useState<'clear' | 'regenerate' | null>(null);
@@ -73,6 +74,29 @@ export default function DrawsPage() {
         db.bouts.list(),
         db.participantCategories.list()
       ]);
+      catList.sort((a, b) => {
+        // Priority 1: Lower age to higher
+        if (a.min_age !== b.min_age) {
+          return a.min_age - b.min_age;
+        }
+        
+        // Priority 2: Kata to Kumite
+        const aIsKata = isKataCategory(a);
+        const bIsKata = isKataCategory(b);
+        if (aIsKata !== bIsKata) {
+          return aIsKata ? -1 : 1;
+        }
+        
+        // Priority 3: Male to Female
+        const genderOrder = { 'Male': 1, 'Female': 2, 'Mixed': 3 };
+        const aGenderOrder = genderOrder[a.gender] || 4;
+        const bGenderOrder = genderOrder[b.gender] || 4;
+        if (aGenderOrder !== bGenderOrder) {
+          return aGenderOrder - bGenderOrder;
+        }
+        
+        return a.name.localeCompare(b.name);
+      });
       setCategories(catList);
       setParticipants(pList);
       setClubs(clList);
@@ -313,9 +337,10 @@ export default function DrawsPage() {
   };
 
   const handleVerifyUnlockPassword = () => {
+    const usr = unlockUsername.trim();
     const pwd = unlockPassword.trim();
-    if (!pwd) {
-      setUnlockError('Please enter Admin Password.');
+    if (usr !== 'admin' || pwd !== 'password') {
+      setUnlockError('Invalid Admin Username or Password.');
       return;
     }
 
@@ -323,6 +348,7 @@ export default function DrawsPage() {
       setUnlockedCategories(prev => Array.from(new Set([...prev, selectedCatId])));
     }
     setIsUnlockModalOpen(false);
+    setUnlockUsername('');
     setUnlockPassword('');
     setUnlockError('');
 
@@ -537,7 +563,14 @@ export default function DrawsPage() {
             <label className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider block mb-1">Quick Select Category</label>
             <select 
               value={selectedCatId || ''}
-              onChange={e => setSelectedCatId(e.target.value)}
+              onChange={e => {
+                setSelectedCatId(e.target.value);
+                if (window.innerWidth < 1024) {
+                  setTimeout(() => {
+                    document.getElementById('draw-right-panel')?.scrollIntoView({ behavior: 'smooth' });
+                  }, 50);
+                }
+              }}
               className="w-full px-2.5 py-1.5 bg-secondary border border-border rounded-lg text-xs font-semibold text-foreground focus:outline-none focus:border-primary"
             >
               {displayCategories.map(c => (
@@ -614,7 +647,7 @@ export default function DrawsPage() {
 
       {/* ======================================================== */}
       {/* RIGHT COLUMN: DRAW CONFIG & MATCH MATCHUPS PANEL         */}
-      <div className="flex-1 min-w-0 bg-background p-4 lg:p-6 space-y-4 flex flex-col h-auto lg:h-full lg:overflow-hidden">
+      <div id="draw-right-panel" className="flex-1 min-w-0 bg-background p-4 lg:p-6 space-y-4 flex flex-col h-auto lg:h-full lg:overflow-hidden">
         
         {/* Title Header */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 shrink-0 border-b border-border pb-4">
@@ -734,7 +767,7 @@ export default function DrawsPage() {
               <div className="flex items-center gap-2 flex-wrap">
                 {selectedCatId && isCategoryLocked(selectedCatId) ? (
                   <button
-                    onClick={() => { setPendingAction(null); setIsUnlockModalOpen(true); setUnlockPassword(''); setUnlockError(''); }}
+                    onClick={() => { setPendingAction(null); setIsUnlockModalOpen(true); setUnlockUsername(''); setUnlockPassword(''); setUnlockError(''); }}
                     className="px-3.5 py-2 bg-amber-500/10 border border-amber-500/30 text-amber-500 hover:bg-amber-500/20 rounded-lg text-xs font-bold transition shadow-xs cursor-pointer flex items-center gap-1.5"
                     title="Bracket is locked because matches have begun. Click to enter Admin Password & Unlock."
                   >
@@ -923,19 +956,35 @@ export default function DrawsPage() {
                 Matches in this division have already commenced. Unlocking this bracket will allow force reset, match re-seeding, or structural changes.
               </p>
 
-              <div className="space-y-1.5">
-                <label className="text-xs font-bold text-foreground">Admin Security Password / PIN</label>
-                <div className="relative">
-                  <Lock className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
-                  <input
-                    type="password"
-                    placeholder="Enter Admin Password (e.g. 1234 or admin123)"
-                    value={unlockPassword}
-                    onChange={(e) => { setUnlockPassword(e.target.value); setUnlockError(''); }}
-                    className="w-full pl-9 pr-3 py-2 bg-secondary border border-border rounded-lg text-xs font-semibold text-foreground focus:outline-none focus:ring-2 focus:ring-red-500/50"
-                    autoFocus
-                  />
+              <div className="space-y-3">
+                <div className="space-y-1.5">
+                  <label className="text-xs font-bold text-foreground">Admin Username</label>
+                  <div className="relative">
+                    <input
+                      type="text"
+                      placeholder="Enter Admin Username"
+                      value={unlockUsername}
+                      onChange={(e) => { setUnlockUsername(e.target.value); setUnlockError(''); }}
+                      className="w-full px-3 py-2 bg-secondary border border-border rounded-lg text-xs font-semibold text-foreground focus:outline-none focus:ring-2 focus:ring-red-500/50"
+                      autoFocus
+                    />
+                  </div>
                 </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-xs font-bold text-foreground">Admin Security Password / PIN</label>
+                  <div className="relative">
+                    <Lock className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+                    <input
+                      type="password"
+                      placeholder="Enter Admin Password"
+                      value={unlockPassword}
+                      onChange={(e) => { setUnlockPassword(e.target.value); setUnlockError(''); }}
+                      className="w-full pl-9 pr-3 py-2 bg-secondary border border-border rounded-lg text-xs font-semibold text-foreground focus:outline-none focus:ring-2 focus:ring-red-500/50"
+                    />
+                  </div>
+                </div>
+
                 {unlockError && (
                   <p className="text-[11px] font-bold text-red-500 flex items-center gap-1 mt-1">
                     <AlertTriangle className="h-3.5 w-3.5" />
@@ -948,7 +997,7 @@ export default function DrawsPage() {
             <div className="p-4 border-t border-border bg-secondary/15 flex items-center justify-end gap-2.5">
               <button
                 type="button"
-                onClick={() => { setIsUnlockModalOpen(false); setUnlockPassword(''); setUnlockError(''); setPendingAction(null); }}
+                onClick={() => { setIsUnlockModalOpen(false); setUnlockUsername(''); setUnlockPassword(''); setUnlockError(''); setPendingAction(null); }}
                 className="px-4 py-2 border border-border bg-card hover:bg-secondary rounded-lg text-xs font-bold text-muted-foreground hover:text-foreground cursor-pointer"
               >
                 Cancel

@@ -287,6 +287,19 @@ export default function ParticipantsPage() {
     if (disciplineFilter === 'KUMITE') return isKumiteCategory(c);
     if (disciplineFilter === 'KATA') return isKataCategory(c);
     return true;
+  }).sort((a, b) => {
+    if (a.gender !== b.gender) {
+      const order = { 'Male': 1, 'Female': 2, 'Mixed': 3 };
+      const gA = order[a.gender as keyof typeof order] || 99;
+      const gB = order[b.gender as keyof typeof order] || 99;
+      if (gA !== gB) return gA - gB;
+      return a.gender.localeCompare(b.gender);
+    }
+    if (a.min_age !== b.min_age) return a.min_age - b.min_age;
+    if (a.max_age !== b.max_age) return a.max_age - b.max_age;
+    if (a.min_weight !== b.min_weight) return a.min_weight - b.min_weight;
+    if (a.max_weight !== b.max_weight) return a.max_weight - b.max_weight;
+    return a.name.localeCompare(b.name);
   });
 
   return (

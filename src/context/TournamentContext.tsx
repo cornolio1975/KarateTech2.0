@@ -1,7 +1,8 @@
 'use client';
 
-import React, { createContext, useContext, useState, useEffect } from 'react';
-import { supabase, basePath } from '@/db/dbClient';
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import { supabase, basePath, db } from '@/db/dbClient';
+import { CategoryLock } from '@/db/types';
 
 export interface FilterState {
   gender: string[];
@@ -12,6 +13,29 @@ export interface FilterState {
   coach_id: string[];
   nationality_code: string[];
 }
+
+export const INITIAL_ACCOUNT_RULES = {
+  'admin@spsportdatasolution.org': {
+    role: 'Admin',
+    pcId: 'admin',
+    tatami: null,
+  },
+  'tatami_1@spsportdatasolution.org': {
+    role: 'Co-Admin',
+    pcId: 'tatami_1',
+    tatami: 1,
+  },
+  'tatami_2@spsportdatasolution.org': {
+    role: 'Co-Admin',
+    pcId: 'tatami_2',
+    tatami: 2,
+  },
+} as const;
+
+export type PCIdentity = {
+  pcId: string;
+  tatamiId: number | null;
+};
 
 interface TournamentContextType {
   searchQuery: string;
@@ -35,9 +59,11 @@ interface TournamentContextType {
   setLiveStreamUrl: (url: string) => void;
   userRole: 'Admin' | 'Co-Admin' | 'Viewer' | null;
   isLoggedIn: boolean;
-  login: (role: 'Admin' | 'Co-Admin' | 'Viewer', email?: string) => void;
+  login: (role: 'Admin' | 'Co-Admin' | 'Viewer', email?: string, pcId?: string | null, tatamiId?: number | null) => void;
   logout: () => void;
   userEmail: string;
+  pcId: string | null;
+  tatamiId: number | null;
   logoUrl: string;
   setLogoUrl: (url: string) => void;
   usersList: SystemUser[];
@@ -47,6 +73,11 @@ interface TournamentContextType {
   globalAccessibility: AccessibilitySettings;
   setGlobalAccessibility: (settings: AccessibilitySettings) => void;
   canModify: boolean;
+  activeLocks: CategoryLock[];
+  refreshLocks: () => Promise<void>;
+  activeTournamentId: string | null;
+  acquireLock: (categoryId: string) => Promise<{ success: boolean }>;
+  releaseLock: (categoryId: string) => Promise<void>;
 }
 
 export interface AccessibilitySettings {
@@ -142,11 +173,43 @@ export function TournamentProvider({ children }: { children: React.ReactNode }) 
   const [userRole, setUserRole] = useState<'Admin' | 'Co-Admin' | 'Viewer' | null>(null);
   const [userEmail, setUserEmail] = useState<string>('');
   const [isLoggedIn, setIsLoggedIn] = useState<boolean>(false);
+  const [pcId, setPcId] = useState<string | null>(null);
+  const [tatamiId, setTatamiId] = useState<number | null>(null);
 
   // User & Accessibility states
   const [usersList, setUsersListState] = useState<SystemUser[]>([]);
   const [globalAccessibility, setGlobalAccessibilityState] = useState<AccessibilitySettings>(defaultAccessibility);
   const [canModify, setCanModify] = useState<boolean>(false);
+  
+  // PC Control & Locks
+  const [activeLocks, setActiveLocks] = useState<CategoryLock[]>([]);
+  const [activeTournamentId, setActiveTournamentId] = useState<string | null>(null);
+
+  const refreshLocks = useCallback(async () => {
+    if (activeTournamentId) {
+      const locks = await db.pcControl.getActiveLocks(activeTournamentId);
+      setActiveLocks(locks);
+    }
+  }, [activeTournamentId]);
+
+  const acquireLock = useCallback(async (categoryId: string): Promise<{ success: boolean }> => {
+    if (!supabase || !pcId || !activeTournamentId) return { success: false };
+    const result = await db.pcControl.acquireLock(
+      activeTournamentId,
+      categoryId,
+      pcId,
+      tatamiId?.toString(),
+      userEmail
+    );
+    if (result.success) await refreshLocks();
+    return result;
+  }, [pcId, activeTournamentId, tatamiId, userEmail, refreshLocks]);
+
+  const releaseLock = useCallback(async (categoryId: string): Promise<void> => {
+    if (!supabase || !pcId || !activeTournamentId) return;
+    await db.pcControl.releaseLock(activeTournamentId, categoryId, pcId);
+    await refreshLocks();
+  }, [pcId, activeTournamentId, refreshLocks]);
 
   // Dynamic canModify calculation
   useEffect(() => {
@@ -197,9 +260,14 @@ export function TournamentProvider({ children }: { children: React.ReactNode }) 
 
       const storedRole = localStorage.getItem('ts_user_role') as 'Admin' | 'Co-Admin' | 'Viewer' | null;
       const storedEmail = localStorage.getItem('ts_user_email') || '';
+      const storedPcId = localStorage.getItem('ts_pc_id');
+      const storedTatamiId = localStorage.getItem('ts_tatami_id');
+      
       if (storedRole) {
         setUserRole(storedRole);
         setUserEmail(storedEmail);
+        setPcId(storedPcId);
+        setTatamiId(storedTatamiId ? parseInt(storedTatamiId, 10) : null);
         setIsLoggedIn(true);
       }
 
@@ -242,6 +310,7 @@ export function TournamentProvider({ children }: { children: React.ReactNode }) 
             if (!error && data && data.length > 0) {
               const featured = data.find((t: any) => t.featured && !t.deleted_at) || data.find((t: any) => !t.deleted_at);
               if (featured) {
+                setActiveTournamentId(featured.id);
                 setTournamentNameState(featured.name);
                 localStorage.setItem('ts_tournament_name', featured.name);
                 
@@ -291,26 +360,46 @@ export function TournamentProvider({ children }: { children: React.ReactNode }) 
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (event === 'SIGNED_IN' && session?.user) {
-        const email = session.user.email;
+        const email = session.user.email?.toLowerCase().trim();
         if (email) {
           const storedEmail = localStorage.getItem('ts_user_email');
-          if (storedEmail?.toLowerCase() !== email.toLowerCase()) {
-            const storedUsers = localStorage.getItem('ts_users_list');
+          if (storedEmail?.toLowerCase() !== email) {
             let role: 'Admin' | 'Co-Admin' | 'Viewer' = 'Viewer';
-            if (storedUsers) {
-              try {
-                const list = JSON.parse(storedUsers);
-                const matched = list.find((u: any) => u.email.toLowerCase() === email.toLowerCase());
-                if (matched) {
-                  role = matched.role;
-                }
-              } catch(e){}
+            let newPcId: string | null = null;
+            let newTatamiId: number | null = null;
+            
+            // 1. Authoritative Identity Check
+            if (email in INITIAL_ACCOUNT_RULES) {
+              const rule = INITIAL_ACCOUNT_RULES[email as keyof typeof INITIAL_ACCOUNT_RULES];
+              role = rule.role;
+              newPcId = rule.pcId;
+              newTatamiId = rule.tatami;
+            } else {
+              // 2. Fallback to system_users / local storage
+              const storedUsers = localStorage.getItem('ts_users_list');
+              if (storedUsers) {
+                try {
+                  const list = JSON.parse(storedUsers);
+                  const matched = list.find((u: any) => u.email.toLowerCase() === email);
+                  if (matched) {
+                    role = matched.role;
+                  }
+                } catch(e){}
+              }
             }
+
             setUserRole(role);
             setUserEmail(email);
+            setPcId(newPcId);
+            setTatamiId(newTatamiId);
             setIsLoggedIn(true);
+            
             localStorage.setItem('ts_user_role', role);
             localStorage.setItem('ts_user_email', email);
+            if (newPcId) localStorage.setItem('ts_pc_id', newPcId);
+            else localStorage.removeItem('ts_pc_id');
+            if (newTatamiId !== null) localStorage.setItem('ts_tatami_id', newTatamiId.toString());
+            else localStorage.removeItem('ts_tatami_id');
           }
         }
       } else if (event === 'SIGNED_OUT') {
@@ -318,9 +407,13 @@ export function TournamentProvider({ children }: { children: React.ReactNode }) 
         if (storedRole) {
           setUserRole(null);
           setUserEmail('');
+          setPcId(null);
+          setTatamiId(null);
           setIsLoggedIn(false);
           localStorage.removeItem('ts_user_role');
           localStorage.removeItem('ts_user_email');
+          localStorage.removeItem('ts_pc_id');
+          localStorage.removeItem('ts_tatami_id');
         }
       }
     });
@@ -329,6 +422,58 @@ export function TournamentProvider({ children }: { children: React.ReactNode }) 
       subscription.unsubscribe();
     };
   }, []);
+
+  // Subscribe to category_locks realtime updates
+  useEffect(() => {
+    if (!supabase) return;
+    
+    refreshLocks();
+
+    const locksChannel = supabase.channel('public:category_locks')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'category_locks' }, () => {
+        refreshLocks();
+      })
+      .subscribe();
+
+    return () => {
+      if (supabase) {
+        supabase.removeChannel(locksChannel);
+      }
+    };
+  }, []);
+
+  // Heartbeat for logged-in Tatami PCs
+  useEffect(() => {
+    if (!isLoggedIn || !pcId) return;
+
+    // Register PC and send initial heartbeat
+    const registerAndHeartbeat = async () => {
+      if (supabase) {
+        try {
+          await db.pcControl.registerPC(pcId, `Tatami ${tatamiId || 'Admin'}`, activeTournamentId || undefined, tatamiId?.toString(), undefined, userEmail);
+        } catch (e: any) {
+          console.error('Failed to register PC:', {
+            message: e?.message,
+            details: e?.details,
+            hint: e?.hint,
+            code: e?.code,
+            error: e,
+          });
+        }
+      }
+    };
+
+    registerAndHeartbeat();
+
+    // Send heartbeat every 15 seconds
+    const interval = setInterval(() => {
+      if (supabase) {
+        db.pcControl.heartbeat(pcId).catch(console.error);
+      }
+    }, 15000);
+
+    return () => clearInterval(interval);
+  }, [isLoggedIn, pcId, tatamiId, userEmail, activeTournamentId]);
 
   // Dynamically apply accessibility classes
   useEffect(() => {
@@ -401,24 +546,34 @@ export function TournamentProvider({ children }: { children: React.ReactNode }) 
     }
   };
 
-  const login = (role: 'Admin' | 'Co-Admin' | 'Viewer', email?: string) => {
+  const login = (role: 'Admin' | 'Co-Admin' | 'Viewer', email?: string, newPcId?: string | null, newTatamiId?: number | null) => {
     setUserRole(role);
-    const emailStr = email || (role === 'Admin' ? 'admin@senshikarate.com' : role === 'Co-Admin' ? 'coadmin@senshikarate.com' : 'spectator@senshikarate.com');
+    const emailStr = email || (role === 'Admin' ? 'admin@spsportdatasolution.org' : role === 'Co-Admin' ? 'tatami_1@spsportdatasolution.org' : 'spectator@senshikarate.com');
     setUserEmail(emailStr);
+    setPcId(newPcId || null);
+    setTatamiId(newTatamiId === undefined ? null : newTatamiId);
     setIsLoggedIn(true);
     if (typeof window !== 'undefined') {
       localStorage.setItem('ts_user_role', role);
       localStorage.setItem('ts_user_email', emailStr);
+      if (newPcId) localStorage.setItem('ts_pc_id', newPcId);
+      else localStorage.removeItem('ts_pc_id');
+      if (newTatamiId !== undefined && newTatamiId !== null) localStorage.setItem('ts_tatami_id', newTatamiId.toString());
+      else localStorage.removeItem('ts_tatami_id');
     }
   };
 
   const logout = () => {
     setUserRole(null);
     setUserEmail('');
+    setPcId(null);
+    setTatamiId(null);
     setIsLoggedIn(false);
     if (typeof window !== 'undefined') {
       localStorage.removeItem('ts_user_role');
       localStorage.removeItem('ts_user_email');
+      localStorage.removeItem('ts_pc_id');
+      localStorage.removeItem('ts_tatami_id');
     }
     if (supabase) {
       supabase.auth.signOut().catch(err => console.error("Error signing out from Supabase:", err));
@@ -543,6 +698,8 @@ export function TournamentProvider({ children }: { children: React.ReactNode }) 
         login,
         logout,
         userEmail,
+        pcId,
+        tatamiId,
         logoUrl,
         setLogoUrl,
         usersList,
@@ -552,6 +709,11 @@ export function TournamentProvider({ children }: { children: React.ReactNode }) 
         globalAccessibility,
         setGlobalAccessibility,
         canModify,
+        activeLocks,
+        refreshLocks,
+        activeTournamentId,
+        acquireLock,
+        releaseLock,
       }}
     >
       {children}
