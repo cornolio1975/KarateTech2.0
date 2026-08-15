@@ -181,7 +181,7 @@ export default function OperatorConsolePage() {
     }
   }, [activeBout, setBouts, setActiveBout]);
 
-  const loadBout = useCallback((bout: Bout, pList?: Participant[], catList?: Category[]) => {
+  const loadBout = useCallback((bout: Bout, pList?: Participant[], catList?: Category[], shouldBroadcastDisplay: boolean = true) => {
     const pArr = pList || participants;
     const cArr = catList || categories;
     setActiveBout(bout);
@@ -199,13 +199,17 @@ export default function OperatorConsolePage() {
       localStorage.setItem('ts_active_bout_id', bout.id);
     } catch (e) {}
 
-    if (typeof window !== 'undefined') {
+    if (shouldBroadcastDisplay && typeof window !== 'undefined') {
       try {
         const channel = new BroadcastChannel('wkf-scoreboard-sync');
+        const aka = pArr.find(p => p.id === bout.participant_a_id);
+        const ao = pArr.find(p => p.id === bout.participant_b_id);
         channel.postMessage({
-          type: 'LOAD_BOUT',
+          type: 'SYNC_MATCH_STATE',
           boutId: bout.id,
           categoryId: bout.category_id,
+          akaName: aka?.full_name || 'AKA Red',
+          aoName: ao?.full_name || 'AO Blue',
           scoreAka: bout.score_a || 0,
           scoreAo: bout.score_b || 0,
           senshuAka: bout.senshu_a || false,
@@ -241,7 +245,7 @@ export default function OperatorConsolePage() {
       setClubs(clList);
       setCoaches(coList);
       const running = bList.find(b => b.status === 'Running');
-      if (running) loadBout(running, pList, catList);
+      if (running) loadBout(running, pList, catList, false);
       addLog('SYSTEM', 'Data refreshed');
     } catch {
       setDbStatus('LOCAL');
@@ -268,7 +272,7 @@ export default function OperatorConsolePage() {
       if (data?.type === 'LOAD_BOUT' && data.boutId) {
         const found = bouts.find(b => b.id === data.boutId);
         if (found) {
-          loadBout(found);
+          loadBout(found, undefined, undefined, false);
           if (data.categoryId) setSelectedCatId(data.categoryId);
           addLog('SYSTEM', `Loaded match R${found.round_no}B${found.bout_no} from Live Bracket`);
         } else {
@@ -276,7 +280,7 @@ export default function OperatorConsolePage() {
             setBouts(bList);
             const b = bList.find(item => item.id === data.boutId);
             if (b) {
-              loadBout(b);
+              loadBout(b, undefined, undefined, false);
               if (data.categoryId) setSelectedCatId(data.categoryId);
             }
           });
