@@ -864,6 +864,14 @@ export const SportdataBracket: React.FC<SportdataBracketProps> = ({
                         bout.status === "Walkover"
                       : false;
 
+                    const isWalkover =
+                      !bout ||
+                      bout.status === "Walkover" ||
+                      bout.victory_method === "Walkover" ||
+                      bout.victory_method === "Bye" ||
+                      !bout.participant_a_id ||
+                      !bout.participant_b_id;
+
                     return (
                       <React.Fragment key={`bout-${r}-${b}`}>
                         {/* Competitor A Card (Aka) */}
@@ -876,14 +884,14 @@ export const SportdataBracket: React.FC<SportdataBracketProps> = ({
                             transform: "translateY(-100%)",
                           }}
                           className={
-                            bout
+                            bout && !isWalkover
                               ? "cursor-pointer hover:opacity-90 hover:brightness-110 transition-all duration-150"
                               : ""
                           }
                           onClick={() =>
-                            bout && handleBoutSelect(bout)
+                            bout && !isWalkover && handleBoutSelect(bout)
                           }
-                          title={bout ? `Click to load Match R${bout.round_no}-B${bout.bout_no} into Scoreboard` : undefined}
+                          title={bout && !isWalkover ? `Click to load Match R${bout.round_no}-B${bout.bout_no} into Scoreboard` : undefined}
                         >
                           {renderCompetitorCard(
                             bout?.participant_a_id || null,
@@ -907,14 +915,14 @@ export const SportdataBracket: React.FC<SportdataBracketProps> = ({
                             transform: "translateY(-100%)",
                           }}
                           className={
-                            bout
+                            bout && !isWalkover
                               ? "cursor-pointer hover:opacity-90 hover:brightness-110 transition-all duration-150"
                               : ""
                           }
                           onClick={() =>
-                            bout && handleBoutSelect(bout)
+                            bout && !isWalkover && handleBoutSelect(bout)
                           }
-                          title={bout ? `Click to load Match R${bout.round_no}-B${bout.bout_no} into Scoreboard` : undefined}
+                          title={bout && !isWalkover ? `Click to load Match R${bout.round_no}-B${bout.bout_no} into Scoreboard` : undefined}
                         >
                           {renderCompetitorCard(
                             bout?.participant_b_id || null,
@@ -928,8 +936,8 @@ export const SportdataBracket: React.FC<SportdataBracketProps> = ({
                           )}
                         </div>
 
-                        {/* Bout No indicator near connector */}
-                        {bout && (
+                        {/* Bout No indicator near connector (disabled for walkover / bye matches) */}
+                        {bout && !isWalkover && (
                           <div
                             style={{
                               position: "absolute",
