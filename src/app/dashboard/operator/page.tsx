@@ -18,6 +18,7 @@ import {
 } from 'lucide-react';
 import { KumiteScoreboardControl, ScoreboardRef } from '../control/page';
 import { KataControlPanelContent } from '../kata-control/page';
+import { SportdataBracket } from '@/components/SportdataBracket';
 
 interface KeyLogEntry {
   id: string;
@@ -115,6 +116,9 @@ export default function OperatorConsolePage() {
   const [loadMatchSearch, setLoadMatchSearch] = useState('');
   const [expandedCatId, setExpandedCatId] = useState<string | null>(null);
   const [isPlayerDetailsDisplayShowing, setIsPlayerDetailsDisplayShowing] = useState(false);
+
+  const [isBracketModalOpen, setIsBracketModalOpen] = useState(false);
+  const [bracketModalCatId, setBracketModalCatId] = useState<string>('ALL');
 
   const [dockOrder, setDockOrder] = useState<string[]>([]);
   const [draggedDockId, setDraggedDockId] = useState<string | null>(null);
@@ -421,7 +425,12 @@ export default function OperatorConsolePage() {
   };
 
   const initialDockButtons: DockBtn[] = [
-    { id: 'bracket',         icon: Trophy,         label: 'BRACKET',       color: 'yellow', action: () => setBracketTab('BRACKET CONSOLE') },
+    { id: 'bracket',         icon: Trophy,         label: 'BRACKET',       color: 'yellow', action: () => {
+        setBracketModalCatId(activeCat?.id || (selectedCatId !== 'ALL' ? selectedCatId : (filteredCategories[0]?.id || 'ALL')));
+        setIsBracketModalOpen(true);
+        addLog('SYSTEM', 'Live Bracket Modal opened');
+      } 
+    },
     { id: 'matches',         icon: List,           label: 'MATCHES',        color: 'blue',   action: () => setBracketTab('MATCH LIST') },
     { id: 'fighters',        icon: Users,          label: 'FIGHTERS',       color: 'blue',   action: () => setPlayerDetailsOpen(v => !v) },
     { id: 'player_details',  icon: UserSquare2,    label: 'PLAYER DETAILS', color: 'blue',   action: () => {
@@ -1740,6 +1749,120 @@ export default function OperatorConsolePage() {
               <button
                 onClick={() => setIsLoadMatchModalOpen(false)}
                 className="px-4 py-1.5 bg-white/10 hover:bg-white/20 text-white font-bold rounded-lg text-xs transition cursor-pointer"
+              >
+                CLOSE
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* LIVE BRACKET POPUP MODAL */}
+      {isBracketModalOpen && (
+        <div className="fixed inset-0 z-[100] bg-black/85 backdrop-blur-md flex items-center justify-center p-3 lg:p-6">
+          <div className="bg-[#0b0f19] border border-cyan-500/30 rounded-2xl w-full max-w-7xl h-[92vh] flex flex-col overflow-hidden shadow-2xl relative">
+            {/* Modal Header */}
+            <div className="px-5 py-3.5 border-b border-white/10 bg-[#0e1422] flex items-center justify-between gap-4 shrink-0">
+              <div className="flex items-center gap-3">
+                <div className="p-2.5 bg-yellow-500/10 border border-yellow-500/30 rounded-xl text-yellow-400">
+                  <Trophy className="h-5 w-5" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h2 className="text-sm sm:text-base font-black text-white uppercase tracking-wider">LIVE TOURNAMENT BRACKET</h2>
+                    <span className="px-2 py-0.5 rounded-full text-[9px] font-black tracking-widest bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 flex items-center gap-1">
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" /> LIVE SYNC
+                    </span>
+                  </div>
+                  <p className="text-[10px] text-white/50">
+                    Real-time match tree, scoring progress, and winner bracket advancement
+                  </p>
+                </div>
+              </div>
+
+              {/* Controls */}
+              <div className="flex items-center gap-2 sm:gap-3">
+                {/* Category Dropdown Filter */}
+                <div className="flex items-center gap-1.5 bg-white/5 border border-white/10 rounded-xl px-2.5 py-1.5">
+                  <Filter className="h-3 w-3 text-yellow-400 shrink-0" />
+                  <select
+                    value={bracketModalCatId}
+                    onChange={e => setBracketModalCatId(e.target.value)}
+                    className="bg-transparent text-[11px] font-bold text-white outline-none cursor-pointer pr-1 max-w-[180px] sm:max-w-[260px] truncate"
+                  >
+                    <option value="ALL" className="bg-[#0e1422] text-white">ALL CATEGORIES</option>
+                    {filteredCategories.map(c => (
+                      <option key={c.id} value={c.id} className="bg-[#0e1422] text-white">
+                        {isKataCategory(c) ? '🥋' : '🥊'} {c.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* External Display / Projector Button */}
+                <button
+                  onClick={() => {
+                    const catIdToOpen = bracketModalCatId !== 'ALL' ? bracketModalCatId : (activeCat?.id || filteredCategories[0]?.id || '');
+                    window.open(`${basePath}/display/brackets?categoryId=${catIdToOpen}`, '_blank');
+                  }}
+                  className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 bg-cyan-500/10 hover:bg-cyan-500/20 border border-cyan-500/30 text-cyan-300 rounded-xl text-xs font-bold transition cursor-pointer"
+                  title="Open bracket on external screen / projector"
+                >
+                  <Tv className="h-3.5 w-3.5" />
+                  <span>Projector View</span>
+                </button>
+
+                {/* Print Button */}
+                <button
+                  onClick={() => {
+                    const catIdToPrint = bracketModalCatId !== 'ALL' ? bracketModalCatId : (activeCat?.id || filteredCategories[0]?.id || '');
+                    window.open(`${basePath}/draws/print-preview?categoryId=${catIdToPrint}`, '_blank');
+                  }}
+                  className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 bg-white/10 hover:bg-white/20 border border-white/15 text-white rounded-xl text-xs font-bold transition cursor-pointer"
+                  title="Print Draw Sheet"
+                >
+                  <Printer className="h-3.5 w-3.5" />
+                  <span>Print</span>
+                </button>
+
+                {/* Close Button */}
+                <button
+                  onClick={() => setIsBracketModalOpen(false)}
+                  className="p-1.5 bg-white/5 hover:bg-white/10 text-white/50 hover:text-white rounded-xl transition cursor-pointer"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+            </div>
+
+            {/* Modal Body - Interactive Sportdata Live Bracket Tree */}
+            <div className="flex-1 overflow-auto bg-[#070a12] p-2 sm:p-4">
+              <SportdataBracket
+                bouts={bouts}
+                participants={participants}
+                clubs={clubs}
+                categories={categories}
+                selectedCatId={bracketModalCatId !== 'ALL' ? bracketModalCatId : (activeCat?.id || filteredCategories[0]?.id || null)}
+                onBoutClick={b => {
+                  loadBout(b);
+                  setSelectedCatId(b.category_id);
+                  setIsBracketModalOpen(false);
+                  setIsControlPanelOpen(true);
+                  addLog('SYSTEM', `Loaded match R${b.round_no}B${b.bout_no} from Bracket into console`);
+                }}
+                theme="dark"
+                height="100%"
+              />
+            </div>
+
+            {/* Modal Footer */}
+            <div className="px-5 py-2.5 border-t border-white/10 bg-[#0e1422] flex items-center justify-between text-[10.5px] text-white/50 shrink-0">
+              <div className="flex items-center gap-2">
+                <span>💡 <strong className="text-yellow-400">Interactive:</strong> Click any bout card in the bracket tree to load it directly into the Match Console.</span>
+              </div>
+              <button
+                onClick={() => setIsBracketModalOpen(false)}
+                className="px-4 py-1 bg-white/10 hover:bg-white/20 text-white font-bold rounded-lg text-xs transition cursor-pointer"
               >
                 CLOSE
               </button>
