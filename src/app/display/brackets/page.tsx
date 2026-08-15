@@ -2,8 +2,8 @@
 
 import React, { useState, useEffect, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { db } from '@/db/dbClient';
-import { Bout, Participant, Club, Category } from '@/db/types';
+import { db, basePath } from '@/db/dbClient';
+import { Bout, Participant, Club, Category, isKataCategory } from '@/db/types';
 import { SportdataBracket } from '@/components/SportdataBracket';
 
 function BracketDisplayContent() {
@@ -61,6 +61,27 @@ function BracketDisplayContent() {
     }
   };
 
+  const handleBoutClick = (bout: Bout) => {
+    const isKata = category ? isKataCategory(category) : false;
+    const scoreboardPath = isKata ? '/dashboard/kata-scoreboard' : '/dashboard/scoreboard';
+
+    // Broadcast match switch across any open operator/referee screens
+    if (typeof window !== 'undefined') {
+      try {
+        const channel = new BroadcastChannel('wkf-scoreboard-sync');
+        channel.postMessage({
+          type: 'LOAD_BOUT',
+          boutId: bout.id,
+          categoryId: bout.category_id
+        });
+        channel.close();
+      } catch (e) {}
+    }
+
+    const targetUrl = `${basePath}${scoreboardPath}?boutId=${bout.id}&catId=${bout.category_id}`;
+    window.open(targetUrl, '_blank');
+  };
+
   if (!categoryId) {
     return (
       <div className="flex h-screen items-center justify-center bg-background text-foreground">
@@ -102,7 +123,8 @@ function BracketDisplayContent() {
             clubs={clubs}
             categories={categories}
             selectedCatId={categoryId}
-            canModify={false}
+            canModify={true}
+            onBoutClick={handleBoutClick}
             hideZoomControls={false}
           />
         </div>

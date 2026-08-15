@@ -43,6 +43,30 @@ export const SportdataBracket: React.FC<SportdataBracketProps> = ({
   const { tournamentName, logoUrl } = useTournament();
   const [zoom, setZoom] = React.useState(100);
 
+  const handleBoutSelect = (b: Bout) => {
+    if (onBoutClick) {
+      onBoutClick(b);
+      return;
+    }
+    if (typeof window !== 'undefined') {
+      const cat = categories.find((c) => c.id === b.category_id);
+      const isKata = cat ? isKataCategory(cat) : false;
+      const scoreboardPath = isKata ? '/dashboard/kata-scoreboard' : '/dashboard/scoreboard';
+
+      try {
+        const channel = new BroadcastChannel('wkf-scoreboard-sync');
+        channel.postMessage({
+          type: 'LOAD_BOUT',
+          boutId: b.id,
+          categoryId: b.category_id
+        });
+        channel.close();
+      } catch (e) {}
+
+      window.open(`${basePath}${scoreboardPath}?boutId=${b.id}&catId=${b.category_id}`, '_blank');
+    }
+  };
+
   // 1. Get bouts for selected category (excluding 3rd place bout, which is round_no === 99)
   const categoryBouts = bouts.filter((b) => b.category_id === selectedCatId);
   const selectedCategory = categories.find((c) => c.id === selectedCatId);
@@ -854,13 +878,14 @@ export const SportdataBracket: React.FC<SportdataBracketProps> = ({
                             transform: "translateY(-100%)",
                           }}
                           className={
-                            bout && canModify
-                              ? "cursor-pointer hover:opacity-90"
+                            bout
+                              ? "cursor-pointer hover:opacity-90 hover:brightness-110 transition-all duration-150"
                               : ""
                           }
                           onClick={() =>
-                            bout && onBoutClick && onBoutClick(bout)
+                            bout && handleBoutSelect(bout)
                           }
+                          title={bout ? `Click to load Match R${bout.round_no}-B${bout.bout_no} into Scoreboard` : undefined}
                         >
                           {renderCompetitorCard(
                             bout?.participant_a_id || null,
@@ -874,8 +899,6 @@ export const SportdataBracket: React.FC<SportdataBracketProps> = ({
                           )}
                         </div>
 
-                        {/* Competitor A Score Text Removed - now inside the card */}
-
                         {/* Competitor B Card (Ao) */}
                         <div
                           style={{
@@ -886,13 +909,14 @@ export const SportdataBracket: React.FC<SportdataBracketProps> = ({
                             transform: "translateY(-100%)",
                           }}
                           className={
-                            bout && canModify
-                              ? "cursor-pointer hover:opacity-90"
+                            bout
+                              ? "cursor-pointer hover:opacity-90 hover:brightness-110 transition-all duration-150"
                               : ""
                           }
                           onClick={() =>
-                            bout && onBoutClick && onBoutClick(bout)
+                            bout && handleBoutSelect(bout)
                           }
+                          title={bout ? `Click to load Match R${bout.round_no}-B${bout.bout_no} into Scoreboard` : undefined}
                         >
                           {renderCompetitorCard(
                             bout?.participant_b_id || null,
@@ -906,8 +930,6 @@ export const SportdataBracket: React.FC<SportdataBracketProps> = ({
                           )}
                         </div>
 
-                        {/* Competitor B Score Text Removed - now inside the card */}
-
                         {/* Bout No indicator near connector */}
                         {bout && (
                           <div
@@ -917,11 +939,16 @@ export const SportdataBracket: React.FC<SportdataBracketProps> = ({
                               top: `${yMid}%`,
                               transform: "translateY(-50%)",
                             }}
-                            className={`text-[8.5px] font-bold font-mono tracking-tight select-none px-1 py-[1px] rounded-[3px] border z-10 ${
+                            className={`text-[8.5px] font-black font-mono tracking-tight select-none px-1.5 py-[2px] rounded-[4px] border z-20 cursor-pointer shadow-md transition-all duration-150 ${
                               theme === "dark"
-                                ? "text-white border-gray-600 bg-gray-900"
-                                : "text-white border-black bg-gray-900"
+                                ? "text-white border-gray-600 bg-gray-900 hover:bg-yellow-500 hover:text-black hover:border-yellow-400 hover:scale-110 active:scale-95"
+                                : "text-white border-black bg-gray-900 hover:bg-yellow-500 hover:text-black hover:border-yellow-400 hover:scale-110 active:scale-95"
                             }`}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleBoutSelect(bout);
+                            }}
+                            title={`Click to load Match R${bout.round_no}-B${bout.bout_no} directly into Scoreboard`}
                           >
                             R{bout.round_no}-B{bout.bout_no}
                           </div>
