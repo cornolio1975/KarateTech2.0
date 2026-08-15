@@ -339,8 +339,12 @@ export default function DrawsPage() {
   const handleVerifyUnlockPassword = () => {
     const usr = unlockUsername.trim();
     const pwd = unlockPassword.trim();
-    if (usr !== 'admin' || pwd !== 'password') {
-      setUnlockError('Invalid Admin Username or Password.');
+    
+    const isValidUser = usr.toLowerCase() === 'user' || usr.toLowerCase() === 'admin';
+    const isValidPass = pwd === 'Password' || pwd === 'password' || pwd.toLowerCase() === 'password';
+
+    if (!isValidUser || !isValidPass) {
+      setUnlockError('Invalid Username or Password. Please use User / Password.');
       return;
     }
 
