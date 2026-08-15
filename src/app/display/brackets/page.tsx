@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, Suspense } from 'react';
-import { useSearchParams } from 'next/navigation';
+import { useSearchParams, useRouter } from 'next/navigation';
 import { db, basePath } from '@/db/dbClient';
 import { Bout, Participant, Club, Category, isKataCategory } from '@/db/types';
 import { SportdataBracket } from '@/components/SportdataBracket';
@@ -61,6 +61,8 @@ function BracketDisplayContent() {
     }
   };
 
+  const router = useRouter();
+
   const handleBoutClick = (bout: Bout) => {
     const isKata = category ? isKataCategory(category) : false;
     const scoreboardPath = isKata ? '/dashboard/kata-scoreboard' : '/dashboard/scoreboard';
@@ -78,8 +80,8 @@ function BracketDisplayContent() {
       } catch (e) {}
     }
 
-    const targetUrl = `${basePath}${scoreboardPath}?boutId=${bout.id}&catId=${bout.category_id}`;
-    window.open(targetUrl, '_blank');
+    const targetUrl = `${scoreboardPath}?boutId=${bout.id}&catId=${bout.category_id}`;
+    router.push(targetUrl);
   };
 
   if (!categoryId) {
