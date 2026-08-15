@@ -193,7 +193,36 @@ export default function OperatorConsolePage() {
     setAkaFighter(pArr.find(p => p.id === bout.participant_a_id) || null);
     setAoFighter(pArr.find(p => p.id === bout.participant_b_id) || null);
     setActiveCat(cArr.find(c => c.id === bout.category_id) || null);
-    addLog('SYSTEM', `Match R${bout.round_no}B${bout.bout_no} loaded`);
+
+    try {
+      localStorage.setItem('kt_active_bout_id', bout.id);
+      localStorage.setItem('ts_active_bout_id', bout.id);
+    } catch (e) {}
+
+    if (typeof window !== 'undefined') {
+      try {
+        const channel = new BroadcastChannel('wkf-scoreboard-sync');
+        channel.postMessage({
+          type: 'LOAD_BOUT',
+          boutId: bout.id,
+          categoryId: bout.category_id,
+          scoreAka: bout.score_a || 0,
+          scoreAo: bout.score_b || 0,
+          senshuAka: bout.senshu_a || false,
+          senshuAo: bout.senshu_b || false,
+          c1Aka: parseInt(bout.penalties_c1_a || '0') || 0,
+          c1Ao: parseInt(bout.penalties_c1_b || '0') || 0,
+          timeLeft: (bout.timer_seconds || 180) * 10,
+          timerActive: false,
+          winner: null,
+          winMethod: '',
+          resultConfirmed: bout.status === 'Completed'
+        });
+        channel.close();
+      } catch (e) {}
+    }
+
+    addLog('SYSTEM', `Match R${bout.round_no}B${bout.bout_no} loaded to Current Match`);
   }, [participants, categories, addLog]);
 
   const loadData = useCallback(async () => {
