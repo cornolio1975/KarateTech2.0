@@ -359,6 +359,67 @@ export default function OperatorConsolePage() {
   };
 
   type DockBtn = { id: string; icon: React.ElementType; label: string; color: string; action: () => void };
+  const handleOperatorRematch = async () => {
+    if (!activeBout) {
+      alert('Please load or select a match first.');
+      return;
+    }
+
+    const confirmRematch = window.confirm(
+      `Are you sure you want to reset and start a rematch for Match R${activeBout.round_no}B${activeBout.bout_no}? This will clear all scores, fouls, and winner status.`
+    );
+    if (!confirmRematch) return;
+
+    try {
+      const matchDuration = (activeCat as any)?.time_duration || 180;
+      
+      // 1. Reset bout in database / mockStore
+      await db.bouts.resetBoutResult(activeBout.id, matchDuration);
+
+      // 2. Reset operator local timer
+      setTimerSeconds(matchDuration);
+      setTimerRunning(false);
+
+      // 3. Reset scoreboard component if open
+      if (scoreboardRef.current?.rematch) {
+        scoreboardRef.current.rematch();
+      }
+
+      // 4. Reload active datasets
+      await loadData();
+
+      // 5. Broadcast reset directly to referee display & spectator screens
+      if (typeof window !== 'undefined') {
+        const channel = new BroadcastChannel('wkf-scoreboard-sync');
+        channel.postMessage({
+          boutId: activeBout.id,
+          scoreAka: 0,
+          scoreAo: 0,
+          senshuAka: false,
+          senshuAo: false,
+          penaltiesAka: [],
+          penaltiesAo: [],
+          c1Aka: 0,
+          c1Ao: 0,
+          eventsAka: [],
+          eventsAo: [],
+          timeLeft: matchDuration * 10,
+          timerActive: false,
+          winner: null,
+          winMethod: '',
+          resultConfirmed: false,
+          penaltyH: null
+        });
+        channel.close();
+      }
+
+      addLog('SYSTEM', `Rematch initiated for Match R${activeBout.round_no}B${activeBout.bout_no}: Scores, penalties, and winners reset`);
+    } catch (err) {
+      console.error('Error initiating rematch:', err);
+      addLog('SYSTEM', 'Failed to execute rematch');
+    }
+  };
+
   const initialDockButtons: DockBtn[] = [
     { id: 'bracket',         icon: Trophy,         label: 'BRACKET',       color: 'yellow', action: () => setBracketTab('BRACKET CONSOLE') },
     { id: 'matches',         icon: List,           label: 'MATCHES',        color: 'blue',   action: () => setBracketTab('MATCH LIST') },
@@ -412,7 +473,7 @@ export default function OperatorConsolePage() {
     { id: 'queue',           icon: Users2,         label: 'QUEUE',          color: 'blue',   action: () => setBracketTab('QUEUE') },
     { id: 'result',          icon: Flag,           label: 'RESULT',         color: 'green',  action: () => activeBout && setIsControlPanelOpen(true) },
     { id: 'undo',            icon: Undo2,          label: 'UNDO',           color: 'orange', action: () => { scoreboardRef.current?.undoLastAction(); addLog('SYSTEM', 'Undo action triggered'); } },
-    { id: 'rematch',         icon: RotateCcw,      label: 'REMATCH',        color: 'red',    action: () => { updateBout({ status: 'Running' }); addLog('SYSTEM', 'Rematch Initiated / Match Reopened'); } },
+    { id: 'rematch',         icon: RotateCcw,      label: 'REMATCH',        color: 'red',    action: handleOperatorRematch },
     { id: 'confirm_result',  icon: CheckCircle2,   label: 'CONFIRM RESULT', color: 'green',  action: () => { scoreboardRef.current?.confirmResult(); addLog('SYSTEM', 'Match Result Confirmed'); } },
     { id: 'save_result',     icon: Save,           label: 'SAVE RESULT',    color: 'green',  action: () => { scoreboardRef.current?.confirmResult(); } },
     { id: 'print',           icon: Printer,        label: 'PRINT',          color: 'blue',   action: () => window.print() },

@@ -37,9 +37,37 @@ export const KataControlPanelContent = React.forwardRef<ScoreboardRef, { boutId?
   const [mounted, setMounted] = useState(false);
   const [loading, setLoading] = useState(true);
 
+  const handleRematchKata = async () => {
+    if (!currentBout) return;
+    const confirmRematch = window.confirm(`Reset and rematch Kata bout R${currentBout.round_no}B${currentBout.bout_no}?`);
+    if (!confirmRematch) return;
+    try {
+      await db.bouts.updateBoutState(currentBout.id, {
+        status: 'Running',
+        score_a: 0,
+        score_b: 0,
+        total_score_a: 0,
+        total_score_b: 0,
+        judge_scores_a: [],
+        judge_scores_b: [],
+        winner_id: null,
+        victory_method: ''
+      });
+      setJudgeScoresA(Array(panelSize).fill(scoringMethod === 'Flags' ? 0 : 8.0));
+      setJudgeScoresB(Array(panelSize).fill(scoringMethod === 'Flags' ? 0 : 8.0));
+      setSelectedWinnerId(null);
+      setIsWinnerRevealed(false);
+      setPenaltyH(null);
+      if (onLogEvent) onLogEvent('SYSTEM', `Kata bout R${currentBout.round_no}B${currentBout.bout_no} reset for rematch`);
+    } catch (e) {
+      console.error('Error resetting Kata rematch:', e);
+    }
+  };
+
   React.useImperativeHandle(ref, () => ({
     undoLastAction: () => {}, // No-op for Kata
-    confirmResult: () => handleSaveAndCompleteBout()
+    confirmResult: () => handleSaveAndCompleteBout(),
+    rematch: () => handleRematchKata()
   }));
   const [isLockedByOther, setIsLockedByOther] = useState<boolean>(false);
   const [bouts, setBouts] = useState<Bout[]>([]);

@@ -15,6 +15,7 @@ import DisplayPlaylistModal from '@/components/DisplayPlaylistModal';
 export interface ScoreboardRef {
   undoLastAction: () => void;
   confirmResult: () => void;
+  rematch?: () => void;
 }
 
 export const KumiteScoreboardControl = React.forwardRef<ScoreboardRef, { boutId?: string, onClose?: () => void, onLogEvent?: (category: 'SCORE'|'PENALTY'|'TIMER'|'SYSTEM', msg: string) => void }>(({ boutId: propBoutId, onClose, onLogEvent }, ref) => {
@@ -31,7 +32,8 @@ export const KumiteScoreboardControl = React.forwardRef<ScoreboardRef, { boutId?
 
   React.useImperativeHandle(ref, () => ({
     undoLastAction: () => handleUndo(),
-    confirmResult: () => handleConfirmResult()
+    confirmResult: () => handleConfirmResult(),
+    rematch: () => handleRematch()
   }));
   const [isLockedByOther, setIsLockedByOther] = useState<boolean>(false);
   const [bout, setBout] = useState<Bout | null>(null);
