@@ -231,6 +231,32 @@ export default function OperatorConsolePage() {
     return () => { window.removeEventListener('online', onOnline); window.removeEventListener('offline', onOffline); };
   }, [addLog]);
 
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const channel = new BroadcastChannel('wkf-scoreboard-sync');
+    channel.onmessage = (event) => {
+      const data = event.data;
+      if (data?.type === 'LOAD_BOUT' && data.boutId) {
+        const found = bouts.find(b => b.id === data.boutId);
+        if (found) {
+          loadBout(found);
+          if (data.categoryId) setSelectedCatId(data.categoryId);
+          addLog('SYSTEM', `Loaded match R${found.round_no}B${found.bout_no} from Live Bracket`);
+        } else {
+          db.bouts.list().then(bList => {
+            setBouts(bList);
+            const b = bList.find(item => item.id === data.boutId);
+            if (b) {
+              loadBout(b);
+              if (data.categoryId) setSelectedCatId(data.categoryId);
+            }
+          });
+        }
+      }
+    };
+    return () => channel.close();
+  }, [bouts, loadBout, addLog]);
+
   const handleTimerToggle = () => {
     if (!activeBout) return;
     setTimerRunning(prev => {

@@ -61,13 +61,10 @@ function BracketDisplayContent() {
     }
   };
 
-  const router = useRouter();
+  const [loadedNotification, setLoadedNotification] = useState<string | null>(null);
 
   const handleBoutClick = (bout: Bout) => {
-    const isKata = category ? isKataCategory(category) : false;
-    const scoreboardPath = isKata ? '/dashboard/kata-scoreboard' : '/dashboard/scoreboard';
-
-    // Broadcast match switch across any open operator/referee screens
+    // Broadcast match switch across any open operator/referee/scoreboard screens
     if (typeof window !== 'undefined') {
       try {
         const channel = new BroadcastChannel('wkf-scoreboard-sync');
@@ -80,8 +77,12 @@ function BracketDisplayContent() {
       } catch (e) {}
     }
 
-    const targetUrl = `${scoreboardPath}?boutId=${bout.id}&catId=${bout.category_id}`;
-    router.push(targetUrl);
+    const aka = participants.find(p => p.id === bout.participant_a_id);
+    const ao = participants.find(p => p.id === bout.participant_b_id);
+    const matchLabel = `R${bout.round_no}-B${bout.bout_no}${aka && ao ? ` (${aka.full_name} vs ${ao.full_name})` : ''}`;
+    
+    setLoadedNotification(`⚡ Loaded Match ${matchLabel} to Scoreboard`);
+    setTimeout(() => setLoadedNotification(null), 3500);
   };
 
   if (!categoryId) {
@@ -103,7 +104,15 @@ function BracketDisplayContent() {
   const category = categories.find(c => c.id === categoryId);
 
   return (
-    <div className="flex flex-col h-screen w-screen overflow-hidden bg-background">
+    <div className="flex flex-col h-screen w-screen overflow-hidden bg-background relative">
+      {/* Active Toast Notification */}
+      {loadedNotification && (
+        <div className="absolute top-4 left-1/2 -translate-x-1/2 z-50 bg-yellow-500 text-black px-4 py-2 rounded-full font-black text-xs shadow-2xl flex items-center gap-2 border-2 border-white/40 animate-bounce">
+          <span>🎯</span>
+          <span>{loadedNotification}</span>
+        </div>
+      )}
+
       {/* Optional Top Status Bar for Broadcast display */}
       <div className="shrink-0 bg-primary/10 border-b border-primary/20 px-6 py-3 flex items-center justify-between">
         <div>

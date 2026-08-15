@@ -62,8 +62,6 @@ export const SportdataBracket: React.FC<SportdataBracketProps> = ({
         });
         channel.close();
       } catch (e) {}
-
-      window.location.href = `${basePath}${scoreboardPath}?boutId=${b.id}&catId=${b.category_id}`;
     }
   };
 

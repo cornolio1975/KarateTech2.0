@@ -41,6 +41,18 @@ export default function ScoreboardDashboardPage() {
   useEffect(() => {
     setMounted(true);
     loadData();
+
+    if (typeof window !== 'undefined') {
+      const channel = new BroadcastChannel('wkf-scoreboard-sync');
+      channel.onmessage = (event) => {
+        const data = event.data;
+        if (data?.type === 'LOAD_BOUT' && data.boutId) {
+          if (data.categoryId) setSelectedCatId(data.categoryId);
+          loadData();
+        }
+      };
+      return () => channel.close();
+    }
   }, []);
 
   const loadData = async () => {
