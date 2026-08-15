@@ -21,6 +21,7 @@ const MENU_ITEMS = [
   { name: 'Schedule', icon: CalendarDays, path: '/schedule' },
 
   { name: 'Bracket Console Hub', icon: MonitorPlay, path: '/bracket-hub', badge: 'Live' },
+  { name: 'Operator Console 2.0', icon: Zap, path: '/dashboard/operator', badge: 'NEW', isYellow: true },
   { name: 'Kumite S-Board', icon: Zap, path: '/dashboard/scoreboard', badge: 'WKF', isYellow: true },
   { name: 'Kata S-Board', icon: Award, path: '/dashboard/kata-scoreboard', badge: 'WKF', isYellow: true },
   { name: 'Officials', icon: ShieldCheck, path: '/officials' },
@@ -73,9 +74,9 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
           <div style={{ fontFamily: "'Montserrat', sans-serif", fontWeight: 900, fontSize: '0.95rem', lineHeight: 1, letterSpacing: '0.01em' }}>
             <span style={{ color: '#b91c2e' }}>Karate</span>
             <span style={{ color: '#38bdf8' }}>Tech</span>
-            <span style={{ fontSize: '0.65rem', color: '#94a3b8', marginLeft: '1px', verticalAlign: 'super' }}>©</span>
+            <span style={{ color: '#facc15', marginLeft: '3px', fontSize: '0.85rem' }}>2.0</span>
           </div>
-          <div style={{ height: '1.5px', background: 'linear-gradient(90deg, #b91c2e 60%, transparent 100%)', marginTop: '1.5px', marginBottom: '1.5px', borderRadius: '1px' }} />
+          <div style={{ height: '1.5px', background: 'linear-gradient(90deg, #b91c2e 40%, #38bdf8 70%, transparent 100%)', marginTop: '1.5px', marginBottom: '1.5px', borderRadius: '1px' }} />
           <span style={{ fontFamily: "'Montserrat', sans-serif", fontWeight: 700, fontSize: '0.62rem', letterSpacing: '0.01em', color: '#818cf8', lineHeight: 1.15 }} className="group-hover:underline flex items-center gap-1">
             SP SportData Solution <ExternalLink className="inline h-2.5 w-2.5 opacity-70" />
           </span>

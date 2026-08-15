@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { db, basePath } from '@/db/dbClient';
 import { Bout, Participant, Category, Club, isKataCategory } from '@/db/types';
-import { Zap, Play, Check, ShieldAlert, Award, ArrowRight, RefreshCw, Calendar, MapPin, Tv, Trophy, Sparkles, CheckCircle2, ChevronRight, FileText, Flag, Save, RotateCcw, Square } from 'lucide-react';
+import { Zap, Play, Check, ShieldAlert, Award, ArrowRight, RefreshCw, Calendar, MapPin, Tv, Trophy, Sparkles, CheckCircle2, ChevronRight, FileText, Flag, Save, RotateCcw, Square, Maximize2, Minimize2 } from 'lucide-react';
 import { useTournament } from '@/context/TournamentContext';
 import KataResultBookModal from '@/components/KataResultBookModal';
 
@@ -21,9 +21,12 @@ const OFFICIAL_WKF_KATAS = [
   'Sochin', 'Suparinpei', 'Unshu', 'Unsu', 'Useishi', 'Wankan', 'Wanshu'
 ].sort();
 
-export function KataControlPanelContent() {
+import { ScoreboardRef } from '../control/page';
+
+export const KataControlPanelContent = React.forwardRef<ScoreboardRef, { boutId?: string, onClose?: () => void, onLogEvent?: (category: 'SCORE'|'PENALTY'|'TIMER'|'SYSTEM', msg: string) => void }>(({ boutId: propBoutId, onClose, onLogEvent }, ref) => {
   const searchParams = useSearchParams();
   const router = useRouter();
+  const boutId = propBoutId || searchParams.get('boutId');
   const urlBoutId = searchParams.get('boutId');
   const catId = searchParams.get('catId');
   const { tournamentName, acquireLock, releaseLock, activeTournamentId } = useTournament();
@@ -33,6 +36,11 @@ export function KataControlPanelContent() {
   const scoringConsoleRef = useRef<HTMLDivElement>(null);
   const [mounted, setMounted] = useState(false);
   const [loading, setLoading] = useState(true);
+
+  React.useImperativeHandle(ref, () => ({
+    undoLastAction: () => {}, // No-op for Kata
+    confirmResult: () => handleSaveAndCompleteBout()
+  }));
   const [isLockedByOther, setIsLockedByOther] = useState<boolean>(false);
   const [bouts, setBouts] = useState<Bout[]>([]);
   const [participants, setParticipants] = useState<Participant[]>([]);
@@ -56,6 +64,23 @@ export function KataControlPanelContent() {
   const [selectedWinnerId, setSelectedWinnerId] = useState<string | null>(null);
   const [isWinnerRevealed, setIsWinnerRevealed] = useState<boolean>(false);
   const [penaltyH, setPenaltyH] = useState<'AKA' | 'AO' | null>(null);
+  const [isFullscreen, setIsFullscreen] = useState<boolean>(false);
+
+  const toggleFullscreen = () => {
+    if (!document.fullscreenElement) {
+      document.documentElement.requestFullscreen().catch(() => {});
+    } else {
+      if (document.exitFullscreen) {
+        document.exitFullscreen().catch(() => {});
+      }
+    }
+  };
+
+  useEffect(() => {
+    const handleFsChange = () => setIsFullscreen(!!document.fullscreenElement);
+    document.addEventListener('fullscreenchange', handleFsChange);
+    return () => document.removeEventListener('fullscreenchange', handleFsChange);
+  }, []);
 
   // Timer state
   const [timeLeft, setTimeLeft] = useState<number>(0);
@@ -341,10 +366,12 @@ export function KataControlPanelContent() {
       const copy = [...judgeScoresA];
       copy[idx] = clamped;
       setJudgeScoresA(copy);
+      if (onLogEvent) onLogEvent('SCORE', `AKA Judge ${idx + 1} score set to ${clamped.toFixed(1)}`);
     } else {
       const copy = [...judgeScoresB];
       copy[idx] = clamped;
       setJudgeScoresB(copy);
+      if (onLogEvent) onLogEvent('SCORE', `AO Judge ${idx + 1} score set to ${clamped.toFixed(1)}`);
     }
   };
 
@@ -353,6 +380,7 @@ export function KataControlPanelContent() {
     const arr = Array(panelSize).fill(presetVal);
     if (athlete === 'AKA') setJudgeScoresA(arr);
     else setJudgeScoresB(arr);
+    if (onLogEvent) onLogEvent('SCORE', `${athlete} all judges set to ${presetVal.toFixed(1)}`);
   };
   const handleClearFlags = () => {
     if (!window.confirm("Are you sure you want to clear all flags for this bout?")) return;
@@ -360,6 +388,7 @@ export function KataControlPanelContent() {
     setJudgeScoresA(Array(panelSize).fill(0));
     setJudgeScoresB(Array(panelSize).fill(0));
     setPenaltyH(null);
+    if (onLogEvent) onLogEvent('SYSTEM', `All flags cleared`);
 
     // Broadcast update
     if (broadcastChannelRef.current) {
@@ -426,6 +455,7 @@ export function KataControlPanelContent() {
 
       if (updated) {
         setCurrentBout(updated);
+        if (onLogEvent) onLogEvent('SYSTEM', `Result saved`);
       }
 
       // Broadcast saved result & winner reveal immediately to spectator view
@@ -495,6 +525,7 @@ export function KataControlPanelContent() {
       
       // Refresh list
       await loadData();
+      if (onLogEvent) onLogEvent('SYSTEM', `Match completed and bracket advanced`);
 
       // Broadcast completion & winner reveal to spectator view
       if (broadcastChannelRef.current) {
@@ -526,7 +557,11 @@ export function KataControlPanelContent() {
       }
       
       // Auto-navigate back to Match Console Hub (Kata) to easily start the next match
-      router.push(`/dashboard/kata-scoreboard`);
+      if (onClose) {
+        onClose();
+      } else {
+        router.push(`/dashboard/kata-scoreboard`);
+      }
     } catch (err) {
       console.error('Error completing Kata bout:', err);
       alert('Failed to save bout results.');
@@ -656,15 +691,22 @@ export function KataControlPanelContent() {
   });
 
   return (
-    <div className="min-h-screen bg-[#07070a] text-white p-6 pb-12">
+    <div className={`text-white ${onClose ? 'h-[100dvh] w-full flex flex-col p-4 bg-[#0a0c10] overflow-hidden relative' : 'min-h-screen bg-[#07070a] p-6 pb-12'}`}>
       
       {/* Top Banner */}
-      <div className="max-w-7xl mx-auto mb-8">
+      {!onClose && (
+        <div className="max-w-7xl mx-auto mb-8">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-white/10 pb-6">
           <div>
-            <Link href="/dashboard/kata-scoreboard" className="text-xs text-yellow-400 hover:text-yellow-300 font-bold mb-2 flex items-center gap-1">
-               <ArrowRight className="h-3 w-3 rotate-180" /> Back to Hub
-            </Link>
+            {onClose ? (
+              <button onClick={onClose} className="text-xs text-yellow-400 hover:text-yellow-300 font-bold mb-2 flex items-center gap-1 cursor-pointer">
+                 <ArrowRight className="h-3 w-3 rotate-180" /> Back to Hub
+              </button>
+            ) : (
+              <Link href="/dashboard/kata-scoreboard" className="text-xs text-yellow-400 hover:text-yellow-300 font-bold mb-2 flex items-center gap-1">
+                 <ArrowRight className="h-3 w-3 rotate-180" /> Back to Hub
+              </Link>
+            )}
             <div className="flex items-center gap-2 mb-1.5 mt-2">
               <Zap className="h-5 w-5 text-yellow-400 animate-pulse" />
               <span className="text-xs font-black uppercase tracking-widest text-yellow-400">
@@ -688,13 +730,25 @@ export function KataControlPanelContent() {
             <p className="text-gray-400 text-sm mt-1">{tournamentName || 'Kelab Karate Do Senshi Goju-Ryu Championship'}</p>
           </div>
           
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 flex-wrap">
             <button
               onClick={loadData}
               className="flex items-center gap-2 px-4 py-2 bg-white/5 hover:bg-white/10 text-white border border-white/10 hover:border-white/20 rounded-xl text-xs font-bold transition cursor-pointer"
             >
               <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
               Sync Matches
+            </button>
+
+            <button
+              onClick={toggleFullscreen}
+              className={`flex items-center gap-2 px-4 py-2 border rounded-xl text-xs font-bold transition cursor-pointer ${
+                isFullscreen
+                  ? 'bg-white/10 text-white border-white/20 hover:bg-white/20'
+                  : 'bg-white/5 text-white/80 border-white/10 hover:bg-white/10'
+              }`}
+            >
+              {isFullscreen ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
+              <span>{isFullscreen ? 'Exit Fullscreen' : 'Fullscreen'}</span>
             </button>
 
             <button
@@ -716,16 +770,17 @@ export function KataControlPanelContent() {
             </button>
           </div>
         </div>
-      </div>
+        </div>
+      )}
 
       {/* Control Grid */}
-      <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-4 gap-8">
+      <div className={`max-w-[1800px] w-full mx-auto grid grid-cols-1 lg:grid-cols-12 gap-4 lg:gap-6 ${onClose ? 'flex-1 min-h-0' : ''}`}>
         
-        {/* Main Panel: Kata S-Board (Scoring Console) */}
-        <div className="lg:col-span-4 space-y-6">
+        {/* Left Panel: Fighters and Timer */}
+        <div className={`lg:col-span-6 flex flex-col overflow-y-auto ${onClose ? 'gap-2 min-h-0' : 'gap-6'}`}>
           
           {/* Match Banner Header */}
-          <div ref={scoringConsoleRef} className="p-5 bg-gradient-to-r from-[#10111a] via-[#141522] to-[#10111a] border border-white/10 rounded-2xl flex flex-wrap items-center justify-between gap-4 scroll-mt-6">
+          <div ref={scoringConsoleRef} className={`bg-gradient-to-r from-[#10111a] via-[#141522] to-[#10111a] border border-white/10 rounded-2xl flex flex-wrap items-center justify-between gap-4 scroll-mt-6 ${onClose ? 'p-3' : 'p-5'}`}>
             <div>
               <span className="text-[10px] font-black uppercase tracking-widest text-yellow-400">
                 {category?.name || 'Kata Division'} Î“Ã‡Ã³ {currentBout?.tatami || 'Tatami 1'}
@@ -768,10 +823,10 @@ export function KataControlPanelContent() {
           </div>
 
           {/* Athletes Comparison & Declared Kata Cards */}
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch min-h-0">
+          <div className={`grid grid-cols-1 lg:grid-cols-2 items-stretch shrink-0 ${onClose ? 'gap-2' : 'gap-4'}`}>
             
             {/* AKA Athlete Card (Red) */}
-            <div className="col-span-1 lg:col-span-4 p-6 bg-gradient-to-b from-red-950/30 to-[#0d0d14] border border-red-500/30 rounded-2xl relative overflow-hidden shadow-lg shadow-red-950/20">
+            <div className={`bg-gradient-to-b from-red-950/30 to-[#0d0d14] border border-red-500/30 rounded-2xl relative overflow-hidden shadow-lg shadow-red-950/20 ${onClose ? 'p-3' : 'p-5'}`}>
               <div className="flex items-center justify-between mb-4">
                 <span className="px-3 py-1 bg-red-600 text-white font-black text-xs rounded-lg uppercase tracking-wider shadow">
                   AKA
@@ -790,8 +845,8 @@ export function KataControlPanelContent() {
                 </span>
               </div>
 
-              <h3 className="text-xl font-black text-white">{participantA?.full_name || 'AKA Athlete'}</h3>
-              <p className="text-xs text-gray-400 font-medium mb-4">{clubA?.name || 'Independent Dojo'}</p>
+              <h3 className="text-xl font-black text-white truncate w-full" title={participantA?.full_name || 'AKA Athlete'}>{participantA?.full_name || 'AKA Athlete'}</h3>
+              <p className="text-xs text-gray-400 font-medium mb-4 truncate w-full" title={clubA?.name || 'Independent Dojo'}>{clubA?.name || 'Independent Dojo'}</p>
 
               {/* Declared Kata Selector */}
               <div>
@@ -808,15 +863,54 @@ export function KataControlPanelContent() {
               </div>
             </div>
 
+            {/* AO Athlete Card (Blue) */}
+            <div className={`bg-gradient-to-b from-blue-950/30 to-[#0d0d14] border border-blue-500/30 rounded-2xl relative overflow-hidden shadow-lg shadow-blue-950/20 ${onClose ? 'p-3' : 'p-5'}`}>
+              <div className="flex items-center justify-between mb-4">
+                <span className="px-3 py-1 bg-blue-600 text-white font-black text-xs rounded-lg uppercase tracking-wider shadow">
+                  AO
+                </span>
+                <span className="text-xs font-mono font-bold text-blue-400 flex items-center">
+                  Total: 
+                  <strong className="text-xl text-white ml-2 flex items-center gap-1">
+                    {scoringMethod === 'Flags' ? (
+                      Array.from({ length: totalScoreB }).map((_, i) => (
+                        <Flag key={`card-ao-${i}`} className="h-4 w-4 fill-blue-500 text-blue-500" />
+                      ))
+                    ) : (
+                      totalScoreB.toFixed(2)
+                    )}
+                  </strong>
+                </span>
+              </div>
+
+              <h3 className="text-xl font-black text-white truncate w-full" title={participantB?.full_name || 'AO Athlete'}>{participantB?.full_name || 'AO Athlete'}</h3>
+              <p className="text-xs text-gray-400 font-medium mb-4 truncate w-full" title={clubB?.name || 'Independent Dojo'}>{clubB?.name || 'Independent Dojo'}</p>
+
+              {/* Declared Kata Selector */}
+              <div>
+                <label className="block text-[10px] font-bold uppercase text-blue-300 mb-1">Declared Kata</label>
+                <select
+                  value={kataB}
+                  onChange={e => setKataB(e.target.value)}
+                  className="w-full bg-[#101420] border border-blue-500/40 rounded-xl px-3 py-2 text-xs font-bold text-blue-200 focus:outline-none focus:border-blue-400 transition"
+                >
+                  {OFFICIAL_WKF_KATAS.map(k => (
+                    <option key={k} value={k}>{k}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+          </div>
+
             {/* TIMER Display & Control Panel (Center) */}
-            <div className="col-span-1 lg:col-span-4 bg-white/[0.02] border border-white/5 rounded-2xl p-4 flex flex-col justify-between items-center text-center overflow-hidden shadow-lg min-h-0">
+            <div className={`col-span-1 lg:col-span-4 bg-white/[0.02] border border-white/5 rounded-2xl flex flex-col justify-between items-center text-center overflow-hidden shadow-lg min-h-0 ${onClose ? 'p-2' : 'p-4'}`}>
               <span className="text-xs uppercase font-black text-white/80 tracking-[0.2em] mb-2 shrink-0">MATCH TIMER</span>
               
-              <div className={`flex-1 flex items-baseline justify-center font-mono text-[clamp(40px,5vw,70px)] font-black leading-none select-none tracking-tight my-2 ${
+              <div className={`flex-1 flex items-baseline justify-center font-mono text-4xl lg:text-5xl font-black leading-none select-none tracking-tight my-2 ${
                 timeLeft <= 150 && timeLeft > 0 ? 'text-red-500 animate-pulse drop-shadow-[0_0_15px_rgba(239,68,68,0.85)]' : 'text-white drop-shadow-[0_0_10px_rgba(255,255,255,0.5)]'
               }`}>
                 <span>{formatMainTime(timeLeft)}</span>
-                <span className={`text-[clamp(24px,3vw,40px)] ml-1 ${timeLeft <= 150 && timeLeft > 0 ? 'text-red-500/70' : 'text-white/75'}`}>{formatDecsTime(timeLeft)}</span>
+                <span className={`text-2xl lg:text-3xl ml-1 ${timeLeft <= 150 && timeLeft > 0 ? 'text-red-500/70' : 'text-white/75'}`}>{formatDecsTime(timeLeft)}</span>
               </div>
               
               <div className="flex items-center justify-center gap-1.5 mb-3 shrink-0">
@@ -831,14 +925,14 @@ export function KataControlPanelContent() {
                   <div className="col-span-2">
                     {isTimerRunning ? (
                       <button
-                        onClick={() => setIsTimerRunning(false)}
+                        onClick={() => { setIsTimerRunning(false); if (onLogEvent) onLogEvent('TIMER', 'Match Timer Stopped'); }}
                         className="w-full h-full py-2 bg-red-600 hover:bg-red-500 text-white rounded-lg font-black text-[10px] uppercase tracking-widest flex items-center justify-center gap-1.5 transition shadow-md shadow-red-950/40"
                       >
                         <Square className="h-3.5 w-3.5 fill-white" /> Stop
                       </button>
                     ) : (
                       <button
-                        onClick={() => setIsTimerRunning(true)}
+                        onClick={() => { setIsTimerRunning(true); if (onLogEvent) onLogEvent('TIMER', 'Match Timer Started'); }}
                         disabled={timeLeft === 0}
                         className="w-full h-full py-2 bg-green-600 hover:bg-green-500 text-white disabled:opacity-40 rounded-lg font-black text-[10px] uppercase tracking-widest flex items-center justify-center gap-1.5 transition shadow-md shadow-green-950/40"
                       >
@@ -848,7 +942,7 @@ export function KataControlPanelContent() {
                   </div>
                   
                   <button
-                    onClick={() => setTimeLeft(0)}
+                    onClick={() => { setTimeLeft(0); if (onLogEvent) onLogEvent('TIMER', 'Match Timer Reset'); }}
                     disabled={isTimerRunning}
                     className="py-2 bg-white/5 hover:bg-white/10 text-white disabled:opacity-30 rounded-lg font-black text-[10px] uppercase tracking-wider flex items-center justify-center gap-1 transition border border-white/10"
                   >
@@ -879,58 +973,23 @@ export function KataControlPanelContent() {
                 </div>
               </div>
             </div>
+          
+        </div>
 
-            {/* AO Athlete Card (Blue) */}
-            <div className="col-span-1 lg:col-span-4 p-6 bg-gradient-to-b from-blue-950/30 to-[#0d0d14] border border-blue-500/30 rounded-2xl relative overflow-hidden shadow-lg shadow-blue-950/20">
-              <div className="flex items-center justify-between mb-4">
-                <span className="px-3 py-1 bg-blue-600 text-white font-black text-xs rounded-lg uppercase tracking-wider shadow">
-                  AO
-                </span>
-                <span className="text-xs font-mono font-bold text-blue-400 flex items-center">
-                  Total: 
-                  <strong className="text-xl text-white ml-2 flex items-center gap-1">
-                    {scoringMethod === 'Flags' ? (
-                      Array.from({ length: totalScoreB }).map((_, i) => (
-                        <Flag key={`card-ao-${i}`} className="h-4 w-4 fill-blue-500 text-blue-500" />
-                      ))
-                    ) : (
-                      totalScoreB.toFixed(2)
-                    )}
-                  </strong>
-                </span>
-              </div>
-
-              <h3 className="text-xl font-black text-white">{participantB?.full_name || 'AO Athlete'}</h3>
-              <p className="text-xs text-gray-400 font-medium mb-4">{clubB?.name || 'Independent Dojo'}</p>
-
-              {/* Declared Kata Selector */}
-              <div>
-                <label className="block text-[10px] font-bold uppercase text-blue-300 mb-1">Declared Kata</label>
-                <select
-                  value={kataB}
-                  onChange={e => setKataB(e.target.value)}
-                  className="w-full bg-[#101420] border border-blue-500/40 rounded-xl px-3 py-2 text-xs font-bold text-blue-200 focus:outline-none focus:border-blue-400 transition"
-                >
-                  {OFFICIAL_WKF_KATAS.map(k => (
-                    <option key={k} value={k}>{k}</option>
-                  ))}
-                </select>
-              </div>
-            </div>
-
-          </div>
+        {/* Right Panel: Judge Matrix */}
+        <div className={`lg:col-span-6 flex flex-col ${onClose ? 'min-h-0' : ''}`}>
 
           {/* Interactive Judge Scoring Matrix */}
-          <div className="p-6 bg-white/[0.02] border border-white/5 rounded-2xl space-y-6">
+          <div className={`flex-1 bg-white/[0.02] border border-white/5 rounded-2xl flex flex-col ${onClose ? 'p-2 space-y-2' : 'p-6 space-y-6 overflow-y-auto'}`}>
             
             {/* Header & Tabs */}
-            <div className="flex flex-col sm:flex-row items-center justify-between gap-4 border-b border-white/10 pb-4">
+            <div className={`flex flex-col sm:flex-row items-center justify-between gap-2 border-b border-white/10 ${onClose ? 'pb-2' : 'pb-4'}`}>
               <div>
-                <h3 className="text-lg font-black tracking-tight text-white flex items-center gap-2">
+                <h3 className={`${onClose ? 'text-base' : 'text-lg'} font-black tracking-tight text-white flex items-center gap-2`}>
                   Judge Score Matrix
-                  <span className="text-xs font-normal text-gray-400">({panelSize} Judges Panel)</span>
+                  <span className={`${onClose ? 'text-[10px]' : 'text-xs'} font-normal text-gray-400`}>({panelSize} Judges)</span>
                 </h3>
-                <p className="text-xs text-gray-400">Highest & Lowest scores are automatically discarded (red line-through)</p>
+                {!onClose && <p className="text-xs text-gray-400">Highest & Lowest scores are automatically discarded (red line-through)</p>}
               </div>
 
               {/* AKA vs AO Tab Toggle */}
@@ -949,9 +1008,9 @@ export function KataControlPanelContent() {
             </div>
 
             {/* Quick Presets Bar */}
-            <div className="flex flex-wrap items-center justify-between gap-3 p-3 bg-white/5 rounded-xl">
-              <span className="text-xs font-bold text-gray-300">Set All Judges:</span>
-              <div className="flex flex-wrap gap-2">
+            <div className={`flex flex-wrap items-center justify-between gap-2 ${onClose ? 'p-1.5' : 'p-3'} bg-white/5 rounded-xl`}>
+              <span className={`${onClose ? 'text-[10px]' : 'text-xs'} font-bold text-gray-300`}>Set All Judges:</span>
+              <div className="flex flex-wrap gap-1.5">
                 {scoringMethod === 'Points' ? (
                   [8.0, 8.2, 8.4, 8.5, 8.8, 9.0].map(val => (
                     <button
@@ -988,14 +1047,14 @@ export function KataControlPanelContent() {
             </div>
 
             {/* Judge Score Cards Input Grid */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-7 gap-3">
+            <div className={`grid grid-cols-2 sm:grid-cols-4 md:grid-cols-7 ${onClose ? 'gap-1.5' : 'gap-3'}`}>
               {Array.from({ length: panelSize }).map((_, idx) => {
                 if (scoringMethod === 'Flags') {
                   const isAka = judgeScoresA[idx] === 1;
                   const isAo = judgeScoresB[idx] === 1;
                   return (
-                    <div key={idx} className="p-3 rounded-xl border bg-white/[0.02] border-white/10 flex flex-col items-center transition">
-                      <span className="text-[10px] font-bold uppercase text-gray-400 mb-3 text-center leading-tight flex flex-col items-center gap-0.5">
+                    <div key={idx} className={`${onClose ? 'p-1' : 'p-3'} rounded-xl border bg-white/[0.02] border-white/10 flex flex-col items-center transition min-w-0`}>
+                      <span className={`text-[10px] font-bold uppercase text-gray-400 ${onClose ? 'mb-1' : 'mb-3'} text-center leading-tight flex flex-col items-center gap-0.5`}>
                         {idx === 0 ? (
                           <><span>Judge 1</span><span className="text-[8px] text-yellow-500/90 normal-case tracking-normal">(Chief Judge)</span></>
                         ) : (
@@ -1012,11 +1071,12 @@ export function KataControlPanelContent() {
                             newB[idx] = 0;
                             setJudgeScoresA(newA);
                             setJudgeScoresB(newB);
+                            if (onLogEvent) onLogEvent('SCORE', `Judge ${idx + 1} Flag assigned to AKA`);
                           }}
                           disabled={!!penaltyH}
-                          className={`flex-1 py-3 text-red-500 rounded-lg border transition flex items-center justify-center ${isAka && !penaltyH ? 'bg-red-600 border-red-400 shadow-lg shadow-red-600/40 grayscale-0 text-white' : 'bg-red-950/20 border-red-900/30 grayscale opacity-50 hover:opacity-100 hover:grayscale-0'} ${penaltyH ? 'cursor-not-allowed opacity-20' : ''}`}
+                          className={`flex-1 ${onClose ? 'py-1' : 'py-3'} text-red-500 rounded-lg border transition flex items-center justify-center ${isAka && !penaltyH ? 'bg-red-600 border-red-400 shadow-lg shadow-red-600/40 grayscale-0 text-white' : 'bg-red-950/20 border-red-900/30 grayscale opacity-50 hover:opacity-100 hover:grayscale-0'} ${penaltyH ? 'cursor-not-allowed opacity-20' : ''}`}
                         >
-                          <Flag className="h-6 w-6 fill-current" />
+                          <Flag className={`${onClose ? 'h-4 w-4' : 'h-6 w-6'} fill-current`} />
                         </button>
                         <button
                           onClick={() => {
@@ -1027,26 +1087,30 @@ export function KataControlPanelContent() {
                             newB[idx] = 1;
                             setJudgeScoresA(newA);
                             setJudgeScoresB(newB);
+                            if (onLogEvent) onLogEvent('SCORE', `Judge ${idx + 1} Flag assigned to AO`);
                           }}
                           disabled={!!penaltyH}
-                          className={`flex-1 py-3 text-blue-500 rounded-lg border transition flex items-center justify-center ${isAo && !penaltyH ? 'bg-blue-600 border-blue-400 shadow-lg shadow-blue-600/40 grayscale-0 text-white' : 'bg-blue-950/20 border-blue-900/30 grayscale opacity-50 hover:opacity-100 hover:grayscale-0'} ${penaltyH ? 'cursor-not-allowed opacity-20' : ''}`}
+                          className={`flex-1 ${onClose ? 'py-1' : 'py-3'} text-blue-500 rounded-lg border transition flex items-center justify-center ${isAo && !penaltyH ? 'bg-blue-600 border-blue-400 shadow-lg shadow-blue-600/40 grayscale-0 text-white' : 'bg-blue-950/20 border-blue-900/30 grayscale opacity-50 hover:opacity-100 hover:grayscale-0'} ${penaltyH ? 'cursor-not-allowed opacity-20' : ''}`}
                         >
-                          <Flag className="h-6 w-6 fill-current" />
+                          <Flag className={`${onClose ? 'h-4 w-4' : 'h-6 w-6'} fill-current`} />
                         </button>
 
                         {/* Chief Judge Penalty Box */}
                         {idx === 0 && (
-                          <div className="mt-3 pt-3 border-t border-white/10 w-full flex flex-col gap-1.5">
+                          <div className={`${onClose ? 'mt-1 pt-1' : 'mt-3 pt-3'} border-t border-white/10 w-full flex flex-col gap-1`}>
                             <span className="text-[9px] font-black uppercase text-center text-yellow-400">Penalty</span>
                             <div className="flex gap-1.5 w-full">
                               <button
                                 onClick={() => {
-                                  if (penaltyH === 'AKA') setPenaltyH(null);
-                                  else {
+                                  if (penaltyH === 'AKA') {
+                                    setPenaltyH(null);
+                                    if (onLogEvent) onLogEvent('PENALTY', 'Removed Chief Judge Penalty from AKA');
+                                  } else {
                                     if (window.confirm("Assign Chief Judge Penalty to AKA? This will declare AO as the winner.")) {
                                       setPenaltyH('AKA');
                                       setJudgeScoresA(Array(panelSize).fill(0));
                                       setJudgeScoresB(Array(panelSize).fill(0));
+                                      if (onLogEvent) onLogEvent('PENALTY', 'Chief Judge Penalty (H) assigned to AKA');
                                     }
                                   }
                                 }}
@@ -1059,12 +1123,15 @@ export function KataControlPanelContent() {
                               </button>
                               <button
                                 onClick={() => {
-                                  if (penaltyH === 'AO') setPenaltyH(null);
-                                  else {
+                                  if (penaltyH === 'AO') {
+                                    setPenaltyH(null);
+                                    if (onLogEvent) onLogEvent('PENALTY', 'Removed Chief Judge Penalty from AO');
+                                  } else {
                                     if (window.confirm("Assign Chief Judge Penalty to AO? This will declare AKA as the winner.")) {
                                       setPenaltyH('AO');
                                       setJudgeScoresA(Array(panelSize).fill(0));
                                       setJudgeScoresB(Array(panelSize).fill(0));
+                                      if (onLogEvent) onLogEvent('PENALTY', 'Chief Judge Penalty (H) assigned to AO');
                                     }
                                   }
                                 }}
@@ -1084,14 +1151,14 @@ export function KataControlPanelContent() {
                 }
 
                 const activeScores = activeScoringTab === 'AKA' ? judgeScoresA : judgeScoresB;
-                const status = getScoreStatusIndex(activeScores, idx);
+                const isDiscarded = getScoreStatusIndex(activeScores, idx) !== 'active';
                 const score = activeScores[idx] !== undefined ? activeScores[idx] : 8.0;
 
                 return (
                   <div
                     key={idx}
-                    className={`p-3 rounded-xl border flex flex-col items-center transition relative ${
-                      status !== 'active'
+                    className={`${onClose ? 'p-1.5' : 'p-3'} rounded-xl border flex flex-col items-center transition relative ${
+                      isDiscarded
                         ? 'bg-red-950/20 border-red-500/40 opacity-70'
                         : activeScoringTab === 'AKA'
                         ? 'bg-red-950/10 border-red-500/30'
@@ -1103,28 +1170,27 @@ export function KataControlPanelContent() {
                     </span>
 
                     {/* Discard Tag */}
-                    {status !== 'active' && (
-                      <span className="text-[9px] font-black uppercase text-red-400 bg-red-950/60 px-1.5 py-0.5 rounded border border-red-500/30 mb-1">
-                        {status === 'max' ? 'MAX' : 'MIN'}
+                    {isDiscarded && (
+                      <span className="text-[8px] font-black uppercase text-red-400 bg-red-950/60 px-1 py-0.5 rounded border border-red-500/30 mb-1">
+                        {getScoreStatusIndex(activeScores, idx) === 'max' ? 'MAX' : 'MIN'}
                       </span>
                     )}
 
-                    {/* Display Score */}
-                    <div className={`text-2xl font-black font-mono my-1 ${status !== 'active' ? 'line-through text-red-400 opacity-60' : 'text-white'}`}>
+                    <div className={`text-2xl font-black font-mono my-1 ${isDiscarded ? 'line-through text-red-400 opacity-60' : 'text-white'}`}>
                       {score.toFixed(1)}
                     </div>
 
                     {/* Stepper Buttons */}
-                    <div className="flex gap-1 mt-2 w-full">
+                    <div className={`flex gap-1 ${onClose ? 'mt-1' : 'mt-2'} w-full`}>
                       <button
                         onClick={() => updateJudgeScore(activeScoringTab, idx, score - 0.1)}
-                        className="flex-1 py-1 bg-white/5 hover:bg-white/10 text-white font-bold text-xs rounded transition"
+                        className={`flex-1 ${onClose ? 'py-0.5' : 'py-1'} bg-white/5 hover:bg-white/10 text-white font-bold text-xs rounded transition`}
                       >
                         -
                       </button>
                       <button
                         onClick={() => updateJudgeScore(activeScoringTab, idx, score + 0.1)}
-                        className="flex-1 py-1 bg-white/5 hover:bg-white/10 text-white font-bold text-xs rounded transition"
+                        className={`flex-1 ${onClose ? 'py-0.5' : 'py-1'} bg-white/5 hover:bg-white/10 text-white font-bold text-xs rounded transition`}
                       >
                         +
                       </button>
@@ -1137,12 +1203,12 @@ export function KataControlPanelContent() {
           </div>
 
           {/* Winner Declaration & Action Toolbar */}
-          <div className="p-6 bg-gradient-to-r from-yellow-950/20 via-[#12131c] to-yellow-950/20 border border-yellow-500/30 rounded-2xl flex flex-col md:flex-row items-center justify-between gap-6 shadow-xl">
+          <div className={`${onClose ? 'p-3 gap-3' : 'p-6 gap-6'} bg-gradient-to-r from-yellow-950/20 via-[#12131c] to-yellow-950/20 border border-yellow-500/30 rounded-2xl flex flex-col md:flex-row items-center justify-between shadow-xl shrink-0`}>
             
             {/* Winner Announcement */}
             <div className="flex items-center gap-4">
-              <div className="p-3 bg-yellow-400/20 text-yellow-400 rounded-2xl border border-yellow-400/30">
-                <Trophy className="h-8 w-8 animate-bounce" />
+              <div className={`${onClose ? 'p-1.5 rounded-xl' : 'p-3 rounded-2xl'} bg-yellow-400/20 text-yellow-400 border border-yellow-400/30`}>
+                <Trophy className={`${onClose ? 'h-6 w-6' : 'h-8 w-8'} animate-bounce`} />
               </div>
               <div>
                 <span className="text-[10px] font-black uppercase tracking-widest text-yellow-400">
@@ -1170,7 +1236,7 @@ export function KataControlPanelContent() {
               <button
                 onClick={handleRematch}
                 disabled={isSaving || !currentBout}
-                className="flex items-center gap-2 px-4 py-3 bg-red-500/10 hover:bg-red-500/20 text-red-500 border border-red-500/30 font-black text-sm rounded-xl transition cursor-pointer disabled:opacity-50"
+                className={`flex items-center gap-2 px-4 ${onClose ? 'py-2' : 'py-3'} bg-red-500/10 hover:bg-red-500/20 text-red-500 border border-red-500/30 font-black text-sm rounded-xl transition cursor-pointer disabled:opacity-50`}
               >
                 <RefreshCw className="h-4 w-4" />
                 Reset Match
@@ -1178,7 +1244,7 @@ export function KataControlPanelContent() {
               <button
                 onClick={handleClearFlags}
                 disabled={isSaving || !currentBout || scoringMethod === 'Points'}
-                className="flex items-center gap-2 px-4 py-3 bg-gray-500/10 hover:bg-gray-500/20 text-gray-400 border border-gray-500/30 font-black text-sm rounded-xl transition cursor-pointer disabled:opacity-50"
+                className={`flex items-center gap-2 px-4 ${onClose ? 'py-2' : 'py-3'} bg-gray-500/10 hover:bg-gray-500/20 text-gray-400 border border-gray-500/30 font-black text-sm rounded-xl transition cursor-pointer disabled:opacity-50`}
               >
                 <Flag className="h-4 w-4" />
                 Clear All Flags
@@ -1186,18 +1252,18 @@ export function KataControlPanelContent() {
               <button
                 onClick={handleSaveResult}
                 disabled={isSaving || !currentBout}
-                className="flex items-center gap-2 px-5 py-3 bg-blue-600 hover:bg-blue-500 text-white font-black text-sm rounded-xl transition cursor-pointer shadow-lg shadow-blue-600/20 disabled:opacity-50"
+                className={`flex items-center gap-2 px-5 ${onClose ? 'py-2' : 'py-3'} bg-blue-600 hover:bg-blue-500 text-white font-black text-sm rounded-xl transition cursor-pointer shadow-lg shadow-blue-600/20 disabled:opacity-50`}
               >
                 <Save className="h-4 w-4" />
-                {isSaving ? 'Saving...' : 'Save Result'}
+                {isSaving ? 'Saving...' : 'Save'}
               </button>
               <button
                 onClick={handleSaveAndCompleteBout}
                 disabled={isSaving || !currentBout}
-                className="flex items-center gap-2 px-5 py-3 bg-yellow-400 hover:bg-yellow-300 text-black font-black text-sm rounded-xl transition cursor-pointer shadow-lg shadow-yellow-400/20 disabled:opacity-50"
+                className={`flex items-center gap-2 px-5 ${onClose ? 'py-2' : 'py-3'} bg-yellow-400 hover:bg-yellow-300 text-black font-black text-sm rounded-xl transition cursor-pointer shadow-lg shadow-yellow-400/20 disabled:opacity-50`}
               >
                 <CheckCircle2 className="h-4 w-4" />
-                {isSaving ? 'Completing...' : 'Complete Match & Advance Bracket'}
+                {isSaving ? 'Completing...' : 'Complete & Advance'}
               </button>
             </div>
 
@@ -1279,7 +1345,7 @@ export function KataControlPanelContent() {
 
     </div>
   );
-}
+});
 
 export default function KataControlPanelPage() {
   return (

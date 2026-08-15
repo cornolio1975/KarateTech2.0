@@ -4,9 +4,8 @@ import React, { useState, useEffect, useRef, useMemo, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { db, supabase, basePath, dbManager } from '@/db/dbClient';
 import { Bout, Participant, Category, Club, DisplayPlaylist, DisplayPlaylistSlide, TournamentDatabase, isKataCategory } from '@/db/types';
-import { ShieldAlert, Zap, Award, Trophy, Volume2, Maximize2, Minimize2, Play, Pause, SkipForward, SkipBack, Monitor, Clock, Layers, Calendar, Flag } from 'lucide-react';
+import { ShieldAlert, Zap, Award, Trophy, Volume2, Maximize2, Minimize2, Play, Pause, SkipForward, SkipBack, Monitor, Clock, Layers, Calendar, Flag, UserSquare2, X, Users, Globe } from 'lucide-react';
 import { useTournament } from '@/context/TournamentContext';
-import TournamentSelectorGate from '@/components/TournamentSelectorGate';
 import { localStore } from '@/db/localStore';
 
 interface SponsorTickerItem {
@@ -46,12 +45,34 @@ const extractSponsorsFromSource = (source: unknown): SponsorTickerItem[] => {
     .sort((a, b) => a.order - b.order);
 };
 
+const ScaleWrapper = ({ children }: { children: React.ReactNode }) => {
+  const [scale, setScale] = useState(1);
+  useEffect(() => {
+    const handleResize = () => {
+      const scaleX = window.innerWidth / 1920;
+      const scaleY = window.innerHeight / 1080;
+      setScale(Math.min(scaleX, scaleY));
+    };
+    handleResize();
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  return (
+    <div className="fixed inset-0 bg-black flex items-center justify-center overflow-hidden z-0">
+      <div style={{ width: 1920, height: 1080, transform: `scale(${scale})`, transformOrigin: 'center center', position: 'relative' }}>
+        {children}
+      </div>
+    </div>
+  );
+};
+
 function SpectatorDisplayContent() {
   const searchParams = useSearchParams();
   const urlTournamentId = searchParams.get('tournament');
   const urlBoutId = searchParams.get('boutId');
   const urlPlaylistId = searchParams.get('playlistId');
-  const forceLiveOnly = searchParams.get('liveOnly') === 'true';
+  const forceLiveOnly = searchParams.get('liveOnly') === 'true' || Boolean(urlBoutId);
 
   const [activeBoutId, setActiveBoutId] = useState<string | null>(null);
   const { tournamentName } = useTournament();
@@ -71,6 +92,7 @@ function SpectatorDisplayContent() {
   const [sponsors, setSponsors] = useState<SponsorTickerItem[]>([]);
 
   // Sync activeBoutId & mode & panelSize with URL query params initially or when they change
+
   useEffect(() => {
     if (urlBoutId) {
       setActiveBoutId(urlBoutId);
@@ -102,6 +124,11 @@ function SpectatorDisplayContent() {
   const [tatamiName, setTatamiName] = useState<string>('Tatami 1');
   const [boutNo, setBoutNo] = useState<number>(1);
   const [roundNo, setRoundNo] = useState<number>(1);
+
+  // Set window title dynamically
+  useEffect(() => {
+    document.title = `Referee View, ${tatamiName} , Round ${roundNo} , Bout ${boutNo}`;
+  }, [tatamiName, roundNo, boutNo]);
 
   // Live scoreboard states
   const [scoreAka, setScoreAka] = useState<number>(0);
@@ -144,9 +171,19 @@ function SpectatorDisplayContent() {
   const [timeLeft, setTimeLeft] = useState<number>(1800);
   const [timerActive, setTimerActive] = useState<boolean>(false);
 
-  // Winner banner
+  // Winner banner & result confirmation
   const [winnerSide, setWinnerSide] = useState<'aka' | 'ao' | null>(null);
   const [winMethod, setWinMethod] = useState<string>('');
+  const [resultConfirmed, setResultConfirmed] = useState<boolean>(false);
+
+  // Player Details presentation slide on Referee Screen
+  const [showPlayerDetails, setShowPlayerDetails] = useState<boolean>(false);
+  const [playerDetailsPayload, setPlayerDetailsPayload] = useState<any>(null);
+
+  // Extra / Break Timer on Referee Screen
+  const [showExtraTimer, setShowExtraTimer] = useState<boolean>(false);
+  const [extraTimerSeconds, setExtraTimerSeconds] = useState<number>(300);
+  const [extraTimerIsRunning, setExtraTimerIsRunning] = useState<boolean>(false);
 
   const broadcastChannelRef = useRef<BroadcastChannel | null>(null);
   const soundBuzzerRef = useRef<boolean>(true);
@@ -208,7 +245,7 @@ function SpectatorDisplayContent() {
   useEffect(() => {
     const loadPresentationData = async () => {
       try {
-        let plList: DisplayPlaylist[], bList: Bout[], cList: Category[], pList: Participant[], clList: Club[];
+        let plList: DisplayPlaylist[] = [], bList: Bout[] = [], cList: Category[] = [], pList: Participant[] = [], clList: Club[] = [];
         let sponsorList: SponsorTickerItem[] = [];
 
         if (urlTournamentId) {
@@ -218,28 +255,58 @@ function SpectatorDisplayContent() {
           }
         }
 
+        let loadedFromCloud = false;
         if (supabase && urlTournamentId) {
-          const { data: tournamentRow, error: tournamentError } = await supabase
-            .from('tournaments')
-            .select('id, status, deleted_at, data')
-            .eq('id', urlTournamentId)
-            .maybeSingle();
+          try {
+            const { data: tournamentRow, error: tournamentError } = await supabase
+              .from('tournaments')
+              .select('*')
+              .eq('id', urlTournamentId)
+              .maybeSingle();
 
-          if (tournamentError) throw tournamentError;
+            if (!tournamentError && tournamentRow) {
+              const tournamentDb = (tournamentRow.data as TournamentDatabase | undefined) || null;
+              if (
+                tournamentDb
+                && tournamentRow.status
+                && !['Archived', 'Deleted'].includes(tournamentRow.status)
+                && !tournamentRow.deleted_at
+              ) {
+                plList = tournamentDb.display_playlists || [];
+                bList = tournamentDb.bouts || [];
+                cList = tournamentDb.categories || [];
+                pList = (tournamentDb.participants || []).filter(participant => !participant.deleted_at);
+                clList = tournamentDb.clubs || [];
+                sponsorList = extractSponsorsFromSource(tournamentDb);
+                loadedFromCloud = true;
+              }
+            }
+          } catch (cloudErr) {
+            console.warn('Cloud tournament query notice (falling back to local):', cloudErr);
+          }
+        }
 
-          const tournamentDb = tournamentRow?.data as TournamentDatabase | null;
-          if (
-            tournamentDb
-            && tournamentRow?.status
-            && !['Archived', 'Deleted'].includes(tournamentRow.status)
-            && !tournamentRow.deleted_at
-          ) {
-            plList = tournamentDb.display_playlists || [];
-            bList = tournamentDb.bouts || [];
-            cList = tournamentDb.categories || [];
-            pList = (tournamentDb.participants || []).filter(participant => !participant.deleted_at);
-            clList = tournamentDb.clubs || [];
-            sponsorList = extractSponsorsFromSource(tournamentDb);
+        if (!loadedFromCloud) {
+          if (urlTournamentId) {
+            const localTournamentDb = await localStore.loadTournament(urlTournamentId);
+            if (localTournamentDb) {
+              plList = localTournamentDb.display_playlists || [];
+              bList = localTournamentDb.bouts || [];
+              cList = localTournamentDb.categories || [];
+              pList = (localTournamentDb.participants || []).filter(participant => !participant.deleted_at);
+              clList = localTournamentDb.clubs || [];
+              sponsorList = extractSponsorsFromSource(localTournamentDb);
+            } else {
+              [plList, bList, cList, pList, clList] = await Promise.all([
+                db.displayPlaylists.list(),
+                db.bouts.list(),
+                db.categories.list(),
+                db.participants.list(),
+                db.clubs.list()
+              ]);
+              const activeDb = dbManager.getActiveTournament();
+              if (activeDb) sponsorList = extractSponsorsFromSource(activeDb);
+            }
           } else {
             [plList, bList, cList, pList, clList] = await Promise.all([
               db.displayPlaylists.list(),
@@ -251,16 +318,6 @@ function SpectatorDisplayContent() {
             const activeDb = dbManager.getActiveTournament();
             if (activeDb) sponsorList = extractSponsorsFromSource(activeDb);
           }
-        } else {
-          [plList, bList, cList, pList, clList] = await Promise.all([
-            db.displayPlaylists.list(),
-            db.bouts.list(),
-            db.categories.list(),
-            db.participants.list(),
-            db.clubs.list()
-          ]);
-          const activeDb = dbManager.getActiveTournament();
-          if (activeDb) sponsorList = extractSponsorsFromSource(activeDb);
         }
         setPlaylists(plList);
         setAllBouts(bList);
@@ -509,6 +566,21 @@ function SpectatorDisplayContent() {
           return;
         }
 
+        if (data.type === 'SHOW_PLAYER_DETAILS') {
+          setShowPlayerDetails(Boolean(data.show));
+          if (data.show) {
+            setPlayerDetailsPayload(data);
+          }
+          return;
+        }
+
+        if (data.type === 'EXTRA_TIMER_TICK') {
+          setShowExtraTimer(Boolean(data.show));
+          if (data.extraTime !== undefined) setExtraTimerSeconds(data.extraTime);
+          if (data.extraRunning !== undefined) setExtraTimerIsRunning(data.extraRunning);
+          return;
+        }
+
         if (data.boutId) {
           // If the controller shifted to a new match, update our active target boutId
           if (data.boutId !== activeBoutId) {
@@ -557,6 +629,9 @@ function SpectatorDisplayContent() {
           }
           setWinnerSide(data.winner);
           setWinMethod(data.winMethod);
+          if (data.resultConfirmed !== undefined) {
+            setResultConfirmed(data.resultConfirmed);
+          }
           if (data.penaltyH !== undefined) setPenaltyH(data.penaltyH);
         }
       };
@@ -613,6 +688,7 @@ function SpectatorDisplayContent() {
           if ((bout.status === 'Completed' || bout.winner_id) && bout.winner_id) {
             setWinnerSide(bout.winner_id === compAka?.id ? 'aka' : bout.winner_id === compAo?.id ? 'ao' : null);
             setWinMethod(bout.victory_method || (bout.status === 'Completed' ? 'Completed' : 'Winner Declared'));
+            setResultConfirmed(bout.status === 'Completed');
             if (bout.victory_method?.includes('Penalty AKA')) setPenaltyH('AKA');
             else if (bout.victory_method?.includes('Penalty AO')) setPenaltyH('AO');
             else setPenaltyH(null);
@@ -620,6 +696,7 @@ function SpectatorDisplayContent() {
             setWinnerSide(null);
             setWinMethod('');
             setPenaltyH(null);
+            setResultConfirmed(false);
           }
 
           setAkaName(compAka?.full_name || 'TBD Red');
@@ -789,6 +866,7 @@ function SpectatorDisplayContent() {
             if (updated.status === 'Completed' || updated.winner_id) {
               setWinnerSide(updated.winner_id === updated.participant_a_id ? 'aka' : 'ao');
               setWinMethod(updated.victory_method || (updated.status === 'Completed' ? 'Completed' : 'Winner Declared'));
+              setResultConfirmed(updated.status === 'Completed');
               if (updated.victory_method?.includes('Penalty AKA')) setPenaltyH('AKA');
               else if (updated.victory_method?.includes('Penalty AO')) setPenaltyH('AO');
               else setPenaltyH(null);
@@ -800,6 +878,7 @@ function SpectatorDisplayContent() {
               setWinnerSide(null);
               setWinMethod('');
               setPenaltyH(null);
+              setResultConfirmed(false);
             }
           }
         }
@@ -880,8 +959,8 @@ function SpectatorDisplayContent() {
   const akaScoreShiftClass = '';
   const aoScoreShiftClass = '';
 
-  const akaScoreSizeClass = 'text-[clamp(40px,12vh,220px)] lg:text-[clamp(140px,18vh,220px)]';
-  const aoScoreSizeClass = 'text-[clamp(40px,12vh,220px)] lg:text-[clamp(140px,18vh,220px)]';
+  const akaScoreSizeClass = 'text-[130px] lg:text-[194px]';
+  const aoScoreSizeClass = 'text-[130px] lg:text-[194px]';
 
   const akaSummaryBoxClass = akaTwoDigitScore ? 'h-full px-0.5 py-1' : 'h-full px-1 py-1';
   const aoSummaryBoxClass = aoTwoDigitScore ? 'h-full px-0.5 py-1' : 'h-full px-1 py-1';
@@ -979,8 +1058,9 @@ function SpectatorDisplayContent() {
   if (!mounted) return null;
 
   return (
+    <ScaleWrapper>
     <div
-      className="h-[100dvh] w-full bg-black text-white flex flex-col overflow-hidden select-none font-sans p-2 lg:p-4 relative"
+      className="h-[1080px] w-[1920px] bg-black text-white flex flex-col overflow-hidden select-none font-sans p-2 lg:p-4 relative"
       onMouseMove={resetHideTimer}
     >
       {/* Top Controls Bar (Playlist & Fullscreen) */}
@@ -1176,7 +1256,7 @@ function SpectatorDisplayContent() {
             <img
               src={currentSlide.media_url}
               alt={currentSlide.title || 'Playlist image'}
-              className="max-h-[70vh] max-w-full object-contain rounded-2xl border border-white/10 shadow-2xl"
+              className="max-h-[756px] max-w-full object-contain rounded-2xl border border-white/10 shadow-2xl"
             />
           ) : (
             <div className="text-sm font-semibold text-white/50">No image URL configured for this slide.</div>
@@ -1194,7 +1274,7 @@ function SpectatorDisplayContent() {
             <video
               key={currentSlide.id}
               src={currentSlide.media_url}
-              className="max-h-[70vh] max-w-full rounded-2xl border border-white/10 shadow-2xl bg-black"
+              className="max-h-[756px] max-w-full rounded-2xl border border-white/10 shadow-2xl bg-black"
               autoPlay
               muted
               loop
@@ -1242,9 +1322,9 @@ function SpectatorDisplayContent() {
           </div>
 
           {/* Winner Full Screen Display OR Normal Scoreboard */}
-          {winnerSide ? (
+          {resultConfirmed && winnerSide ? (
             <div className="flex-1 flex flex-col items-center justify-center min-h-0 animate-in fade-in zoom-in duration-500 overflow-hidden">
-              <div className={`w-full max-w-6xl p-6 md:p-10 rounded-[3rem] flex flex-col items-center justify-center font-black uppercase border-4 z-20 flex-1 max-h-[90vh] ${
+              <div className={`w-full max-w-6xl p-6 md:p-10 rounded-[3rem] flex flex-col items-center justify-center font-black uppercase border-4 z-20 flex-1 max-h-[972px] ${
                 winnerSide === 'aka'
                   ? 'bg-red-600/90 text-white border-red-400 ring-1 ring-red-500/30 shadow-[0_0_100px_rgba(220,38,38,0.6)]'
                   : 'bg-blue-600/90 text-white border-blue-400 ring-1 ring-blue-500/30 shadow-[0_0_100px_rgba(37,99,235,0.6)]'
@@ -1253,7 +1333,7 @@ function SpectatorDisplayContent() {
                 <h2 className="text-2xl md:text-5xl font-black text-white/90 tracking-[0.2em] mb-1 md:mb-2 drop-shadow-md shrink-0">
                   {winnerSide === 'aka' ? 'AKA' : 'AO'}
                 </h2>
-                <h1 className="text-[clamp(24px,4.5vw,70px)] tracking-tighter mb-2 md:mb-4 text-center leading-tight drop-shadow-lg max-w-full break-words text-balance px-2 md:px-6 shrink min-h-0 overflow-hidden">
+                <h1 className="text-[70px] tracking-tighter mb-2 md:mb-4 text-center leading-tight drop-shadow-lg max-w-full break-words text-balance px-2 md:px-6 shrink min-h-0 overflow-hidden">
                   {winnerSide === 'aka' ? akaName : aoName}
                 </h1>
                 <h3 className="text-xl md:text-4xl text-white/90 tracking-widest mb-4 md:mb-6 drop-shadow-md shrink-0">
@@ -1575,7 +1655,7 @@ function SpectatorDisplayContent() {
           <div className="flex justify-between items-center border-b-2 border-white/10 pb-4 mb-4 shrink-0 mt-8">
             <div>
               <span className="text-yellow-400 font-black tracking-widest text-lg uppercase">
-                {tatamiName} • BOUT #{boutNo} • ROUND {roundNo}
+                {tatamiName} , R{roundNo}B{boutNo}
               </span>
               <h1 className="text-2xl font-black tracking-tight text-white/80 line-clamp-1 mt-1">
                 {categoryName}
@@ -1599,9 +1679,9 @@ function SpectatorDisplayContent() {
       )}
 
       {/* Winner Full Screen Display OR Normal Scoreboard */}
-      {winnerSide ? (
+      {resultConfirmed && winnerSide ? (
         <div className="flex-1 flex flex-col items-center justify-center min-h-0 animate-in fade-in zoom-in duration-500 overflow-hidden">
-          <div className={`w-full max-w-6xl p-6 md:p-10 rounded-[3rem] flex flex-col items-center justify-center font-black uppercase border-4 z-20 flex-1 max-h-[90vh] ${
+          <div className={`w-full max-w-6xl p-6 md:p-10 rounded-[3rem] flex flex-col items-center justify-center font-black uppercase border-4 z-20 flex-1 max-h-[972px] ${
             winnerSide === 'aka'
               ? 'bg-red-950/90 text-red-100 border-red-500 shadow-[0_0_100px_rgba(239,68,68,0.6)]'
               : 'bg-blue-950/90 text-blue-100 border-blue-500 shadow-[0_0_100px_rgba(59,130,246,0.6)]'
@@ -1610,7 +1690,7 @@ function SpectatorDisplayContent() {
              <h2 className="text-2xl md:text-5xl font-black text-white/90 tracking-[0.2em] mb-1 md:mb-2 drop-shadow-md shrink-0">
                {winnerSide === 'aka' ? 'AKA' : 'AO'}
              </h2>
-             <h1 className="text-[clamp(24px,4.5vw,70px)] tracking-tighter mb-2 md:mb-4 text-center leading-tight drop-shadow-lg max-w-full break-words text-balance px-2 md:px-6 shrink min-h-0 overflow-hidden">
+             <h1 className="text-[70px] tracking-tighter mb-2 md:mb-4 text-center leading-tight drop-shadow-lg max-w-full break-words text-balance px-2 md:px-6 shrink min-h-0 overflow-hidden">
                {winnerSide === 'aka' ? akaName : aoName}
              </h1>
              <h3 className="text-xl md:text-4xl text-white/90 tracking-widest mb-4 md:mb-6 drop-shadow-md shrink-0">
@@ -1625,7 +1705,7 @@ function SpectatorDisplayContent() {
       ) : (
         <div className="flex-1 min-h-0 grid grid-cols-2 xl:grid-cols-12 gap-3 lg:gap-4 xl:gap-6 pb-2">
         {/* AKA RED CARD */}
-        <div className={`col-span-1 xl:col-span-3 order-2 xl:order-1 h-auto xl:h-full rounded-[40px] p-2 lg:p-8 flex flex-col justify-between relative overflow-hidden shadow-[0_0_80px_rgba(239,68,68,0.1)] transition-all duration-500 ${
+        <div className={`col-span-1 xl:col-span-4 order-2 xl:order-1 h-auto xl:h-full rounded-[40px] p-2 lg:p-8 flex flex-col justify-between relative overflow-hidden shadow-[0_0_80px_rgba(239,68,68,0.1)] transition-all duration-500 ${
           winnerSide === 'aka'
             ? 'bg-red-950/80 border-4 border-red-500 shadow-[inset_0_0_100px_rgba(239,68,68,0.4),0_0_80px_rgba(239,68,68,0.8)]'
             : 'bg-[#150000] border-4 border-red-600/40 text-white'
@@ -1644,7 +1724,7 @@ function SpectatorDisplayContent() {
 
               {/* Fighter Name directly under AKA RED */}
               <div className="w-full px-2 mt-1.5 flex flex-col items-center relative z-10">
-                <h2 className="font-competitor text-[clamp(24px,3.2vw,40px)] font-extrabold tracking-tight truncate max-w-full text-center uppercase leading-none" title={akaName}>
+                <h2 className="font-competitor text-[40px] font-extrabold tracking-tight truncate max-w-full text-center uppercase leading-none" title={akaName}>
                   {akaName}
                 </h2>
                 <p className={`${
@@ -1708,7 +1788,7 @@ function SpectatorDisplayContent() {
                   return (
                     <div
                       key={level}
-                      className={`flex items-center justify-center h-12 lg:h-16 rounded-xl font-din text-[clamp(20px,3.5vh,36px)] font-black transition-all border ${
+                      className={`flex items-center justify-center h-12 lg:h-16 rounded-xl font-din text-[36px] font-black transition-all border ${
                         isActive
                           ? 'bg-red-500 text-black border-red-400 shadow-[0_0_15px_rgba(239,68,68,0.6)]'
                           : 'bg-transparent text-white/20 border-white/10'
@@ -1724,9 +1804,37 @@ function SpectatorDisplayContent() {
         </div>
 
         {/* CENTER COLUMN: TIMER */}
-        <div className="col-span-2 xl:col-span-6 order-1 xl:order-2 flex flex-col justify-center items-center h-auto xl:h-full text-center px-1 lg:px-4">
+        <div className="col-span-2 xl:col-span-4 order-1 xl:order-2 flex flex-col justify-center items-center h-auto xl:h-full text-center px-1 lg:px-4">
           <div className="bg-black/60 backdrop-blur-xl border border-white/20 shadow-[0_0_80px_rgba(0,0,0,0.8)] rounded-[40px] w-full h-auto xl:h-full min-h-[300px] p-2 lg:p-8 flex flex-col justify-between items-center relative overflow-hidden">
             <div className="absolute top-0 left-0 right-0 h-1/2 bg-gradient-to-b from-white/5 to-transparent pointer-events-none" />
+
+            {/* EXTRA TIMER FULL OVERLAY (COVERS MATCH TIMER) */}
+            {showExtraTimer && (
+              <div className="absolute inset-0 z-30 bg-[#070a14]/98 backdrop-blur-2xl rounded-[40px] border-4 border-yellow-500 shadow-[inset_0_0_100px_rgba(234,179,8,0.25),0_0_120px_rgba(234,179,8,0.6)] p-4 lg:p-8 flex flex-col justify-between items-center select-none animate-fade-in">
+                {/* Header Badge */}
+                <div className="mt-2 flex items-center gap-2.5">
+                  <div className="p-1.5 bg-yellow-500/20 border border-yellow-500/40 rounded-xl text-yellow-400">
+                    <Clock className="h-5 w-5 lg:h-6 lg:w-6" />
+                  </div>
+                  <span className="bg-yellow-500 text-black font-black text-sm lg:text-base uppercase px-5 py-1 rounded-xl tracking-widest border border-yellow-400 shadow-md">
+                    EXTRA / BREAK TIMER
+                  </span>
+                </div>
+
+                {/* Giant Extra Timer Clock */}
+                <div className="font-din text-[150px] lg:text-[220px] font-black leading-none tracking-tight text-yellow-400 drop-shadow-[0_0_70px_rgba(234,179,8,0.8)] flex items-center justify-center my-auto w-full">
+                  {Math.floor(extraTimerSeconds / 60).toString().padStart(2, '0')}:{(extraTimerSeconds % 60).toString().padStart(2, '0')}
+                </div>
+
+                {/* Bottom Status Indicator */}
+                <div className="mb-3 flex items-center gap-3">
+                  <span className={`w-4 h-4 lg:w-5 lg:h-5 rounded-full ${extraTimerIsRunning ? 'bg-green-400 animate-ping shadow-[0_0_20px_rgba(74,222,128,1)]' : 'bg-orange-400 shadow-[0_0_10px_rgba(251,146,60,0.8)]'}`} />
+                  <span className="text-sm lg:text-base font-black uppercase text-white/90 tracking-[0.2em]">
+                    {extraTimerIsRunning ? 'RUNNING' : 'PAUSED'}
+                  </span>
+                </div>
+              </div>
+            )}
             
             {/* Top Area: Label */}
             <div className="mt-4">
@@ -1736,13 +1844,13 @@ function SpectatorDisplayContent() {
             </div>
             
             {/* Giant digital timer (DIN 1451 Bold White 160-260px) */}
-            <div className={`font-din text-[clamp(60px,15vh,260px)] lg:text-[clamp(160px,24vh,260px)] font-bold leading-none tracking-tight transition-all duration-300 select-none flex items-baseline justify-center relative z-10 w-full ${
+            <div className={`font-din text-[162px] lg:text-[220px] font-bold leading-none tracking-tight transition-all duration-300 select-none flex items-baseline justify-center relative z-10 w-full ${
               timeLeft <= 150 && timeLeft > 0 
                 ? 'text-red-500 scale-105 animate-pulse drop-shadow-[0_0_40px_rgba(239,68,68,0.5)]' 
                 : 'text-white drop-shadow-[0_0_30px_rgba(255,255,255,0.4)]'
             }`}>
               <span>{formatMainTime(timeLeft)}</span>
-              <span className={`font-din text-[clamp(80px,12vh,130px)] font-bold ml-1 lg:ml-2 ${
+              <span className={`font-din text-[110px] font-bold ml-1 lg:ml-2 ${
                 timeLeft <= 150 && timeLeft > 0 ? 'text-red-500/60' : 'text-white/70'
               }`}>
                 {formatDecsTime(timeLeft)}
@@ -1767,7 +1875,7 @@ function SpectatorDisplayContent() {
         </div>
 
         {/* AO BLUE CARD */}
-        <div className={`col-span-1 xl:col-span-3 order-3 xl:order-3 h-auto xl:h-full rounded-[40px] p-2 lg:p-8 flex flex-col justify-between relative overflow-hidden shadow-[0_0_80px_rgba(59,130,246,0.1)] transition-all duration-500 ${
+        <div className={`col-span-1 xl:col-span-4 order-3 xl:order-3 h-auto xl:h-full rounded-[40px] p-2 lg:p-8 flex flex-col justify-between relative overflow-hidden shadow-[0_0_80px_rgba(59,130,246,0.1)] transition-all duration-500 ${
           winnerSide === 'ao'
             ? 'bg-blue-950/80 border-4 border-blue-500 shadow-[inset_0_0_100px_rgba(59,130,246,0.4),0_0_80px_rgba(59,130,246,0.8)]'
             : 'bg-[#000515] border-4 border-blue-600/40 text-white'
@@ -1786,7 +1894,7 @@ function SpectatorDisplayContent() {
 
               {/* Fighter Name directly under AO BLUE */}
               <div className="w-full px-2 mt-1.5 flex flex-col items-center relative z-10">
-                <h2 className="font-competitor text-[clamp(24px,3.2vw,40px)] font-extrabold tracking-tight truncate max-w-full text-center uppercase leading-none" title={aoName}>
+                <h2 className="font-competitor text-[40px] font-extrabold tracking-tight truncate max-w-full text-center uppercase leading-none" title={aoName}>
                   {aoName}
                 </h2>
                 <p className={`${
@@ -1850,7 +1958,7 @@ function SpectatorDisplayContent() {
                   return (
                     <div
                       key={level}
-                      className={`flex items-center justify-center h-12 lg:h-16 rounded-xl font-din text-[clamp(20px,3.5vh,36px)] font-black transition-all border ${
+                      className={`flex items-center justify-center h-12 lg:h-16 rounded-xl font-din text-[36px] font-black transition-all border ${
                         isActive
                           ? 'bg-blue-500 text-black border-blue-400 shadow-[0_0_15px_rgba(59,130,246,0.6)]'
                           : 'bg-transparent text-white/20 border-white/10'
@@ -1869,25 +1977,228 @@ function SpectatorDisplayContent() {
     </>
   )}
 
+  {/* PROFESSIONAL PLAYER DETAILS PRESENTATION OVERLAY */}
+  {showPlayerDetails && (
+    <div className="fixed inset-0 z-[100] bg-[#05070e] flex flex-col justify-between p-6 lg:p-10 select-none overflow-hidden font-sans animate-fade-in shadow-2xl">
+      {/* Dynamic Ambient Background Lights */}
+      <div className="absolute top-0 left-0 w-[500px] h-[500px] bg-red-600/15 rounded-full blur-[140px] pointer-events-none" />
+      <div className="absolute bottom-0 right-0 w-[500px] h-[500px] bg-blue-600/15 rounded-full blur-[140px] pointer-events-none" />
+      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[300px] bg-yellow-500/10 rounded-full blur-[160px] pointer-events-none" />
 
+      {/* Top Header Bar */}
+      <header className="relative z-10 flex items-center justify-between border-b border-white/10 pb-4 shrink-0">
+        <div className="flex items-center gap-3">
+          <div className="p-2 bg-yellow-500/10 border border-yellow-500/30 rounded-xl text-yellow-400">
+            <Trophy className="h-6 w-6" />
+          </div>
+          <div>
+            <h1 className="text-xl lg:text-2xl font-black text-white tracking-wider uppercase drop-shadow-md">
+              {tournamentName || 'OFFICIAL KARATE CHAMPIONSHIP'}
+            </h1>
+            <div className="flex items-center gap-2 mt-0.5">
+              <span className="text-xs font-black uppercase text-yellow-400 bg-yellow-500/10 px-2.5 py-0.5 rounded-full border border-yellow-500/30">
+                {playerDetailsPayload?.category?.name || categoryName || 'MATCH PRESENTATION'}
+              </span>
+              <span className="text-xs font-bold text-white/50">
+                {tatamiName} · MATCH R{roundNo}B{boutNo}
+              </span>
+            </div>
+          </div>
+        </div>
 
+        <button
+          onClick={() => setShowPlayerDetails(false)}
+          className="p-2 rounded-xl bg-white/5 hover:bg-white/15 text-white/40 hover:text-white border border-white/10 transition cursor-pointer flex items-center gap-1.5 text-xs font-bold"
+        >
+          <X className="h-4 w-4" /> CLOSE
+        </button>
+      </header>
 
+      {/* Center Stage: Competitor Face-Off Grid */}
+      {(() => {
+        const aka = playerDetailsPayload?.akaFighter || allParticipants.find(p => p.id === (playerDetailsPayload?.bout?.participant_a_id || activeBoutId));
+        const ao = playerDetailsPayload?.aoFighter || allParticipants.find(p => p.id === (playerDetailsPayload?.bout?.participant_b_id || activeBoutId));
+        const akaClubName = playerDetailsPayload?.akaClub || (aka?.club_id ? allClubs.find(c => c.id === aka.club_id)?.name : akaClub) || '—';
+        const aoClubName = playerDetailsPayload?.aoClub || (ao?.club_id ? allClubs.find(c => c.id === ao.club_id)?.name : aoClub) || '—';
+        const akaCoachName = playerDetailsPayload?.akaCoach || '—';
+        const aoCoachName = playerDetailsPayload?.aoCoach || '—';
+
+        const calcAge = (dob?: string) => {
+          if (!dob) return null;
+          const b = new Date(dob);
+          const age = new Date().getFullYear() - b.getFullYear();
+          return isNaN(age) ? null : age;
+        };
+
+        return (
+          <main className="relative z-10 flex-1 min-h-0 my-4 grid grid-cols-1 xl:grid-cols-[1fr_200px_1fr] gap-6 items-stretch">
+            {/* AKA (RED CORNER) */}
+            <div className="bg-gradient-to-b from-red-950/80 via-red-900/30 to-[#0c080d] border-2 border-red-500/60 shadow-[0_0_60px_rgba(239,68,68,0.25)] rounded-3xl p-6 lg:p-8 flex flex-col justify-between relative overflow-hidden">
+              <div className="flex items-center justify-between mb-4">
+                <span className="text-xl lg:text-2xl font-black text-red-300 bg-red-950/90 border border-red-600/70 px-4 py-1 rounded-xl tracking-widest uppercase shadow-lg shadow-red-950/50">
+                  AKA · RED
+                </span>
+                <span className="text-sm font-black text-white/50 font-mono">
+                  #{aka?.registration_no || 'REG-A'}
+                </span>
+              </div>
+
+              {/* Center Fighter Info */}
+              <div className="flex flex-col lg:flex-row items-center gap-6 my-auto">
+                {/* Photo Frame */}
+                <div className="w-40 h-52 lg:w-48 lg:h-64 rounded-2xl bg-black/60 border-2 border-red-400/80 shadow-[0_0_30px_rgba(239,68,68,0.3)] overflow-hidden flex items-center justify-center shrink-0">
+                  {aka?.photo_url ? (
+                    <img src={aka.photo_url} alt={aka.full_name} className="w-full h-full object-cover" />
+                  ) : (
+                    <UserSquare2 className="h-20 w-20 text-red-400/30" />
+                  )}
+                </div>
+
+                {/* Name & Primary Badges */}
+                <div className="flex-1 min-w-0 text-center lg:text-left space-y-2">
+                  <h2 className="text-3xl lg:text-4xl font-extrabold text-white tracking-tight uppercase leading-tight">
+                    {aka?.full_name || akaName}
+                  </h2>
+                  <p className="text-base lg:text-lg font-bold text-yellow-400 uppercase tracking-wide">
+                    {akaClubName}
+                  </p>
+                  <div className="flex flex-wrap gap-2 justify-center lg:justify-start pt-1">
+                    <span className="px-3 py-1 rounded-lg bg-white/10 text-white/80 font-bold text-xs">
+                      {aka?.gender || 'Male'}
+                    </span>
+                    {calcAge(aka?.dob) && (
+                      <span className="px-3 py-1 rounded-lg bg-white/10 text-white/80 font-bold text-xs">
+                        {calcAge(aka?.dob)} Years Old
+                      </span>
+                    )}
+                    {aka?.weight && (
+                      <span className="px-3 py-1 rounded-lg bg-white/10 text-white/80 font-bold text-xs">
+                        {aka.weight} kg
+                      </span>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Bottom Meta Grid */}
+              <div className="grid grid-cols-2 gap-2 mt-4 pt-3 border-t border-red-900/40 text-xs">
+                <div className="bg-black/30 border border-white/5 rounded-xl p-2.5">
+                  <span className="text-[10px] font-black uppercase text-white/30 block">ASSIGNED COACH</span>
+                  <span className="font-bold text-white truncate block">{akaCoachName || 'Sensei Coach'}</span>
+                </div>
+                <div className="bg-black/30 border border-white/5 rounded-xl p-2.5">
+                  <span className="text-[10px] font-black uppercase text-white/30 block">AFFILIATION</span>
+                  <span className="font-bold text-red-300 truncate block">{aka?.nationality_code || 'NATIONAL'}</span>
+                </div>
+              </div>
+            </div>
+
+            {/* CENTER VS EMBLEM */}
+            <div className="flex flex-col items-center justify-center py-4 text-center">
+              <div className="w-24 h-24 lg:w-28 lg:h-28 rounded-full bg-gradient-to-tr from-yellow-600 via-yellow-400 to-amber-200 p-1 shadow-[0_0_50px_rgba(234,179,8,0.4)] flex items-center justify-center animate-pulse">
+                <div className="w-full h-full rounded-full bg-[#0d1017] flex items-center justify-center border-2 border-yellow-400">
+                  <span className="font-black text-3xl lg:text-4xl text-transparent bg-clip-text bg-gradient-to-b from-yellow-200 to-yellow-500 tracking-tighter">
+                    VS
+                  </span>
+                </div>
+              </div>
+
+              <div className="mt-4 space-y-1">
+                <span className="text-xs font-black uppercase tracking-widest text-white/40 block">
+                  {isKata ? 'KATA DIVISION' : 'KUMITE DIVISION'}
+                </span>
+                <span className="text-sm font-black text-white font-mono block">
+                  ROUND {roundNo} · BOUT {boutNo}
+                </span>
+              </div>
+            </div>
+
+            {/* AO (BLUE CORNER) */}
+            <div className="bg-gradient-to-b from-blue-950/80 via-blue-900/30 to-[#080b13] border-2 border-blue-500/60 shadow-[0_0_60px_rgba(59,130,246,0.25)] rounded-3xl p-6 lg:p-8 flex flex-col justify-between relative overflow-hidden">
+              <div className="flex items-center justify-between mb-4">
+                <span className="text-xl lg:text-2xl font-black text-blue-300 bg-blue-950/90 border border-blue-600/70 px-4 py-1 rounded-xl tracking-widest uppercase shadow-lg shadow-blue-950/50">
+                  AO · BLUE
+                </span>
+                <span className="text-sm font-black text-white/50 font-mono">
+                  #{ao?.registration_no || 'REG-B'}
+                </span>
+              </div>
+
+              {/* Center Fighter Info */}
+              <div className="flex flex-col lg:flex-row-reverse items-center gap-6 my-auto">
+                {/* Photo Frame */}
+                <div className="w-40 h-52 lg:w-48 lg:h-64 rounded-2xl bg-black/60 border-2 border-blue-400/80 shadow-[0_0_30px_rgba(59,130,246,0.3)] overflow-hidden flex items-center justify-center shrink-0">
+                  {ao?.photo_url ? (
+                    <img src={ao.photo_url} alt={ao.full_name} className="w-full h-full object-cover" />
+                  ) : (
+                    <UserSquare2 className="h-20 w-20 text-blue-400/30" />
+                  )}
+                </div>
+
+                {/* Name & Primary Badges */}
+                <div className="flex-1 min-w-0 text-center lg:text-right space-y-2">
+                  <h2 className="text-3xl lg:text-4xl font-extrabold text-white tracking-tight uppercase leading-tight">
+                    {ao?.full_name || aoName}
+                  </h2>
+                  <p className="text-base lg:text-lg font-bold text-yellow-400 uppercase tracking-wide">
+                    {aoClubName}
+                  </p>
+                  <div className="flex flex-wrap gap-2 justify-center lg:justify-end pt-1">
+                    <span className="px-3 py-1 rounded-lg bg-white/10 text-white/80 font-bold text-xs">
+                      {ao?.gender || 'Male'}
+                    </span>
+                    {calcAge(ao?.dob) && (
+                      <span className="px-3 py-1 rounded-lg bg-white/10 text-white/80 font-bold text-xs">
+                        {calcAge(ao?.dob)} Years Old
+                      </span>
+                    )}
+                    {ao?.weight && (
+                      <span className="px-3 py-1 rounded-lg bg-white/10 text-white/80 font-bold text-xs">
+                        {ao.weight} kg
+                      </span>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Bottom Meta Grid */}
+              <div className="grid grid-cols-2 gap-2 mt-4 pt-3 border-t border-blue-900/40 text-xs">
+                <div className="bg-black/30 border border-white/5 rounded-xl p-2.5">
+                  <span className="text-[10px] font-black uppercase text-white/30 block">ASSIGNED COACH</span>
+                  <span className="font-bold text-white truncate block">{aoCoachName || 'Sensei Coach'}</span>
+                </div>
+                <div className="bg-black/30 border border-white/5 rounded-xl p-2.5">
+                  <span className="text-[10px] font-black uppercase text-white/30 block">AFFILIATION</span>
+                  <span className="font-bold text-blue-300 truncate block">{ao?.nationality_code || 'NATIONAL'}</span>
+                </div>
+              </div>
+            </div>
+          </main>
+        );
+      })()}
+
+      {/* Footer Bar */}
+      <footer className="relative z-10 flex items-center justify-between border-t border-white/10 pt-3 text-xs text-white/40 font-mono shrink-0">
+        <span>WORLD KARATE FEDERATION (WKF) OFFICIAL SYSTEM</span>
+        <span>BROADCAST DISPLAY FEED · {tatamiName}</span>
+      </footer>
+    </div>
+  )}
 
 </div>
+    </ScaleWrapper>
   );
 }
 
 export default function SpectatorDisplayPage() {
   return (
-    <TournamentSelectorGate>
-      <Suspense fallback={
-        <div className="min-h-screen bg-black flex items-center justify-center">
-          <div className="text-white/40 text-xl font-black tracking-widest animate-pulse">LOADING DISPLAY...</div>
-        </div>
-      }>
-        <SpectatorDisplayContent />
-      </Suspense>
-    </TournamentSelectorGate>
+    <Suspense fallback={
+      <div className="min-h-screen bg-black flex items-center justify-center">
+        <div className="text-white/40 text-xl font-black tracking-widest animate-pulse">LOADING DISPLAY...</div>
+      </div>
+    }>
+      <SpectatorDisplayContent />
+    </Suspense>
   );
 }
 

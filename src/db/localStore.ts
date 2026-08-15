@@ -74,8 +74,8 @@ export const localStore = {
     // Attempt to load from Cloud first if available
     if (supabase && typeof navigator !== 'undefined' && navigator.onLine) {
        try {
-         const { data, error } = await supabase.from('tournaments').select('data').eq('id', id).single();
-         if (!error && data?.data) {
+         const { data, error } = await supabase.from('tournaments').select('*').eq('id', id).single();
+         if (!error && data && 'data' in data && data.data) {
            cloudDb = data.data as TournamentDatabase;
            // Cache it locally!
            await dbStore.setItem(`ktournament_${id}`, cloudDb);

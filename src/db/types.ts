@@ -181,6 +181,7 @@ export interface Bout {
   points_ao_history?: string;
   timer_seconds?: number;
   timer_active?: boolean;
+  notes?: string;
   kata_a?: string;
   kata_b?: string;
   judge_scores_a?: number[];

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, Suspense } from 'react';
 import Link from 'next/link';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { db, basePath } from '@/db/dbClient';
@@ -12,10 +12,15 @@ import {
 import { useTournament } from '@/context/TournamentContext';
 import DisplayPlaylistModal from '@/components/DisplayPlaylistModal';
 
-export default function ScoreboardControlPage() {
+export interface ScoreboardRef {
+  undoLastAction: () => void;
+  confirmResult: () => void;
+}
+
+export const KumiteScoreboardControl = React.forwardRef<ScoreboardRef, { boutId?: string, onClose?: () => void, onLogEvent?: (category: 'SCORE'|'PENALTY'|'TIMER'|'SYSTEM', msg: string) => void }>(({ boutId: propBoutId, onClose, onLogEvent }, ref) => {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const boutId = searchParams.get('boutId');
+  const boutId = propBoutId || searchParams.get('boutId');
   const catId = searchParams.get('catId'); // passed from categories page
   const { tournamentName, acquireLock, releaseLock, activeTournamentId } = useTournament();
 
@@ -23,6 +28,11 @@ export default function ScoreboardControlPage() {
 
   const [mounted, setMounted] = useState(false);
   const [loading, setLoading] = useState(true);
+
+  React.useImperativeHandle(ref, () => ({
+    undoLastAction: () => handleUndo(),
+    confirmResult: () => handleConfirmResult()
+  }));
   const [isLockedByOther, setIsLockedByOther] = useState<boolean>(false);
   const [bout, setBout] = useState<Bout | null>(null);
   const [competitorAka, setCompetitorAka] = useState<Participant | null>(null);
@@ -67,7 +77,15 @@ export default function ScoreboardControlPage() {
   const [showFinishModal, setShowFinishModal] = useState<boolean>(false);
   const [winnerSide, setWinnerSide] = useState<'aka' | 'ao' | null>(null);
   const [winMethod, setWinMethod] = useState<string>('Points');
+  const [winnerConfirmed, setWinnerConfirmed] = useState<boolean>(false);
   const [saving, setSaving] = useState<boolean>(false);
+
+  // Result workflow states: Timer Ends → Confirm Result → Save Result → Next Match
+  const [resultConfirmed, setResultConfirmed] = useState<boolean>(false);
+  const [resultSaved, setResultSaved] = useState<boolean>(false);
+  // Ref mirror for synchronous reads in async callbacks (avoids React state timing issues)
+  const resultConfirmedRef = useRef<boolean>(false);
+  useEffect(() => { resultConfirmedRef.current = resultConfirmed; }, [resultConfirmed]);
 
   // Spectator View launch & management states
   const [spectatorConnected, setSpectatorConnected] = useState<boolean>(false);
@@ -365,6 +383,10 @@ export default function ScoreboardControlPage() {
         }
         setWinnerSide(loadedWinnerSide);
         setWinMethod(loadedWinnerSide ? 'Points' : ''); // Provide fallback string
+        setWinnerConfirmed(currentBout.status === 'Completed');
+        setResultConfirmed(currentBout.status === 'Completed');
+        setResultSaved(currentBout.status === 'Completed');
+        resultConfirmedRef.current = currentBout.status === 'Completed';
 
         // Seed history with clean match start state for complete undo support
         const initialSnap = {
@@ -400,20 +422,35 @@ export default function ScoreboardControlPage() {
     }
   }, [mounted, loadBoutData]);
 
+  const prevFirstScorerRef = useRef<'aka' | 'ao' | 'none' | null>(null);
+
   // Derive Senshu state from firstScorer
   // This ensures Senshu is always consistent with who scored first
   useEffect(() => {
     if (firstScorer === 'aka') {
       setSenshuAka(true);
       setSenshuAo(false);
+      if (prevFirstScorerRef.current !== 'aka' && onLogEvent) {
+        // Log if Senshu wasn't already awarded to AKA
+        onLogEvent('SCORE', 'Senshu awarded to AKA');
+      }
     } else if (firstScorer === 'ao') {
       setSenshuAo(true);
       setSenshuAka(false);
+      if (prevFirstScorerRef.current !== 'ao' && onLogEvent) {
+        // Log if Senshu wasn't already awarded to AO
+        onLogEvent('SCORE', 'Senshu awarded to AO');
+      }
     } else {
       setSenshuAka(false);
       setSenshuAo(false);
+      if ((prevFirstScorerRef.current === 'aka' || prevFirstScorerRef.current === 'ao') && onLogEvent) {
+        // Log if Senshu was revoked or cleared from someone
+        onLogEvent('SCORE', 'Senshu revoked/cleared');
+      }
     }
-  }, [firstScorer]);
+    prevFirstScorerRef.current = firstScorer;
+  }, [firstScorer, onLogEvent]);
 
   // Broadcast function to sync displays
   const broadcastState = useCallback(() => {
@@ -443,7 +480,8 @@ export default function ScoreboardControlPage() {
       timeLeft,
       timerActive,
       winner: winnerSide,
-      winMethod,
+      winMethod: winMethod,
+      resultConfirmed: resultConfirmed || winnerConfirmed || bout?.status === 'Completed',
       matchDuration
     });
   }, [
@@ -451,7 +489,7 @@ export default function ScoreboardControlPage() {
     senshuAka, senshuAo, firstScorer,
     c1Aka, c1Ao,
     pointsAka, pointsAo, eventsAka, eventsAo, showPointHistory,
-    timeLeft, timerActive, winnerSide, winMethod, matchDuration
+    timeLeft, timerActive, winnerSide, winMethod, matchDuration, winnerConfirmed, resultConfirmed, bout
   ]);
 
   // Broadcast state updates in real-time
@@ -793,17 +831,20 @@ export default function ScoreboardControlPage() {
     let finalScoreAo = scoreAo;
     let finalPointsAka = [...pointsAka];
     let finalPointsAo = [...pointsAo];
-    let isFirstScoreAka = false;
-    let isFirstScoreAo = false;
 
-    const technique = points === 1 ? 'Yuko' : points === 2 ? 'Waza-ari' : points === 3 ? 'Ippon' : 'Point';
-    const timestamp = Math.round(timeLeft / 10);
+    if (points > 0) {
+      if (onLogEvent) {
+        const pointType = points === 3 ? 'IPPON' : points === 2 ? 'WAZA-ARI' : 'YUKO';
+        onLogEvent('SCORE', `${side.toUpperCase()} scored ${pointType}`);
+      }
+    }
+
     const newEvent = {
-      fighter: side.toUpperCase(),
-      points,
-      technique,
-      timestamp,
-      matchId: boutId!
+        fighter: side === 'aka' ? competitorAka?.full_name || 'AKA' : competitorAo?.full_name || 'AO',
+        points,
+        technique: points === 3 ? 'Ippon' : points === 2 ? 'Waza-ari' : 'Yuko',
+        timestamp: Date.now(),
+        matchId: boutId || ''
     };
 
     if (side === 'aka') {
@@ -815,9 +856,6 @@ export default function ScoreboardControlPage() {
         finalPointsAka.push(points);
         setPointsAka(finalPointsAka);
         setEventsAka(prev => [...prev, newEvent]);
-        if (scoreAka === 0) {
-          isFirstScoreAka = true;
-        }
       } else if (points < 0 && finalPointsAka.length > 0) {
         finalPointsAka.pop();
         setPointsAka(finalPointsAka);
@@ -848,9 +886,6 @@ export default function ScoreboardControlPage() {
         finalPointsAo.push(points);
         setPointsAo(finalPointsAo);
         setEventsAo(prev => [...prev, newEvent]);
-        if (scoreAo === 0) {
-          isFirstScoreAo = true;
-        }
       } else if (points < 0 && finalPointsAo.length > 0) {
         finalPointsAo.pop();
         setPointsAo(finalPointsAo);
@@ -936,7 +971,7 @@ export default function ScoreboardControlPage() {
       setWinnerSide(finalWinner);
       setWinMethod('Points');
     }
-  }, [scoreAka, scoreAo, senshuAka, senshuAo, firstScorer, hasTimerRun, triggerBuzzer, pointsAka, pointsAo, eventsAka, eventsAo, c1Aka, c1Ao, bout, timerActive]);
+  }, [scoreAka, scoreAo, senshuAka, senshuAo, firstScorer, hasTimerRun, triggerBuzzer, pointsAka, pointsAo, eventsAka, eventsAo, c1Aka, c1Ao, bout, timerActive, competitorAka, competitorAo, boutId]);
 
   // Manage Penalties WKF System: C1, C2, C3, HC, H (level 1 to 5)
   const handleTogglePenalty = (side: 'aka' | 'ao', level: number) => {
@@ -952,6 +987,11 @@ export default function ScoreboardControlPage() {
     } else {
       nextVal = c1Ao === level ? Math.max(0, level - 1) : level;
       setC1Ao(nextVal);
+    }
+
+    if (onLogEvent) {
+      const penaltyLevel = nextVal === 5 ? 'HANSOKU' : nextVal > 0 ? `C${nextVal}` : 'penalty cleared';
+      onLogEvent('PENALTY', `${side.toUpperCase()} ${penaltyLevel}`);
     }
 
     // Hansoku (disqualification) at level 5
@@ -996,6 +1036,15 @@ export default function ScoreboardControlPage() {
   };
 
   // Manage Senshu - manual toggle (referee override only)
+  const toggleTimer = () => {
+    if (!bout || bout.status === 'Completed' || winnerSide) return;
+    setTimerActive(!timerActive);
+    if (!hasTimerRun) setHasTimerRun(true);
+    if (onLogEvent) {
+      onLogEvent('TIMER', `Timer ${!timerActive ? 'started' : 'paused'}`);
+    }
+  };
+
   const handleToggleSenshu = (side: 'aka' | 'ao') => {
     if (!bout || bout.status === 'Completed') return;
     pushHistory();
@@ -1016,11 +1065,15 @@ export default function ScoreboardControlPage() {
 
   // Timer controls
   const handleStartTimer = () => {
-    if (timeLeft > 0) setTimerActive(true);
+    if (timeLeft > 0) {
+      setTimerActive(true);
+      if (onLogEvent) onLogEvent('TIMER', 'Timer started');
+    }
   };
 
   const handleStopTimer = () => {
     setTimerActive(false);
+    if (onLogEvent) onLogEvent('TIMER', 'Timer paused');
   };
 
   const handleResetTimer = () => {
@@ -1028,6 +1081,7 @@ export default function ScoreboardControlPage() {
     setTimerActive(false);
     setTimeLeft(matchDuration * 10);
     setHasTimerRun(false);
+    if (onLogEvent) onLogEvent('TIMER', 'Timer reset');
   };
 
   const handleAdjustTime = (seconds: number) => {
@@ -1133,8 +1187,8 @@ export default function ScoreboardControlPage() {
   const akaScoreShiftClass = '';
   const aoScoreShiftClass = '';
 
-  const akaScoreSizeClass = 'text-[clamp(52px,9vh,190px)] lg:text-[clamp(120px,16vh,210px)]';
-  const aoScoreSizeClass = 'text-[clamp(52px,9vh,190px)] lg:text-[clamp(120px,16vh,210px)]';
+  const akaScoreSizeClass = 'text-[120px] lg:text-[160px] xl:text-[180px]';
+  const aoScoreSizeClass = 'text-[120px] lg:text-[160px] xl:text-[180px]';
 
   const akaSummaryBoxClass = akaTwoDigitScore ? 'h-full px-0.5 py-1' : 'h-full px-1 py-1';
   const aoSummaryBoxClass = aoTwoDigitScore ? 'h-full px-0.5 py-1' : 'h-full px-1 py-1';
@@ -1152,9 +1206,21 @@ export default function ScoreboardControlPage() {
     ? 'w-[74px] lg:w-[82px] h-[46px] lg:h-[56px]'
     : 'w-[84px] lg:w-[92px] h-[52px] lg:h-[62px]';
 
-  // Finish Match saving result
+  // Finish Match saving result — requires result to be CONFIRMED first (new workflow)
   const handleSaveResult = async () => {
     if (!boutId || !bout) return;
+
+    // Guard: must be confirmed before saving
+    if (!resultConfirmedRef.current) {
+      alert('Please confirm the result first.\nClick "Confirm Result" before saving.');
+      return;
+    }
+
+    // Guard: prevent duplicate saves
+    if (resultSaved || bout.status === 'Completed') {
+      alert('This result has already been saved.');
+      return;
+    }
 
     let winnerId: string | null = null;
     if (winnerSide === 'aka') {
@@ -1164,16 +1230,19 @@ export default function ScoreboardControlPage() {
     }
 
     if (!winnerId) {
-      alert('Please select a winner to finish this match.');
+      alert('Please confirm the winner before saving.');
       return;
     }
+
+    // Capture for use inside the async try block
+    const capturedWinnerId = winnerId;
 
     try {
       setSaving(true);
 
       await db.bouts.updateBoutState(boutId, {
         status: 'Completed',
-        winner_id: winnerId,
+        winner_id: capturedWinnerId,
         score_a: scoreAka,
         score_b: scoreAo,
         senshu_a: senshuAka,
@@ -1195,14 +1264,75 @@ export default function ScoreboardControlPage() {
         (window as any)._broadcastFullState();
       }
 
+      setResultSaved(true);
+      setBout(prev => prev ? { ...prev, status: 'Completed', winner_id: capturedWinnerId } : prev);
       setShowFinishModal(false);
-      // Auto-navigate back to Match Console Hub (Kumite) to easily start the next match
-      router.push(`/dashboard/scoreboard`);
     } catch (err) {
       console.error('Error saving bout result:', err);
       alert('Failed to save result. Please try again.');
     } finally {
       setSaving(false);
+    }
+  };
+
+  // Confirm Result: locks in the auto-determined winner and transitions the Referee View to Winner Page.
+  // This does NOT save the bout to the database — that requires a separate Save Result click.
+  const handleConfirmResult = () => {
+    if (resultConfirmed || bout?.status === 'Completed') return;
+
+    // Use currently determined winner, or try to auto-determine if not set
+    let side = winnerSide;
+    let method = winMethod;
+    if (!side) {
+      const result = autoDetermineWinner();
+      if (result) {
+        side = result.side;
+        method = result.method;
+        setWinnerSide(result.side);
+        setWinMethod(result.method);
+      } else {
+        alert('Cannot confirm result: no winner can be determined automatically.\nUse the Override Winner option (press Enter) to set a winner manually (Hantei / Kiken).');
+        return;
+      }
+    }
+
+    setTimerActive(false);
+    setResultConfirmed(true);
+    resultConfirmedRef.current = true;
+    // broadcastState will now send winner to display → Referee View shows Winner Page
+  };
+
+  // Next Match: resets local scoring/timer state and navigates to match selection.
+  // Only call after Save Result (or when operator explicitly decides to move on).
+  const handleNextMatch = () => {
+    setScoreAka(0);
+    setScoreAo(0);
+    setC1Aka(0);
+    setC1Ao(0);
+    setSenshuAka(false);
+    setSenshuAo(false);
+    setFirstScorer(null);
+    setPointsAka([]);
+    setPointsAo([]);
+    setEventsAka([]);
+    setEventsAo([]);
+    setWinnerSide(null);
+    setWinMethod('');
+    setResultConfirmed(false);
+    setResultSaved(false);
+    resultConfirmedRef.current = false;
+    setWinnerConfirmed(false);
+    setTimeLeft(matchDuration * 10);
+    setTimerActive(false);
+    setStoppageScorers([]);
+    setStoppageInitialSenshu(null);
+    setHasTimerRun(false);
+    setShowFinishModal(false);
+    setHistory([]);
+    if (onClose) {
+      onClose();
+    } else {
+      router.push('/dashboard/scoreboard');
     }
   };
 
@@ -1237,6 +1367,10 @@ export default function ScoreboardControlPage() {
       setEventsAo([]);
       setWinnerSide(null);
       setWinMethod('');
+      setWinnerConfirmed(false);
+      setResultConfirmed(false);
+      setResultSaved(false);
+      resultConfirmedRef.current = false;
       setTimeLeft(matchDuration * 10);
       setTimerActive(false);
       setHistory([]);
@@ -1279,6 +1413,10 @@ export default function ScoreboardControlPage() {
       setEventsAo([]);
       setWinnerSide(null);
       setWinMethod('');
+      setWinnerConfirmed(false);
+      setResultConfirmed(false);
+      setResultSaved(false);
+      resultConfirmedRef.current = false;
       setTimeLeft(matchDuration * 10);
       setTimerActive(false);
       setStoppageScorers([]);
@@ -1330,9 +1468,15 @@ export default function ScoreboardControlPage() {
       {/* Header */}
       <header className="bg-[#0b0b10] border-b border-white/5 px-4 py-1.5 flex items-center justify-between shrink-0">
         <div className="flex items-center gap-3">
-          <Link href="/dashboard/scoreboard" className="p-1 hover:bg-white/5 rounded-lg transition">
-            <ChevronLeft className="h-4 w-4" />
-          </Link>
+          {onClose ? (
+            <button onClick={onClose} className="p-1 hover:bg-white/5 rounded-lg transition cursor-pointer">
+              <ChevronLeft className="h-4 w-4" />
+            </button>
+          ) : (
+            <Link href="/dashboard/scoreboard" className="p-1 hover:bg-white/5 rounded-lg transition">
+              <ChevronLeft className="h-4 w-4" />
+            </Link>
+          )}
           <div>
             <h1 className="text-xs font-black uppercase tracking-wider">Scoreboard Control</h1>
             <p className="text-[9px] text-gray-500">{tournamentName || 'Tournament'}</p>
@@ -1485,8 +1629,25 @@ export default function ScoreboardControlPage() {
           </div>
         )}
 
-        {/* Dynamic Winner Alert Header */}
-        {winnerSide && (
+        {/* Dynamic Result Status Banners — 3 states: Pending / Confirmed / Saved */}
+        {/* 1. Timer ended, result auto-determined, waiting for confirmation */}
+        {winnerSide && timeLeft === 0 && !timerActive && !resultConfirmed && bout.status !== 'Completed' && (
+          <div className="p-1 mb-0.5 shrink-0 rounded-lg flex items-center justify-center font-black text-xs lg:text-sm tracking-widest uppercase border shadow-lg animate-pulse z-20 bg-amber-950/90 text-amber-400 border-amber-500 shadow-[0_0_20px_rgba(245,158,11,0.4)]">
+            ⏱ RESULT PENDING — {winnerSide === 'aka' ? (competitorAka?.full_name || 'AKA RED') : (competitorAo?.full_name || 'AO BLUE')} LEADS — CLICK CONFIRM RESULT
+          </div>
+        )}
+        {/* 2. Result confirmed (Referee View now shows Winner Page), not yet saved to DB */}
+        {winnerSide && resultConfirmed && !resultSaved && bout.status !== 'Completed' && (
+          <div className={`p-1 mb-0.5 shrink-0 rounded-lg flex items-center justify-center font-black text-xs lg:text-sm tracking-widest uppercase border shadow-lg z-20 ${
+            winnerSide === 'aka'
+              ? 'bg-red-950/90 text-red-400 border-red-500 shadow-[0_0_20px_rgba(239,68,68,0.5)]'
+              : 'bg-blue-950/90 text-blue-400 border-blue-500 shadow-[0_0_20px_rgba(59,130,246,0.5)]'
+          }`}>
+            ✓ CONFIRMED — WINNER: {winnerSide === 'aka' ? (competitorAka?.full_name || 'AKA RED') : (competitorAo?.full_name || 'AO BLUE')} — CLICK SAVE RESULT TO FINALISE
+          </div>
+        )}
+        {/* 3. Result saved to DB — Bout completed */}
+        {winnerSide && (resultSaved || bout.status === 'Completed') && (
           <div className={`p-1 mb-0.5 shrink-0 rounded-lg flex items-center justify-center font-black text-xs lg:text-sm tracking-widest uppercase border shadow-lg animate-pulse z-20 ${
             winnerSide === 'aka'
               ? 'bg-red-950/90 text-red-400 border-red-500 shadow-[0_0_30px_rgba(239,68,68,0.5)]'
@@ -1500,7 +1661,7 @@ export default function ScoreboardControlPage() {
               winMethod === 'HANSOKU' ? 'HANSOKU DISQUALIFICATION' :
               winMethod === 'Kiken' ? 'KIKEN (WITHDRAWAL)' :
               winMethod || 'POINTS ADVANTAGE'
-            }: {winnerSide === 'aka' ? (competitorAka?.full_name || 'AKA RED') : (competitorAo?.full_name || 'AO BLUE')} {winMethod === 'HANSOKU' ? '🚨' : <Trophy className="h-4 w-4 mx-1 lg:h-5 lg:w-5 inline-block" />}
+            }: {winnerSide === 'aka' ? (competitorAka?.full_name || 'AKA RED') : (competitorAo?.full_name || 'AO BLUE')} ✓ SAVED {winMethod === 'HANSOKU' ? '🚨' : <Trophy className="h-4 w-4 mx-1 lg:h-5 lg:w-5 inline-block" />}
           </div>
         )}
 
@@ -1598,9 +1759,9 @@ export default function ScoreboardControlPage() {
                   <button
                     onClick={() => handleToggleSenshu('aka')}
                     disabled={bout.status === 'Completed'}
-                    className={`text-xs font-black uppercase px-2 py-1 rounded border transition cursor-pointer ${senshuAka
+                    className={`text-sm lg:text-lg font-black uppercase px-4 py-2 lg:py-3 rounded border transition cursor-pointer ${senshuAka
                         ? 'bg-yellow-500 text-black border-yellow-400 shadow-[0_0_8px_rgba(234,179,8,0.4)]'
-                        : 'bg-transparent text-white/40 border-white/15'
+                        : 'bg-transparent text-white/40 border-white/15 hover:bg-white/5'
                       } disabled:opacity-25 disabled:cursor-not-allowed`}
                   >
                     SENSHU {senshuAka ? 'ON' : 'OFF'}
@@ -1615,7 +1776,7 @@ export default function ScoreboardControlPage() {
                         key={level}
                         onClick={() => handleTogglePenalty('aka', level)}
                         disabled={bout.status === 'Completed'}
-                        className={`flex items-center justify-center h-8 lg:h-12 rounded-lg font-din text-[clamp(14px,2vh,24px)] lg:text-[clamp(20px,3.5vh,36px)] font-black transition-all border cursor-pointer active:scale-90 disabled:opacity-25 disabled:cursor-not-allowed ${isActive
+                        className={`flex items-center justify-center h-8 lg:h-12 rounded-lg font-din text-lg lg:text-2xl xl:text-3xl font-black transition-all border cursor-pointer active:scale-90 disabled:opacity-25 disabled:cursor-not-allowed ${isActive
                             ? 'bg-red-500 text-black border-red-400 shadow-[0_0_12px_rgba(239,68,68,0.5)]'
                             : 'bg-transparent text-white/30 border-white/15 hover:bg-white/5'
                           }`}
@@ -1635,11 +1796,11 @@ export default function ScoreboardControlPage() {
             
             {/* Giant Timer */}
             <div className="flex-1 flex flex-col items-center justify-center w-full min-h-0 py-0.5">
-              <div className={`font-din text-[clamp(40px,8vh,155px)] lg:text-[clamp(80px,12vh,155px)] font-black leading-none select-none flex items-baseline justify-center tracking-tight ${
+              <div className={`font-din text-[70px] lg:text-[90px] xl:text-[110px] font-black leading-none select-none flex items-baseline justify-center tracking-tight ${
                 timeLeft <= 150 && timeLeft > 0 ? 'text-red-500 animate-pulse drop-shadow-[0_0_35px_rgba(239,68,68,0.85)]' : 'text-white drop-shadow-[0_0_30px_rgba(255,255,255,0.5)]'
               }`}>
                 <span>{formatMainTime(timeLeft)}</span>
-                <span className={`font-din text-[clamp(24px,4vh,64px)] lg:text-[clamp(36px,5.5vh,64px)] font-black ml-1 ${
+                <span className={`font-din text-[32px] lg:text-[42px] xl:text-[54px] font-black ml-1 ${
                   timeLeft <= 150 && timeLeft > 0 ? 'text-red-500/70' : 'text-white/75'
                 }`}>{formatDecsTime(timeLeft)}</span>
               </div>
@@ -1660,17 +1821,17 @@ export default function ScoreboardControlPage() {
                     <button
                       onClick={handleStopTimer}
                       disabled={bout.status === 'Completed'}
-                      className="w-full h-full py-1.5 bg-red-600 hover:bg-red-500 text-white disabled:opacity-40 rounded-lg font-black text-[10px] uppercase tracking-widest flex items-center justify-center gap-1 transition cursor-pointer shadow-md shadow-red-950/40"
+                      className="w-full h-full py-3 lg:py-5 bg-red-600 hover:bg-red-500 text-white disabled:opacity-40 rounded-lg font-black text-sm lg:text-xl uppercase tracking-widest flex items-center justify-center gap-2 transition cursor-pointer shadow-md shadow-red-950/40"
                     >
-                      <Square className="h-3 w-3 fill-white" /> Stop Timer
+                      <Square className="h-5 w-5 lg:h-7 lg:w-7 fill-white" /> Stop Timer
                     </button>
                   ) : (
                     <button
                       onClick={handleStartTimer}
                       disabled={timeLeft === 0 || bout.status === 'Completed'}
-                      className="w-full h-full py-1.5 bg-green-600 hover:bg-green-500 text-white disabled:opacity-40 rounded-lg font-black text-[10px] uppercase tracking-widest flex items-center justify-center gap-1 transition cursor-pointer shadow-md shadow-green-950/40"
+                      className="w-full h-full py-3 lg:py-5 bg-green-600 hover:bg-green-500 text-white disabled:opacity-40 rounded-lg font-black text-sm lg:text-xl uppercase tracking-widest flex items-center justify-center gap-2 transition cursor-pointer shadow-md shadow-green-950/40"
                     >
-                      <Play className="h-3 w-3 fill-white" /> Start Timer
+                      <Play className="h-5 w-5 lg:h-7 lg:w-7 fill-white" /> Start Timer
                     </button>
                   )}
                 </div>
@@ -1678,23 +1839,23 @@ export default function ScoreboardControlPage() {
                 <button
                   onClick={handleResetTimer}
                   disabled={timerActive || bout.status === 'Completed'}
-                  className="py-1.5 bg-white/5 hover:bg-white/10 text-white disabled:opacity-30 rounded-lg font-black text-[10px] uppercase tracking-wider flex items-center justify-center gap-0.5 transition cursor-pointer border border-white/10"
+                  className="w-full h-full py-3 lg:py-5 bg-white/5 hover:bg-white/10 text-white disabled:opacity-30 rounded-lg font-black text-xs lg:text-base uppercase tracking-wider flex items-center justify-center gap-1.5 transition cursor-pointer border border-white/10"
                 >
-                  <RotateCcw className="h-3 w-3" /> Reset
+                  <RotateCcw className="h-4 w-4 lg:h-5 lg:w-5" /> Reset
                 </button>
                 
-                <div className="grid grid-rows-2 gap-0.5">
+                <div className="grid grid-rows-2 gap-1 w-full h-full">
                   <button
                     onClick={() => handleAdjustTime(1)}
                     disabled={timerActive || bout.status === 'Completed'}
-                    className="bg-white/10 hover:bg-white/20 disabled:opacity-40 text-white rounded font-black text-[8px] uppercase transition cursor-pointer border border-white/20 py-0.5"
+                    className="w-full h-full bg-white/10 hover:bg-white/20 disabled:opacity-40 text-white rounded font-black text-xs lg:text-sm uppercase transition cursor-pointer border border-white/20"
                   >
                     +1s
                   </button>
                   <button
                     onClick={() => handleAdjustTime(-1)}
                     disabled={timerActive || bout.status === 'Completed'}
-                    className="bg-white/10 hover:bg-white/20 disabled:opacity-40 text-white rounded font-black text-[8px] uppercase transition cursor-pointer border border-white/20 py-0.5"
+                    className="w-full h-full bg-white/10 hover:bg-white/20 disabled:opacity-40 text-white rounded font-black text-xs lg:text-sm uppercase transition cursor-pointer border border-white/20"
                   >
                     -1s
                   </button>
@@ -1702,32 +1863,41 @@ export default function ScoreboardControlPage() {
               </div>
 
               {/* Secondary Match Actions */}
-              <div className="grid grid-cols-2 gap-1 w-full">
-                <div>
-                  <label className="block text-[7px] uppercase font-bold text-gray-400 mb-0.5 text-left">Match Duration</label>
-                  <select
-                    value={matchDuration}
-                    onChange={e => {
-                      const val = Number(e.target.value);
-                      setMatchDuration(val);
-                      setTimeLeft(val * 10);
-                    }}
-                    disabled={timerActive || bout.status === 'Completed'}
-                    className="w-full bg-[#101015] border border-white/10 rounded-md px-1.5 py-0.5 text-[9px] text-white disabled:opacity-40 focus:outline-none focus:border-yellow-400 transition cursor-pointer"
-                  >
-                    <option value={60}>1:00 Minute</option>
-                    <option value={90}>1:30 Minutes</option>
-                    <option value={120}>2:00 Minutes</option>
-                    <option value={180}>3:00 Minutes</option>
-                  </select>
+              <div className="grid grid-cols-2 gap-2 w-full mt-1">
+                <div className="flex flex-col h-full">
+                  <label className="block text-[9px] lg:text-xs uppercase font-bold text-gray-400 mb-1 text-left">Match Duration</label>
+                  <div className="grid grid-cols-4 gap-1 w-full h-full">
+                    {[
+                      { val: 60, label: '1:00' },
+                      { val: 90, label: '1:30' },
+                      { val: 120, label: '2:00' },
+                      { val: 180, label: '3:00' }
+                    ].map(opt => (
+                      <button
+                        key={opt.val}
+                        onClick={() => {
+                          setMatchDuration(opt.val);
+                          setTimeLeft(opt.val * 10);
+                        }}
+                        disabled={timerActive || bout.status === 'Completed'}
+                        className={`flex items-center justify-center rounded border text-[10px] lg:text-xs font-black transition cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed ${
+                          matchDuration === opt.val
+                            ? 'bg-yellow-500 text-black border-yellow-400 shadow-[0_0_8px_rgba(234,179,8,0.4)]'
+                            : 'bg-white/5 text-white/50 border-white/10 hover:bg-white/10 hover:text-white'
+                        }`}
+                      >
+                        {opt.label}
+                      </button>
+                    ))}
+                  </div>
                 </div>
-                <div className="flex flex-col justify-end">
+                <div className="flex flex-col h-full justify-end">
                   <button
                     onClick={handleUndo}
                     disabled={history.length <= 1}
-                    className="w-full py-0.5 bg-yellow-500/10 hover:bg-yellow-500/20 text-yellow-500 disabled:opacity-30 border border-yellow-500/20 rounded-md font-black text-[9px] uppercase transition cursor-pointer flex items-center justify-center gap-1"
+                    className="w-full h-full py-2 lg:py-3 bg-yellow-500/10 hover:bg-yellow-500/20 text-yellow-500 disabled:opacity-30 border border-yellow-500/20 rounded-lg font-black text-xs lg:text-sm uppercase transition cursor-pointer flex items-center justify-center gap-1.5"
                   >
-                    <RotateCcw className="h-2.5 w-2.5" /> Undo Action
+                    <RotateCcw className="h-4 w-4 lg:h-5 lg:w-5" /> Undo Action
                   </button>
                 </div>
               </div>
@@ -1817,9 +1987,9 @@ export default function ScoreboardControlPage() {
                   <button
                     onClick={() => handleToggleSenshu('ao')}
                     disabled={bout.status === 'Completed'}
-                    className={`text-xs font-black uppercase px-2 py-1 rounded border transition cursor-pointer ${senshuAo
+                    className={`text-sm lg:text-lg font-black uppercase px-4 py-2 lg:py-3 rounded border transition cursor-pointer ${senshuAo
                         ? 'bg-yellow-500 text-black border-yellow-400 shadow-[0_0_8px_rgba(234,179,8,0.4)]'
-                        : 'bg-transparent text-white/40 border-white/15'
+                        : 'bg-transparent text-white/40 border-white/15 hover:bg-white/5'
                       } disabled:opacity-25 disabled:cursor-not-allowed`}
                   >
                     SENSHU {senshuAo ? 'ON' : 'OFF'}
@@ -1834,7 +2004,7 @@ export default function ScoreboardControlPage() {
                         key={level}
                         onClick={() => handleTogglePenalty('ao', level)}
                         disabled={bout.status === 'Completed'}
-                        className={`flex items-center justify-center h-8 lg:h-12 rounded-lg font-din text-[clamp(14px,2vh,24px)] lg:text-[clamp(20px,3.5vh,36px)] font-black transition-all border cursor-pointer active:scale-90 disabled:opacity-25 disabled:cursor-not-allowed ${isActive
+                        className={`flex items-center justify-center h-8 lg:h-12 rounded-lg font-din text-lg lg:text-2xl xl:text-3xl font-black transition-all border cursor-pointer active:scale-90 disabled:opacity-25 disabled:cursor-not-allowed ${isActive
                             ? 'bg-blue-500 text-black border-blue-400 shadow-[0_0_12px_rgba(59,130,246,0.5)]'
                             : 'bg-transparent text-white/30 border-white/15 hover:bg-white/5'
                           }`}
@@ -1851,7 +2021,7 @@ export default function ScoreboardControlPage() {
         </div>
       </main>
 
-      {/* Keyboard guide footer */}
+      {/* Keyboard guide footer / Function Dock */}
       <footer className="bg-[#0e0e14] border-t border-white/10 px-4 py-2 flex items-center justify-between text-[10px] text-gray-400 font-semibold shrink-0 flex-wrap gap-2 shadow-2xl z-20">
         <div className="flex gap-2.5 items-center">
           <span>Shortcuts:</span>
@@ -1860,10 +2030,11 @@ export default function ScoreboardControlPage() {
           <span><b className="text-gray-400">F/J</b> AKA/AO +2</span>
           <span><b className="text-gray-400">V/M</b> AKA/AO +3</span>
           <span><b className="text-gray-400">Backspace</b> Undo</span>
-          <span><b className="text-gray-400">Enter</b> Finish</span>
+          <span><b className="text-gray-400">Enter</b> Override</span>
         </div>
 
-        <div className="flex gap-1.5 items-center ml-auto">
+        <div className="flex gap-1.5 items-center ml-auto flex-wrap justify-end">
+          {/* Clear All Result */}
           <button
             onClick={handleClearAllResult}
             disabled={saving}
@@ -1872,6 +2043,23 @@ export default function ScoreboardControlPage() {
             <RotateCcw className="h-3 w-3" /> Clear All Result
           </button>
 
+          {/* CONFIRM RESULT — Stage 1 of 3 */}
+          <button
+            onClick={handleConfirmResult}
+            disabled={saving || resultConfirmed || bout.status === 'Completed'}
+            title={resultConfirmed ? 'Result already confirmed' : !winnerSide ? 'No winner determined yet' : 'Confirm result and show Winner Page on Referee View'}
+            className={`flex items-center gap-1 px-2.5 py-1 font-black text-[10px] uppercase tracking-wider rounded-lg transition cursor-pointer active:scale-95 border ${
+              resultConfirmed || bout.status === 'Completed'
+                ? 'bg-emerald-600/20 text-emerald-400 border-emerald-500/40 cursor-default opacity-80'
+                : winnerSide && timeLeft === 0
+                  ? 'bg-emerald-500 hover:bg-emerald-400 text-black border-emerald-400 shadow-md shadow-emerald-500/20 animate-pulse'
+                  : 'bg-emerald-600/10 hover:bg-emerald-600/20 text-emerald-400 border-emerald-600/30 disabled:opacity-40 disabled:cursor-not-allowed'
+            }`}
+          >
+            <Check className="h-3 w-3" /> {resultConfirmed ? '✓ Result Confirmed' : 'Confirm Result'}
+          </button>
+
+          {/* Rematch (conditional) */}
           {(winnerSide || bout.status === 'Completed') && (
             <button
               onClick={handleRematch}
@@ -1882,25 +2070,37 @@ export default function ScoreboardControlPage() {
             </button>
           )}
 
+          {/* SAVE RESULT — Stage 2 of 3 */}
           <button
-            onClick={() => {
-              setTimerActive(false);
-              if (c1Aka < 5 && c1Ao < 5) {
-                const autoWin = autoDetermineWinner();
-                if (autoWin) {
-                  setWinnerSide(autoWin.side);
-                  setWinMethod(autoWin.method);
-                } else {
-                  setWinnerSide(null);
-                  setWinMethod('Hantei');
-                }
-              }
-              setShowFinishModal(true);
-            }}
-            className="flex items-center gap-1 px-2.5 py-1 bg-yellow-500 hover:bg-yellow-400 text-black font-black text-[10px] uppercase tracking-wider rounded-lg transition cursor-pointer active:scale-95 shadow-md shadow-yellow-500/10"
+            onClick={handleSaveResult}
+            disabled={saving || !resultConfirmed || resultSaved || bout.status === 'Completed'}
+            title={!resultConfirmed ? 'Confirm result first before saving' : resultSaved || bout.status === 'Completed' ? 'Already saved' : 'Save result to database and mark bout Completed'}
+            className={`flex items-center gap-1 px-2.5 py-1 font-black text-[10px] uppercase tracking-wider rounded-lg transition cursor-pointer active:scale-95 border ${
+              resultSaved || bout.status === 'Completed'
+                ? 'bg-emerald-600/20 text-emerald-400 border-emerald-500/40 cursor-default opacity-80'
+                : resultConfirmed
+                  ? 'bg-yellow-500 hover:bg-yellow-400 text-black border-yellow-400 shadow-md shadow-yellow-500/10'
+                  : 'bg-yellow-500/10 text-yellow-400/40 border-yellow-500/15 cursor-not-allowed'
+            }`}
           >
-            <Save className="h-3 w-3" /> Save Bout Result
+            {saving ? (
+              <><RefreshCw className="h-3 w-3 animate-spin" /> Saving...</>
+            ) : resultSaved || bout.status === 'Completed' ? (
+              <><Check className="h-3 w-3" /> Saved</>
+            ) : (
+              <><Save className="h-3 w-3" /> Save Result</>
+            )}
           </button>
+
+          {/* NEXT MATCH — Stage 3 of 3: appears after result is saved */}
+          {(resultSaved || bout.status === 'Completed') && (
+            <button
+              onClick={handleNextMatch}
+              className="flex items-center gap-1 px-2.5 py-1 bg-cyan-500 hover:bg-cyan-400 text-black font-black text-[10px] uppercase tracking-wider rounded-lg transition cursor-pointer active:scale-95 shadow-md shadow-cyan-500/20"
+            >
+              <ArrowRight className="h-3 w-3" /> Next Match
+            </button>
+          )}
         </div>
       </footer>
 
@@ -1936,7 +2136,7 @@ export default function ScoreboardControlPage() {
                 <label className="block text-[10px] uppercase font-bold text-gray-400 mb-2">Declare Winner</label>
                 <div className="grid grid-cols-2 gap-3">
                   <button
-                    onClick={() => setWinnerSide('aka')}
+                    onClick={() => { setWinnerSide('aka'); setWinnerConfirmed(true); setResultConfirmed(true); resultConfirmedRef.current = true; }}
                     className={`py-3 rounded-xl border text-xs font-black transition cursor-pointer ${winnerSide === 'aka'
                         ? 'bg-red-600 text-white border-red-500 shadow-lg shadow-red-950/20'
                         : 'bg-transparent text-white/50 border-white/10 hover:border-white/20'
@@ -1945,7 +2145,7 @@ export default function ScoreboardControlPage() {
                     AKA ({competitorAka?.full_name?.split(' ')[0] || 'Red'})
                   </button>
                   <button
-                    onClick={() => setWinnerSide('ao')}
+                    onClick={() => { setWinnerSide('ao'); setWinnerConfirmed(true); setResultConfirmed(true); resultConfirmedRef.current = true; }}
                     className={`py-3 rounded-xl border text-xs font-black transition cursor-pointer ${winnerSide === 'ao'
                         ? 'bg-blue-600 text-white border-blue-500 shadow-lg shadow-blue-950/20'
                         : 'bg-transparent text-white/50 border-white/10 hover:border-white/20'
@@ -1994,7 +2194,12 @@ export default function ScoreboardControlPage() {
                 Cancel
               </button>
               <button
-                onClick={handleSaveResult}
+                onClick={() => {
+                  // Modal path: synchronously set the ref before calling handleSaveResult
+                  resultConfirmedRef.current = true;
+                  setResultConfirmed(true);
+                  handleSaveResult();
+                }}
                 disabled={saving || !winnerSide}
                 className="flex-1 py-3 bg-yellow-500 hover:bg-yellow-400 disabled:opacity-40 text-black text-xs font-black uppercase tracking-wider rounded-xl transition cursor-pointer flex items-center justify-center gap-1.5"
               >
@@ -2019,5 +2224,13 @@ export default function ScoreboardControlPage() {
         onClose={() => setIsPlaylistModalOpen(false)}
       />
     </div>
+  );
+});
+
+export default function ScoreboardControlPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-[#07070a] flex items-center justify-center text-white/40 font-bold uppercase tracking-widest text-xs">Loading Kumite Control Panel...</div>}>
+      <KumiteScoreboardControl />
+    </Suspense>
   );
 }
