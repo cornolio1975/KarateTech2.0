@@ -238,6 +238,32 @@ export const KumiteScoreboardControl = React.forwardRef<ScoreboardRef, { boutId?
           setSpectatorConnected(false);
         } else if (data.type === 'REQUEST_FULL_STATE') {
           await broadcastFullState();
+        } else if (data.type === 'LOAD_BOUT' && data.boutId) {
+          try {
+            const bList = await db.bouts.list();
+            const targetBout = bList.find(b => b.id === data.boutId);
+            if (targetBout) {
+              setBout(targetBout);
+              const pList = await db.participants.list();
+              const compAka = pList.find(p => p.id === targetBout.participant_a_id) || null;
+              const compAo = pList.find(p => p.id === targetBout.participant_b_id) || null;
+              setCompetitorAka(compAka);
+              setCompetitorAo(compAo);
+              setScoreAka(targetBout.score_a || 0);
+              setScoreAo(targetBout.score_b || 0);
+              setSenshuAka(targetBout.senshu_a || false);
+              setSenshuAo(targetBout.senshu_b || false);
+              setC1Aka(parseInt(targetBout.penalties_c1_a || '0') || 0);
+              setC1Ao(parseInt(targetBout.penalties_c1_b || '0') || 0);
+              setTimeLeft((targetBout.timer_seconds || 180) * 10);
+              setTimerActive(false);
+              setWinnerSide(targetBout.winner_id ? (targetBout.winner_id === targetBout.participant_a_id ? 'aka' : 'ao') : null);
+              setWinnerConfirmed(targetBout.status === 'Completed');
+              setResultConfirmed(targetBout.status === 'Completed');
+            }
+          } catch (e) {
+            console.error('Failed to load bout on broadcast message', e);
+          }
         }
       };
 

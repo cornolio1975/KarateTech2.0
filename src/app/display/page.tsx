@@ -593,8 +593,8 @@ function SpectatorDisplayContent() {
             setIsKata(true);
           }
 
-          if (data.kataA) setKataA(data.kataA);
-          if (data.kataB) setKataB(data.kataB);
+          if (data.kataA !== undefined) setKataA(data.kataA);
+          if (data.kataB !== undefined) setKataB(data.kataB);
 
           if (data.judgeScoresA) {
             const pA = parseJudgeScores(data.judgeScoresA);
@@ -604,32 +604,32 @@ function SpectatorDisplayContent() {
             const pB = parseJudgeScores(data.judgeScoresB);
             if (pB) setJudgeScoresB(pB);
           }
-          if (data.panelSize) setPanelSize(data.panelSize);
-          if (data.scoringMethod) setScoringMethod(data.scoringMethod);
+          if (data.panelSize !== undefined) setPanelSize(data.panelSize);
+          if (data.scoringMethod !== undefined) setScoringMethod(data.scoringMethod);
 
-          setAkaName(data.akaName);
-          setAkaClub(data.akaClub);
-          setAoName(data.aoName);
-          setAoClub(data.aoClub);
-          setScoreAka(data.scoreAka);
-          setScoreAo(data.scoreAo);
-          setSenshuAka(data.senshuAka);
-          setSenshuAo(data.senshuAo);
-          setPenaltiesAka(data.penaltiesAka || []);
-          setPenaltiesAo(data.penaltiesAo || []);
-          setC1Aka(data.c1Aka || 0);
-          setC1Ao(data.c1Ao || 0);
-          setEventsAka(data.eventsAka || []);
-          setEventsAo(data.eventsAo || []);
-          setTimeLeft(data.timeLeft);
-          setTimerActive(data.timerActive);
+          if (data.akaName !== undefined && data.akaName !== null) setAkaName(data.akaName);
+          if (data.akaClub !== undefined && data.akaClub !== null) setAkaClub(data.akaClub);
+          if (data.aoName !== undefined && data.aoName !== null) setAoName(data.aoName);
+          if (data.aoClub !== undefined && data.aoClub !== null) setAoClub(data.aoClub);
+          if (data.scoreAka !== undefined && data.scoreAka !== null) setScoreAka(data.scoreAka);
+          if (data.scoreAo !== undefined && data.scoreAo !== null) setScoreAo(data.scoreAo);
+          if (data.senshuAka !== undefined && data.senshuAka !== null) setSenshuAka(data.senshuAka);
+          if (data.senshuAo !== undefined && data.senshuAo !== null) setSenshuAo(data.senshuAo);
+          if (data.penaltiesAka !== undefined) setPenaltiesAka(data.penaltiesAka || []);
+          if (data.penaltiesAo !== undefined) setPenaltiesAo(data.penaltiesAo || []);
+          if (data.c1Aka !== undefined && data.c1Aka !== null) setC1Aka(data.c1Aka);
+          if (data.c1Ao !== undefined && data.c1Ao !== null) setC1Ao(data.c1Ao);
+          if (data.eventsAka !== undefined) setEventsAka(data.eventsAka || []);
+          if (data.eventsAo !== undefined) setEventsAo(data.eventsAo || []);
+          if (data.timeLeft !== undefined && data.timeLeft !== null) setTimeLeft(data.timeLeft);
+          if (data.timerActive !== undefined && data.timerActive !== null) setTimerActive(data.timerActive);
 
           if (data.showPointHistory !== undefined) {
             setShowPointHistory(data.showPointHistory || searchParams.get('history') === 'true');
           }
-          setWinnerSide(data.winner);
-          setWinMethod(data.winMethod);
-          if (data.resultConfirmed !== undefined) {
+          if (data.winner !== undefined) setWinnerSide(data.winner);
+          if (data.winMethod !== undefined && data.winMethod !== null) setWinMethod(data.winMethod);
+          if (data.resultConfirmed !== undefined && data.resultConfirmed !== null) {
             setResultConfirmed(data.resultConfirmed);
           }
           if (data.penaltyH !== undefined) setPenaltyH(data.penaltyH);
