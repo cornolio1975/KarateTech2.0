@@ -936,8 +936,8 @@ export const SportdataBracket: React.FC<SportdataBracketProps> = ({
                           )}
                         </div>
 
-                        {/* Bout No indicator near connector (disabled for walkover / bye matches) */}
-                        {bout && !isWalkover && (
+                        {/* Bout No indicator near connector */}
+                        {bout && (
                           <div
                             style={{
                               position: "absolute",
@@ -945,16 +945,26 @@ export const SportdataBracket: React.FC<SportdataBracketProps> = ({
                               top: `${yMid}%`,
                               transform: "translateY(-50%)",
                             }}
-                            className={`text-[8.5px] font-black font-mono tracking-tight select-none px-1.5 py-[2px] rounded-[4px] border z-20 cursor-pointer shadow-md transition-all duration-150 ${
-                              theme === "dark"
-                                ? "text-white border-gray-600 bg-gray-900 hover:bg-yellow-500 hover:text-black hover:border-yellow-400 hover:scale-110 active:scale-95"
-                                : "text-white border-black bg-gray-900 hover:bg-yellow-500 hover:text-black hover:border-yellow-400 hover:scale-110 active:scale-95"
+                            className={`text-[8.5px] font-black font-mono tracking-tight select-none px-1.5 py-[2px] rounded-[4px] border z-20 transition-all duration-150 ${
+                              isWalkover
+                                ? theme === "dark"
+                                  ? "text-gray-400 border-gray-700 bg-gray-900/80 cursor-not-allowed opacity-70"
+                                  : "text-gray-500 border-gray-300 bg-gray-100 cursor-not-allowed opacity-70"
+                                : theme === "dark"
+                                  ? "text-white border-gray-600 bg-gray-900 cursor-pointer shadow-md hover:bg-yellow-500 hover:text-black hover:border-yellow-400 hover:scale-110 active:scale-95"
+                                  : "text-white border-black bg-gray-900 cursor-pointer shadow-md hover:bg-yellow-500 hover:text-black hover:border-yellow-400 hover:scale-110 active:scale-95"
                             }`}
                             onClick={(e) => {
                               e.stopPropagation();
-                              handleBoutSelect(bout);
+                              if (!isWalkover) {
+                                handleBoutSelect(bout);
+                              }
                             }}
-                            title={`Click to load Match R${bout.round_no}-B${bout.bout_no} directly into Scoreboard`}
+                            title={
+                              isWalkover
+                                ? `Match R${bout.round_no}-B${bout.bout_no} (Walkover / Bye - Click Disabled)`
+                                : `Click to load Match R${bout.round_no}-B${bout.bout_no} directly into Scoreboard`
+                            }
                           >
                             R{bout.round_no}-B{bout.bout_no}
                           </div>
