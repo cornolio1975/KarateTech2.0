@@ -779,39 +779,39 @@ export default function OperatorConsolePage() {
           </div>
 
           {/* AO */}
-          <div className="bg-gradient-to-l from-blue-950/70 to-[#0c0f14] border-l border-white/5 px-4 py-2 flex gap-3">
+          <div className="bg-gradient-to-l from-blue-950/70 to-[#0c0f14] border-l border-white/5 px-3 py-1.5 flex gap-2.5 items-center">
             <div className="flex flex-col items-center justify-center">
-              <div className="text-[54px] leading-none font-black text-blue-400 font-mono tabular-nums" style={{ textShadow: '0 0 30px rgba(59,130,246,0.5)' }}>
+              <div className="text-[40px] leading-none font-black text-blue-400 font-mono tabular-nums" style={{ textShadow: '0 0 25px rgba(59,130,246,0.5)' }}>
                 {liveScoreAo}
               </div>
-              <div className="flex gap-1.5 mt-1">
-                <div className="text-center"><div className="text-[9px] font-black text-white bg-white/10 rounded px-1">1</div><div className="text-[6.5px] text-white/30 font-bold">WAZA</div></div>
-                <div className="text-center"><div className="text-[9px] font-black text-white bg-white/10 rounded px-1">1</div><div className="text-[6.5px] text-white/30 font-bold">YUKO</div></div>
+              <div className="flex gap-1 mt-0.5">
+                <div className="text-center"><div className="text-[8px] font-black text-white bg-white/10 rounded px-1">1</div><div className="text-[6px] text-white/30 font-bold">WAZA</div></div>
+                <div className="text-center"><div className="text-[8px] font-black text-white bg-white/10 rounded px-1">1</div><div className="text-[6px] text-white/30 font-bold">YUKO</div></div>
               </div>
             </div>
-            <div className="flex flex-col justify-between flex-1 min-w-0 items-end text-right">
-              <div className="flex items-center gap-2 justify-end">
-                <span className="text-[9px] text-white/40 font-bold">{aoFighter?.nationality_code || ''}</span>
-                <span className="text-xl font-black text-blue-400 tracking-widest">AO</span>
+            <div className="flex flex-col justify-between flex-1 min-w-0 items-end text-right h-full">
+              <div className="flex items-center gap-1.5 justify-end">
+                <span className="text-[8px] text-white/40 font-bold">{aoFighter?.nationality_code || ''}</span>
+                <span className="text-base font-black text-blue-400 tracking-widest">AO</span>
               </div>
               <div>
-                <div className="text-base font-black tracking-tight text-white uppercase truncate leading-tight">{aoFighter?.full_name || ''}</div>
-                <div className="text-[9px] text-blue-300/60 font-bold truncate">{aoFighter ? (clubs.find(c => c.id === aoFighter.club_id)?.name || '') : ''}</div>
+                <div className="text-sm font-black tracking-tight text-white uppercase truncate leading-tight">{aoFighter?.full_name || ''}</div>
+                <div className="text-[8px] text-blue-300/60 font-bold truncate">{aoFighter ? (clubs.find(c => c.id === aoFighter.club_id)?.name || '') : ''}</div>
               </div>
               <div className="space-y-0.5 items-end flex flex-col">
                 <div className="flex items-center gap-1 flex-row-reverse">
-                  <span className="text-[7.5px] text-white/30 w-3.5">C1</span>
-                  <div className="flex gap-0.5 flex-row-reverse">{[1,2,3,4,5].map(i => <div key={i} className={`w-2.5 h-2.5 rounded-full border ${i <= c1B ? 'bg-red-500 border-red-400' : 'bg-white/5 border-white/10'}`} />)}</div>
+                  <span className="text-[7px] text-white/30 w-3">C1</span>
+                  <div className="flex gap-0.5 flex-row-reverse">{[1,2,3,4,5].map(i => <div key={i} className={`w-2 h-2 rounded-full border ${i <= c1B ? 'bg-red-500 border-red-400' : 'bg-white/5 border-white/10'}`} />)}</div>
                 </div>
                 <div className="flex items-center gap-1 flex-row-reverse">
-                  <span className="text-[7.5px] text-white/30 w-3.5">C2</span>
-                  <div className="flex gap-0.5 flex-row-reverse">{[1,2,3,4,5].map(i => <div key={i} className={`w-2.5 h-2.5 rounded-full border ${i <= c2B ? 'bg-orange-500 border-orange-400' : 'bg-white/5 border-white/10'}`} />)}</div>
+                  <span className="text-[7px] text-white/30 w-3">C2</span>
+                  <div className="flex gap-0.5 flex-row-reverse">{[1,2,3,4,5].map(i => <div key={i} className={`w-2 h-2 rounded-full border ${i <= c2B ? 'bg-orange-500 border-orange-400' : 'bg-white/5 border-white/10'}`} />)}</div>
                 </div>
-                <div className="flex items-center gap-1.5 mt-0.5 flex-row-reverse">
-                  <span className="text-[7.5px] text-white/30">HC</span>
-                  <div className={`w-4 h-3.5 rounded border flex items-center justify-center text-[6.5px] font-black ${hcB ? 'bg-orange-600 border-orange-400 text-white' : 'bg-white/5 border-white/10 text-white/20'}`}>HC</div>
-                  <span className="text-[7.5px] text-white/30">H</span>
-                  <div className={`w-4 h-3.5 rounded border flex items-center justify-center text-[6.5px] font-black ${hB ? 'bg-red-700 border-red-500 text-white' : 'bg-white/5 border-white/10 text-white/20'}`}>H</div>
+                <div className="flex items-center gap-1 mt-0.5 flex-row-reverse">
+                  <span className="text-[7px] text-white/30">HC</span>
+                  <div className={`w-3.5 h-3 rounded border flex items-center justify-center text-[6px] font-black ${hcB ? 'bg-orange-600 border-orange-400 text-white' : 'bg-white/5 border-white/10 text-white/20'}`}>HC</div>
+                  <span className="text-[7px] text-white/30">H</span>
+                  <div className={`w-3.5 h-3 rounded border flex items-center justify-center text-[6px] font-black ${hB ? 'bg-red-700 border-red-500 text-white' : 'bg-white/5 border-white/10 text-white/20'}`}>H</div>
                 </div>
               </div>
             </div>
@@ -1254,30 +1254,30 @@ export default function OperatorConsolePage() {
               {/* AO */}
               <div
                 onClick={() => aoFighter && setSelectedProfileModal({ participant: aoFighter, corner: 'AO' })}
-                className="flex gap-2 flex-1 items-center min-w-0 h-full bg-blue-950/20 hover:bg-blue-950/40 border border-blue-900/30 rounded-lg p-1.5 transition cursor-pointer"
+                className="flex gap-1.5 flex-1 items-center min-w-0 h-full bg-blue-950/20 hover:bg-blue-950/40 border border-blue-900/30 rounded-lg p-1 transition cursor-pointer"
                 title="Click for full participant profile"
               >
                 <div className="flex flex-col items-center gap-0.5 shrink-0">
-                  <span className="text-[7px] font-black text-blue-300 bg-blue-900/60 border border-blue-700/50 px-1 py-0.2 rounded leading-none">AO</span>
-                  <div className="w-9 h-11 rounded bg-white/5 border border-white/10 overflow-hidden flex items-center justify-center shadow-inner">
+                  <span className="text-[6.5px] font-black text-blue-300 bg-blue-900/60 border border-blue-700/50 px-1 rounded leading-none">AO</span>
+                  <div className="w-7 h-9 rounded bg-white/5 border border-white/10 overflow-hidden flex items-center justify-center shadow-inner">
                     {aoFighter?.photo_url
                       ? <img src={aoFighter.photo_url} alt={aoFighter.full_name} className="w-full h-full object-cover" />
-                      : <UserSquare2 className="h-4 w-4 text-blue-300/40" />}
+                      : <UserSquare2 className="h-3.5 w-3.5 text-blue-300/40" />}
                   </div>
                 </div>
 
-                <div className="text-[7.5px] leading-tight text-white/70 space-y-0.2 min-w-0 flex-1">
-                  <div className="font-black text-white text-[9px] truncate flex items-center gap-1">
+                <div className="text-[7px] leading-tight text-white/70 space-y-0.2 min-w-0 flex-1">
+                  <div className="font-black text-white text-[8.5px] truncate flex items-center gap-1">
                     <span>{aoFighter?.full_name || '—'}</span>
-                    {aoFighter?.gender && <span className="text-[6.5px] text-white/40">({aoFighter.gender})</span>}
+                    {aoFighter?.gender && <span className="text-[6px] text-white/40">({aoFighter.gender})</span>}
                   </div>
-                  <div className="text-[7px] text-white/50 truncate">
+                  <div className="text-[6.5px] text-white/50 truncate">
                     <span>REG: #{aoFighter?.registration_no || '—'}</span> · <span>AGE: {calculateAge(aoFighter?.dob) ?? '—'}</span>
                   </div>
-                  <div className="text-[7.5px] text-cyan-400 font-bold truncate">
+                  <div className="text-[7px] text-cyan-400 font-bold truncate">
                     <span>CLUB: {aoFighter ? (clubs.find(c => c.id === aoFighter.club_id)?.name || '—') : '—'}</span>
                   </div>
-                  <div className="text-[7px] text-white/50 truncate">
+                  <div className="text-[6.5px] text-white/50 truncate">
                     <span>COACH: {aoFighter ? (coaches.find(c => c.id === aoFighter.coach_id)?.name || '—') : '—'}</span> · <span>WT: {aoFighter?.weight ? `${aoFighter.weight}kg` : '—'}</span>
                   </div>
                 </div>
