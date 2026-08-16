@@ -321,61 +321,61 @@ export default function KataScoreboardHubPage() {
                     <div className="grid grid-cols-1 md:grid-cols-[1fr_140px_1fr] items-stretch gap-3 mb-4">
                       
                       {/* PANE 1: AKA (RED) */}
-                      <div className="bg-gradient-to-r from-red-950/60 to-[#12131d] border border-red-500/30 rounded-xl p-3.5 flex items-center justify-between gap-3">
+                      <div className="bg-gradient-to-r from-red-950/70 to-[#12131d] border-2 border-red-500/30 rounded-xl p-4 flex items-center justify-between gap-4">
                         <div className="min-w-0 flex-1">
-                          <div className="flex items-center gap-1.5 mb-1">
-                            <span className="px-2 py-0.5 bg-red-600 text-white font-black text-[10px] rounded uppercase tracking-wider">
+                          <div className="flex items-center gap-2 mb-1.5">
+                            <span className="px-2.5 py-0.5 bg-red-600 text-white font-black text-xs rounded uppercase tracking-wider shadow">
                               AKA
                             </span>
-                            <span className="text-[10px] text-red-300/80 font-bold truncate">
+                            <span className="text-xs text-red-300 font-bold truncate">
                               {clubA?.name || competitorA?.nationality_code || ''}
                             </span>
                           </div>
-                          <h4 className="text-base sm:text-lg font-black text-white truncate">
+                          <h4 className="text-lg sm:text-xl font-black text-white truncate">
                             {competitorA?.full_name || 'TBD'}
                           </h4>
                           {bout.kata_a && (
-                            <span className="text-[10px] text-red-200/60 font-bold uppercase block mt-0.5">
-                              Kata: <strong className="text-white">{bout.kata_a}</strong>
+                            <span className="text-xs text-red-200/80 font-bold uppercase block mt-1">
+                              Kata: <strong className="text-white font-black">{bout.kata_a}</strong>
                             </span>
                           )}
                         </div>
-                        <div className="text-3xl sm:text-4xl font-mono font-black text-red-400 tabular-nums shrink-0 drop-shadow-[0_0_15px_rgba(239,68,68,0.5)]">
+                        <div className="text-4xl sm:text-5xl font-mono font-black text-red-400 tabular-nums shrink-0 drop-shadow-[0_0_20px_rgba(239,68,68,0.7)]">
                           {scoreA.toFixed(scoreA % 1 === 0 && scoreA === 0 ? 0 : 2)}
                         </div>
                       </div>
 
                       {/* PANE 2: CENTER (VS / STATUS) */}
-                      <div className="bg-black/40 border border-white/5 rounded-xl p-3 flex flex-col items-center justify-center text-center">
-                        <span className="text-xs font-black text-white/30 uppercase tracking-widest">VS</span>
-                        <div className="text-[10px] font-black text-yellow-400 uppercase mt-1">
+                      <div className="bg-black/60 border border-white/10 rounded-xl p-3 flex flex-col items-center justify-center text-center">
+                        <span className="text-xs font-black text-white/40 uppercase tracking-widest">VS</span>
+                        <div className="text-xs font-black text-yellow-400 uppercase mt-1">
                           {bout.winner_id ? (bout.winner_id === bout.participant_a_id ? 'AKA WINNER' : 'AO WINNER') : 'MATCH'}
                         </div>
-                        <span className="text-[9px] text-white/40 font-mono mt-0.5">
+                        <span className="text-[10px] text-white/60 font-mono mt-0.5 font-bold">
                           {bout.status === 'Completed' ? 'FINAL' : 'LIVE'}
                         </span>
                       </div>
 
                       {/* PANE 3: AO (BLUE) */}
-                      <div className="bg-gradient-to-l from-blue-950/60 to-[#12131d] border border-blue-500/30 rounded-xl p-3.5 flex items-center justify-between gap-3 text-right">
-                        <div className="text-3xl sm:text-4xl font-mono font-black text-blue-400 tabular-nums shrink-0 drop-shadow-[0_0_15px_rgba(59,130,246,0.5)]">
+                      <div className="bg-gradient-to-l from-blue-950/70 to-[#12131d] border-2 border-blue-500/30 rounded-xl p-4 flex items-center justify-between gap-4 text-right">
+                        <div className="text-4xl sm:text-5xl font-mono font-black text-blue-400 tabular-nums shrink-0 drop-shadow-[0_0_20px_rgba(59,130,246,0.7)]">
                           {scoreB.toFixed(scoreB % 1 === 0 && scoreB === 0 ? 0 : 2)}
                         </div>
                         <div className="min-w-0 flex-1">
-                          <div className="flex items-center gap-1.5 mb-1 justify-end">
-                            <span className="text-[10px] text-blue-300/80 font-bold truncate">
+                          <div className="flex items-center gap-2 mb-1.5 justify-end">
+                            <span className="text-xs text-blue-300 font-bold truncate">
                               {clubB?.name || competitorB?.nationality_code || ''}
                             </span>
-                            <span className="px-2 py-0.5 bg-blue-600 text-white font-black text-[10px] rounded uppercase tracking-wider">
+                            <span className="px-2.5 py-0.5 bg-blue-600 text-white font-black text-xs rounded uppercase tracking-wider shadow">
                               AO
                             </span>
                           </div>
-                          <h4 className="text-base sm:text-lg font-black text-white truncate">
+                          <h4 className="text-lg sm:text-xl font-black text-white truncate">
                             {competitorB?.full_name || 'TBD'}
                           </h4>
                           {bout.kata_b && (
-                            <span className="text-[10px] text-blue-200/60 font-bold uppercase block mt-0.5">
-                              Kata: <strong className="text-white">{bout.kata_b}</strong>
+                            <span className="text-xs text-blue-200/80 font-bold uppercase block mt-1">
+                              Kata: <strong className="text-white font-black">{bout.kata_b}</strong>
                             </span>
                           )}
                         </div>

@@ -808,101 +808,101 @@ export const KataControlPanelContent = React.forwardRef<ScoreboardRef, { boutId?
         <div className={`lg:col-span-6 flex flex-col ${onClose ? 'gap-2 min-h-0' : 'gap-4'} overflow-y-auto`}>
           
           {/* Top Match Info & Digital Timer Bar */}
-          <div className={`bg-[#0d0f16] border border-white/10 rounded-2xl flex items-center justify-between shadow-lg shrink-0 ${onClose ? 'p-2.5' : 'p-3.5'}`}>
+          <div className={`bg-[#0d0f16] border border-white/10 rounded-2xl flex items-center justify-between shadow-lg shrink-0 ${onClose ? 'p-3' : 'p-4'}`}>
             <div className="min-w-0">
-              <span className="text-[10px] font-black uppercase tracking-widest text-yellow-400 block truncate">
+              <span className="text-xs font-black uppercase tracking-widest text-yellow-400 block truncate">
                 {category?.name || 'Kata Division'}
               </span>
-              <div className="flex items-center gap-2 mt-0.5">
-                <span className="text-sm font-black text-white">Bout #{currentBout?.bout_no || 1}</span>
+              <div className="flex items-center gap-2 mt-1">
+                <span className="text-base font-black text-white">Bout #{currentBout?.bout_no || 1}</span>
                 <span className="text-white/30">•</span>
-                <span className="text-xs px-2 py-0.2 bg-yellow-400/10 text-yellow-400 border border-yellow-400/30 rounded-full font-bold">
+                <span className="text-sm px-2.5 py-0.5 bg-yellow-400/10 text-yellow-400 border border-yellow-400/30 rounded-full font-black">
                   Round {currentBout?.round_no || 1}
                 </span>
                 <span className="text-white/30">•</span>
-                <span className="text-xs font-bold text-white/60">{currentBout?.tatami || 'Tatami 1'}</span>
+                <span className="text-sm font-bold text-white/80">{currentBout?.tatami || 'Tatami 1'}</span>
               </div>
             </div>
 
             {/* Digital Countdown Timer & Controls */}
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-4">
               <div className="flex flex-col items-end">
-                <div className={`flex items-baseline justify-end font-mono text-3xl sm:text-4xl font-black leading-none select-none tracking-tight ${
-                  timeLeft <= 150 && timeLeft > 0 ? 'text-red-500 animate-pulse drop-shadow-[0_0_15px_rgba(239,68,68,0.85)]' : 'text-white drop-shadow-[0_0_10px_rgba(255,255,255,0.4)]'
+                <div className={`flex items-baseline justify-end font-mono text-4xl sm:text-5xl font-black leading-none select-none tracking-tight ${
+                  timeLeft <= 150 && timeLeft > 0 ? 'text-red-500 animate-pulse drop-shadow-[0_0_20px_rgba(239,68,68,0.85)]' : 'text-white drop-shadow-[0_0_15px_rgba(255,255,255,0.4)]'
                 }`}>
                   <span>{formatMainTime(timeLeft)}</span>
-                  <span className={`text-xl sm:text-2xl ml-0.5 ${timeLeft <= 150 && timeLeft > 0 ? 'text-red-500/70' : 'text-white/60'}`}>
+                  <span className={`text-2xl sm:text-3xl ml-1 ${timeLeft <= 150 && timeLeft > 0 ? 'text-red-500/70' : 'text-white/60'}`}>
                     {formatDecsTime(timeLeft)}
                   </span>
                 </div>
                 <div className="flex items-center gap-1.5 mt-1">
-                  <span className={`w-2 h-2 rounded-full ${isTimerRunning ? 'bg-green-500 animate-ping' : 'bg-red-500'}`} />
-                  <span className="text-[8px] font-black uppercase text-white/60 tracking-wider">
+                  <span className={`w-2.5 h-2.5 rounded-full ${isTimerRunning ? 'bg-green-500 animate-ping' : 'bg-red-500'}`} />
+                  <span className="text-[10px] font-black uppercase text-white/70 tracking-wider">
                     {isTimerRunning ? 'RUNNING' : 'PAUSED'}
                   </span>
                 </div>
               </div>
 
-              <div className="flex items-center gap-1.5 pl-3 border-l border-white/10">
+              <div className="flex items-center gap-2 pl-3 border-l border-white/10">
                 {isTimerRunning ? (
                   <button
                     onClick={() => { setIsTimerRunning(false); if (onLogEvent) onLogEvent('TIMER', 'Match Timer Stopped'); }}
-                    className="p-2.5 bg-red-600 hover:bg-red-500 text-white rounded-xl font-black transition shadow-md shadow-red-950/40 cursor-pointer"
+                    className="p-3 bg-red-600 hover:bg-red-500 text-white rounded-xl font-black transition shadow-md shadow-red-950/40 cursor-pointer"
                     title="Stop Timer"
                   >
-                    <Square className="h-4 w-4 fill-white" />
+                    <Square className="h-5 w-5 fill-white" />
                   </button>
                 ) : (
                   <button
                     onClick={() => { setIsTimerRunning(true); if (onLogEvent) onLogEvent('TIMER', 'Match Timer Started'); }}
                     disabled={timeLeft === 0}
-                    className="p-2.5 bg-green-600 hover:bg-green-500 text-white disabled:opacity-40 rounded-xl font-black transition shadow-md shadow-green-950/40 cursor-pointer"
+                    className="p-3 bg-green-600 hover:bg-green-500 text-white disabled:opacity-40 rounded-xl font-black transition shadow-md shadow-green-950/40 cursor-pointer"
                     title="Start Timer"
                   >
-                    <Play className="h-4 w-4 fill-white" />
+                    <Play className="h-5 w-5 fill-white" />
                   </button>
                 )}
                 <button
                   onClick={() => { setTimeLeft(0); if (onLogEvent) onLogEvent('TIMER', 'Match Timer Reset'); }}
                   disabled={isTimerRunning}
-                  className="p-2.5 bg-white/5 hover:bg-white/10 text-white disabled:opacity-30 rounded-xl font-black transition border border-white/10 cursor-pointer"
+                  className="p-3 bg-white/5 hover:bg-white/10 text-white disabled:opacity-30 rounded-xl font-black transition border border-white/10 cursor-pointer"
                   title="Reset Timer"
                 >
-                  <RotateCcw className="h-4 w-4" />
+                  <RotateCcw className="h-5 w-5" />
                 </button>
               </div>
             </div>
           </div>
 
           {/* VERTICAL VIEW: 2 SIDE-BY-SIDE FIGHTER PILLARS */}
-          <div className="grid grid-cols-2 gap-4 flex-1 min-h-[380px]">
+          <div className="grid grid-cols-2 gap-4 flex-1 min-h-[400px]">
             
             {/* VERTICAL PANE 1: AKA ATHLETE (RED) */}
-            <div className={`bg-gradient-to-b from-red-950/80 via-red-900/30 to-[#0d0d14] border-2 border-red-500/40 rounded-2xl flex flex-col justify-between overflow-hidden shadow-xl shadow-red-950/40 ${onClose ? 'p-3' : 'p-5'}`}>
+            <div className={`bg-gradient-to-b from-red-950/80 via-red-900/30 to-[#0d0d14] border-2 border-red-500/40 rounded-2xl flex flex-col justify-between overflow-hidden shadow-2xl shadow-red-950/50 ${onClose ? 'p-3.5' : 'p-5'}`}>
               <div className="flex flex-col">
                 <div className="flex items-center justify-between mb-3">
-                  <span className="px-3.5 py-1.5 bg-red-600 text-white font-black text-sm rounded-xl uppercase tracking-wider shadow-lg shadow-red-950/50">
+                  <span className="px-4 py-1.5 bg-red-600 text-white font-black text-sm sm:text-base rounded-xl uppercase tracking-wider shadow-lg shadow-red-950/60">
                     AKA (RED)
                   </span>
-                  <span className="text-[10px] font-black text-red-400 uppercase tracking-widest bg-red-950/60 px-2 py-0.5 rounded border border-red-800/40">
+                  <span className="text-xs font-black text-red-300 uppercase tracking-widest bg-red-950/80 px-2.5 py-1 rounded-lg border border-red-800/40">
                     CORNER 1
                   </span>
                 </div>
 
-                <h3 className="text-xl sm:text-2xl font-black text-white tracking-tight leading-tight mb-1 truncate" title={participantA?.full_name || 'AKA Athlete'}>
+                <h3 className="text-2xl sm:text-3xl font-black text-white tracking-tight leading-tight mb-1 truncate" title={participantA?.full_name || 'AKA Athlete'}>
                   {participantA?.full_name || 'AKA Athlete'}
                 </h3>
-                <p className="text-xs font-bold text-red-300/80 mb-4 truncate" title={clubA?.name || 'Independent Dojo'}>
+                <p className="text-sm font-bold text-red-200/90 mb-4 truncate" title={clubA?.name || 'Independent Dojo'}>
                   {clubA?.name || 'Independent Dojo'}
                 </p>
 
                 {/* Declared Kata Selector */}
                 <div className="mb-4">
-                  <label className="block text-[10px] font-black uppercase tracking-wider text-red-300 mb-1">Declared Kata</label>
+                  <label className="block text-xs font-black uppercase tracking-wider text-red-300 mb-1.5">Declared Kata</label>
                   <select
                     value={kataA}
                     onChange={e => setKataA(e.target.value)}
-                    className="w-full bg-[#181015] border border-red-500/40 rounded-xl px-3 py-2 text-xs font-black text-red-100 focus:outline-none focus:border-red-400 transition cursor-pointer shadow-inner"
+                    className="w-full bg-[#181015] border-2 border-red-500/40 rounded-xl px-3.5 py-2.5 text-sm font-black text-white focus:outline-none focus:border-red-400 transition cursor-pointer shadow-inner"
                   >
                     {OFFICIAL_WKF_KATAS.map(k => (
                       <option key={k} value={k}>{k}</option>
@@ -912,15 +912,15 @@ export const KataControlPanelContent = React.forwardRef<ScoreboardRef, { boutId?
               </div>
 
               {/* Vertical Score Bottom Readout */}
-              <div className="pt-3 border-t border-red-500/30 flex flex-col items-center justify-center bg-red-950/30 rounded-xl p-3">
-                <span className="text-[10px] uppercase font-black tracking-wider text-red-300/80 mb-1">TOTAL SCORE</span>
-                <div className="text-4xl sm:text-5xl font-mono font-black text-red-400 tabular-nums drop-shadow-[0_0_20px_rgba(239,68,68,0.8)]">
+              <div className="pt-3 border-t-2 border-red-500/30 flex flex-col items-center justify-center bg-red-950/40 rounded-xl p-4">
+                <span className="text-xs uppercase font-black tracking-widest text-red-300 mb-1">TOTAL SCORE</span>
+                <div className="text-5xl sm:text-6xl font-mono font-black text-red-400 tabular-nums drop-shadow-[0_0_25px_rgba(239,68,68,0.9)]">
                   {scoringMethod === 'Flags' ? (
-                    <div className="flex items-center gap-1.5 flex-wrap justify-center">
+                    <div className="flex items-center gap-2 flex-wrap justify-center">
                       {Array.from({ length: totalScoreA }).map((_, i) => (
-                        <Flag key={`v-card-aka-${i}`} className="h-6 w-6 fill-red-500 text-red-500" />
+                        <Flag key={`v-card-aka-${i}`} className="h-8 w-8 fill-red-500 text-red-500" />
                       ))}
-                      {totalScoreA === 0 && <span className="text-xl text-white/30 font-sans font-bold">0 FLAGS</span>}
+                      {totalScoreA === 0 && <span className="text-2xl text-white/40 font-sans font-black">0 FLAGS</span>}
                     </div>
                   ) : (
                     totalScoreA.toFixed(2)
@@ -930,31 +930,31 @@ export const KataControlPanelContent = React.forwardRef<ScoreboardRef, { boutId?
             </div>
 
             {/* VERTICAL PANE 2: AO ATHLETE (BLUE) */}
-            <div className={`bg-gradient-to-b from-blue-950/80 via-blue-900/30 to-[#0d0d14] border-2 border-blue-500/40 rounded-2xl flex flex-col justify-between overflow-hidden shadow-xl shadow-blue-950/40 ${onClose ? 'p-3' : 'p-5'}`}>
+            <div className={`bg-gradient-to-b from-blue-950/80 via-blue-900/30 to-[#0d0d14] border-2 border-blue-500/40 rounded-2xl flex flex-col justify-between overflow-hidden shadow-2xl shadow-blue-950/50 ${onClose ? 'p-3.5' : 'p-5'}`}>
               <div className="flex flex-col">
                 <div className="flex items-center justify-between mb-3">
-                  <span className="px-3.5 py-1.5 bg-blue-600 text-white font-black text-sm rounded-xl uppercase tracking-wider shadow-lg shadow-blue-950/50">
+                  <span className="px-4 py-1.5 bg-blue-600 text-white font-black text-sm sm:text-base rounded-xl uppercase tracking-wider shadow-lg shadow-blue-950/60">
                     AO (BLUE)
                   </span>
-                  <span className="text-[10px] font-black text-blue-400 uppercase tracking-widest bg-blue-950/60 px-2 py-0.5 rounded border border-blue-800/40">
+                  <span className="text-xs font-black text-blue-300 uppercase tracking-widest bg-blue-950/80 px-2.5 py-1 rounded-lg border border-blue-800/40">
                     CORNER 2
                   </span>
                 </div>
 
-                <h3 className="text-xl sm:text-2xl font-black text-white tracking-tight leading-tight mb-1 truncate" title={participantB?.full_name || 'AO Athlete'}>
+                <h3 className="text-2xl sm:text-3xl font-black text-white tracking-tight leading-tight mb-1 truncate" title={participantB?.full_name || 'AO Athlete'}>
                   {participantB?.full_name || 'AO Athlete'}
                 </h3>
-                <p className="text-xs font-bold text-blue-300/80 mb-4 truncate" title={clubB?.name || 'Independent Dojo'}>
+                <p className="text-sm font-bold text-blue-200/90 mb-4 truncate" title={clubB?.name || 'Independent Dojo'}>
                   {clubB?.name || 'Independent Dojo'}
                 </p>
 
                 {/* Declared Kata Selector */}
                 <div className="mb-4">
-                  <label className="block text-[10px] font-black uppercase tracking-wider text-blue-300 mb-1">Declared Kata</label>
+                  <label className="block text-xs font-black uppercase tracking-wider text-blue-300 mb-1.5">Declared Kata</label>
                   <select
                     value={kataB}
                     onChange={e => setKataB(e.target.value)}
-                    className="w-full bg-[#101420] border border-blue-500/40 rounded-xl px-3 py-2 text-xs font-black text-blue-100 focus:outline-none focus:border-blue-400 transition cursor-pointer shadow-inner"
+                    className="w-full bg-[#101420] border-2 border-blue-500/40 rounded-xl px-3.5 py-2.5 text-sm font-black text-white focus:outline-none focus:border-blue-400 transition cursor-pointer shadow-inner"
                   >
                     {OFFICIAL_WKF_KATAS.map(k => (
                       <option key={k} value={k}>{k}</option>
@@ -964,15 +964,15 @@ export const KataControlPanelContent = React.forwardRef<ScoreboardRef, { boutId?
               </div>
 
               {/* Vertical Score Bottom Readout */}
-              <div className="pt-3 border-t border-blue-500/30 flex flex-col items-center justify-center bg-blue-950/30 rounded-xl p-3">
-                <span className="text-[10px] uppercase font-black tracking-wider text-blue-300/80 mb-1">TOTAL SCORE</span>
-                <div className="text-4xl sm:text-5xl font-mono font-black text-blue-400 tabular-nums drop-shadow-[0_0_20px_rgba(59,130,246,0.8)]">
+              <div className="pt-3 border-t-2 border-blue-500/30 flex flex-col items-center justify-center bg-blue-950/40 rounded-xl p-4">
+                <span className="text-xs uppercase font-black tracking-widest text-blue-300 mb-1">TOTAL SCORE</span>
+                <div className="text-5xl sm:text-6xl font-mono font-black text-blue-400 tabular-nums drop-shadow-[0_0_25px_rgba(59,130,246,0.9)]">
                   {scoringMethod === 'Flags' ? (
-                    <div className="flex items-center gap-1.5 flex-wrap justify-center">
+                    <div className="flex items-center gap-2 flex-wrap justify-center">
                       {Array.from({ length: totalScoreB }).map((_, i) => (
-                        <Flag key={`v-card-ao-${i}`} className="h-6 w-6 fill-blue-500 text-blue-500" />
+                        <Flag key={`v-card-ao-${i}`} className="h-8 w-8 fill-blue-500 text-blue-500" />
                       ))}
-                      {totalScoreB === 0 && <span className="text-xl text-white/30 font-sans font-bold">0 FLAGS</span>}
+                      {totalScoreB === 0 && <span className="text-2xl text-white/40 font-sans font-black">0 FLAGS</span>}
                     </div>
                   ) : (
                     totalScoreB.toFixed(2)
@@ -989,14 +989,14 @@ export const KataControlPanelContent = React.forwardRef<ScoreboardRef, { boutId?
         <div className={`lg:col-span-6 flex flex-col ${onClose ? 'min-h-0' : ''}`}>
 
           {/* Interactive Judge Scoring Matrix */}
-          <div className={`flex-1 bg-[#0d0f16] border border-white/10 rounded-2xl flex flex-col ${onClose ? 'p-2 space-y-2' : 'p-4 space-y-3.5 overflow-y-auto shadow-2xl'}`}>
+          <div className={`flex-1 bg-[#0d0f16] border border-white/10 rounded-2xl flex flex-col ${onClose ? 'p-2.5 space-y-2.5' : 'p-4 space-y-4 overflow-y-auto shadow-2xl'}`}>
             
             {/* Header & Tabs */}
             <div className={`flex flex-col sm:flex-row items-center justify-between gap-2 border-b border-white/10 ${onClose ? 'pb-1.5' : 'pb-2.5'}`}>
               <div>
-                <h3 className={`${onClose ? 'text-base' : 'text-lg'} font-black tracking-tight text-white flex items-center gap-2`}>
+                <h3 className={`${onClose ? 'text-lg' : 'text-xl'} font-black tracking-tight text-white flex items-center gap-2`}>
                   Judge Score Matrix
-                  <span className={`${onClose ? 'text-[10px]' : 'text-xs'} font-bold text-yellow-400 bg-yellow-400/10 px-2 py-0.5 rounded-full border border-yellow-400/20`}>{panelSize} Judges</span>
+                  <span className="text-xs font-black text-yellow-400 bg-yellow-400/10 px-2.5 py-0.5 rounded-full border border-yellow-400/30">{panelSize} Judges</span>
                 </h3>
               </div>
 
@@ -1005,32 +1005,32 @@ export const KataControlPanelContent = React.forwardRef<ScoreboardRef, { boutId?
                 <div className="flex items-center gap-2 p-1 bg-[#101015] border border-white/10 rounded-xl">
                   <button
                     onClick={() => setActiveScoringTab('AKA')}
-                    className={`px-4 py-1.5 text-xs font-black rounded-lg transition ${activeScoringTab === 'AKA' ? 'bg-red-600 text-white shadow-lg shadow-red-600/30' : 'text-gray-400 hover:text-white'}`}
+                    className={`px-5 py-2 text-sm font-black rounded-lg transition ${activeScoringTab === 'AKA' ? 'bg-red-600 text-white shadow-lg shadow-red-600/30' : 'text-gray-400 hover:text-white'}`}
                   >AKA</button>
                   <button
                     onClick={() => setActiveScoringTab('AO')}
-                    className={`px-4 py-1.5 text-xs font-black rounded-lg transition ${activeScoringTab === 'AO' ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/30' : 'text-gray-400 hover:text-white'}`}
+                    className={`px-5 py-2 text-sm font-black rounded-lg transition ${activeScoringTab === 'AO' ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/30' : 'text-gray-400 hover:text-white'}`}
                   >AO</button>
                 </div>
               )}
             </div>
 
             {/* LIVE RESULT PANE (Directly unified on top of Judge Matrix) */}
-            <div className="bg-gradient-to-r from-red-950/80 via-[#0a0c10] to-blue-950/80 border-2 border-yellow-400/50 rounded-2xl p-3.5 flex items-center justify-between shadow-2xl gap-3">
+            <div className="bg-gradient-to-r from-red-950/90 via-[#0a0c10] to-blue-950/90 border-2 border-yellow-400/60 rounded-2xl p-4 flex items-center justify-between shadow-2xl gap-4">
               {/* AKA Live Total */}
-              <div className="flex items-center gap-3 min-w-0">
-                <span className="px-3 py-1.5 bg-red-600 text-white font-black text-sm rounded-lg uppercase tracking-wider shadow-lg shadow-red-950/50">AKA</span>
+              <div className="flex items-center gap-3.5 min-w-0">
+                <span className="px-3.5 py-1.5 bg-red-600 text-white font-black text-sm sm:text-base rounded-xl uppercase tracking-wider shadow-lg shadow-red-950/60">AKA</span>
                 <div className="min-w-0">
-                  <div className="text-sm font-black text-white truncate max-w-[130px] leading-tight">{participantA?.full_name || 'AKA'}</div>
-                  <div className="text-[10px] text-red-300 font-bold uppercase tracking-wider mt-0.5">LIVE SCORE</div>
+                  <div className="text-base font-black text-white truncate max-w-[140px] leading-tight">{participantA?.full_name || 'AKA'}</div>
+                  <div className="text-xs text-red-300 font-black uppercase tracking-wider mt-0.5">LIVE RESULT</div>
                 </div>
-                <div className="text-4xl sm:text-5xl font-mono font-black text-red-400 tabular-nums ml-2 drop-shadow-[0_0_20px_rgba(239,68,68,0.8)]">
+                <div className="text-5xl sm:text-6xl font-mono font-black text-red-400 tabular-nums ml-2 drop-shadow-[0_0_25px_rgba(239,68,68,0.9)]">
                   {scoringMethod === 'Flags' ? (
                     <div className="flex items-center gap-1.5">
                       {Array.from({ length: totalScoreA }).map((_, i) => (
-                        <Flag key={`res-aka-${i}`} className="h-6 w-6 fill-red-500 text-red-500" />
+                        <Flag key={`res-aka-${i}`} className="h-7 w-7 fill-red-500 text-red-500" />
                       ))}
-                      {totalScoreA === 0 && <span className="text-2xl text-white/30">0</span>}
+                      {totalScoreA === 0 && <span className="text-3xl text-white/30 font-black">0</span>}
                     </div>
                   ) : (
                     totalScoreA.toFixed(2)
@@ -1039,32 +1039,32 @@ export const KataControlPanelContent = React.forwardRef<ScoreboardRef, { boutId?
               </div>
 
               {/* Center Match Decision Status */}
-              <div className="flex flex-col items-center justify-center px-4 py-2 bg-black/80 rounded-xl border border-yellow-400/30 shrink-0 shadow-inner">
-                <span className="text-xs font-black uppercase tracking-widest text-yellow-400">
+              <div className="flex flex-col items-center justify-center px-4 py-2 bg-black/90 rounded-xl border-2 border-yellow-400/40 shrink-0 shadow-inner">
+                <span className="text-xs sm:text-sm font-black uppercase tracking-widest text-yellow-400">
                   {penaltyH ? `PENALTY (${penaltyH})` : totalScoreA > totalScoreB ? '★ AKA LEADS' : totalScoreB > totalScoreA ? '★ AO LEADS' : 'TIED'}
                 </span>
-                <span className="text-[8px] text-white/60 font-mono mt-0.5 font-bold">MATCH RESULT</span>
+                <span className="text-[10px] text-white/70 font-mono mt-0.5 font-black">MATCH RESULT</span>
               </div>
 
               {/* AO Live Total */}
-              <div className="flex items-center gap-3 min-w-0 justify-end text-right">
-                <div className="text-4xl sm:text-5xl font-mono font-black text-blue-400 tabular-nums mr-2 drop-shadow-[0_0_20px_rgba(59,130,246,0.8)]">
+              <div className="flex items-center gap-3.5 min-w-0 justify-end text-right">
+                <div className="text-5xl sm:text-6xl font-mono font-black text-blue-400 tabular-nums mr-2 drop-shadow-[0_0_25px_rgba(59,130,246,0.9)]">
                   {scoringMethod === 'Flags' ? (
                     <div className="flex items-center gap-1.5">
                       {Array.from({ length: totalScoreB }).map((_, i) => (
-                        <Flag key={`res-ao-${i}`} className="h-6 w-6 fill-blue-500 text-blue-500" />
+                        <Flag key={`res-ao-${i}`} className="h-7 w-7 fill-blue-500 text-blue-500" />
                       ))}
-                      {totalScoreB === 0 && <span className="text-2xl text-white/30">0</span>}
+                      {totalScoreB === 0 && <span className="text-3xl text-white/30 font-black">0</span>}
                     </div>
                   ) : (
                     totalScoreB.toFixed(2)
                   )}
                 </div>
                 <div className="min-w-0">
-                  <div className="text-sm font-black text-white truncate max-w-[130px] leading-tight">{participantB?.full_name || 'AO'}</div>
-                  <div className="text-[10px] text-blue-300 font-bold uppercase tracking-wider mt-0.5">LIVE SCORE</div>
+                  <div className="text-base font-black text-white truncate max-w-[140px] leading-tight">{participantB?.full_name || 'AO'}</div>
+                  <div className="text-xs text-blue-300 font-black uppercase tracking-wider mt-0.5">LIVE RESULT</div>
                 </div>
-                <span className="px-3 py-1.5 bg-blue-600 text-white font-black text-sm rounded-lg uppercase tracking-wider shadow-lg shadow-blue-950/50">AO</span>
+                <span className="px-3.5 py-1.5 bg-blue-600 text-white font-black text-sm sm:text-base rounded-xl uppercase tracking-wider shadow-lg shadow-blue-950/60">AO</span>
               </div>
             </div>
 
@@ -1264,28 +1264,28 @@ export const KataControlPanelContent = React.forwardRef<ScoreboardRef, { boutId?
           </div>
 
           {/* Winner Declaration & Action Toolbar */}
-          <div className={`${onClose ? 'p-3 gap-3' : 'p-6 gap-6'} bg-gradient-to-r from-yellow-950/20 via-[#12131c] to-yellow-950/20 border border-yellow-500/30 rounded-2xl flex flex-col md:flex-row items-center justify-between shadow-xl shrink-0`}>
+          <div className={`${onClose ? 'p-3 gap-3' : 'p-5 gap-5'} bg-gradient-to-r from-yellow-950/30 via-[#12131c] to-yellow-950/30 border-2 border-yellow-500/40 rounded-2xl flex flex-col md:flex-row items-center justify-between shadow-2xl shrink-0`}>
             
             {/* Winner Announcement */}
             <div className="flex items-center gap-4">
-              <div className={`${onClose ? 'p-1.5 rounded-xl' : 'p-3 rounded-2xl'} bg-yellow-400/20 text-yellow-400 border border-yellow-400/30`}>
-                <Trophy className={`${onClose ? 'h-6 w-6' : 'h-8 w-8'} animate-bounce`} />
+              <div className={`${onClose ? 'p-2 rounded-xl' : 'p-3.5 rounded-2xl'} bg-yellow-400/20 text-yellow-400 border-2 border-yellow-400/40 shadow-lg shadow-yellow-950/50`}>
+                <Trophy className={`${onClose ? 'h-7 w-7' : 'h-9 w-9'} animate-bounce`} />
               </div>
               <div>
-                <span className="text-[10px] font-black uppercase tracking-widest text-yellow-400">
+                <span className="text-xs font-black uppercase tracking-widest text-yellow-400">
                   DECISION / WINNER DETERMINATION
                 </span>
-                <h3 className="text-xl font-black text-white">
+                <h3 className="text-2xl sm:text-3xl font-black text-white leading-tight mt-0.5">
                   {isWinnerRevealed || currentBout?.status === 'Completed' ? (
                     selectedWinnerId === participantA?.id ? (
-                      <span className="text-red-400">{participantA?.full_name} (AKA)</span>
+                      <span className="text-red-400 drop-shadow-[0_0_15px_rgba(239,68,68,0.6)]">{participantA?.full_name} (AKA WINNER)</span>
                     ) : selectedWinnerId === participantB?.id ? (
-                      <span className="text-blue-400">{participantB?.full_name} (AO)</span>
+                      <span className="text-blue-400 drop-shadow-[0_0_15px_rgba(59,130,246,0.6)]">{participantB?.full_name} (AO WINNER)</span>
                     ) : (
                       'Tied Score'
                     )
                   ) : (
-                    <span className="text-gray-400 font-semibold text-base italic">Press "Save Result" to calculate & reveal winner</span>
+                    <span className="text-gray-400 font-bold text-base italic">Press "Save Result" to calculate & reveal winner</span>
                   )}
                 </h3>
               </div>
@@ -1297,7 +1297,7 @@ export const KataControlPanelContent = React.forwardRef<ScoreboardRef, { boutId?
               <button
                 onClick={handleRematch}
                 disabled={isSaving || !currentBout}
-                className={`flex items-center gap-2 px-4 ${onClose ? 'py-2' : 'py-3'} bg-red-500/10 hover:bg-red-500/20 text-red-500 border border-red-500/30 font-black text-sm rounded-xl transition cursor-pointer disabled:opacity-50`}
+                className={`flex items-center gap-2 px-4 ${onClose ? 'py-2.5' : 'py-3.5'} bg-red-500/10 hover:bg-red-500/20 text-red-500 border-2 border-red-500/30 font-black text-sm sm:text-base rounded-xl transition cursor-pointer disabled:opacity-50`}
               >
                 <RefreshCw className="h-4 w-4" />
                 Reset Match
@@ -1305,7 +1305,7 @@ export const KataControlPanelContent = React.forwardRef<ScoreboardRef, { boutId?
               <button
                 onClick={handleClearFlags}
                 disabled={isSaving || !currentBout || scoringMethod === 'Points'}
-                className={`flex items-center gap-2 px-4 ${onClose ? 'py-2' : 'py-3'} bg-gray-500/10 hover:bg-gray-500/20 text-gray-400 border border-gray-500/30 font-black text-sm rounded-xl transition cursor-pointer disabled:opacity-50`}
+                className={`flex items-center gap-2 px-4 ${onClose ? 'py-2.5' : 'py-3.5'} bg-gray-500/10 hover:bg-gray-500/20 text-gray-300 border-2 border-gray-500/30 font-black text-sm sm:text-base rounded-xl transition cursor-pointer disabled:opacity-50`}
               >
                 <Flag className="h-4 w-4" />
                 Clear All Flags
@@ -1313,7 +1313,7 @@ export const KataControlPanelContent = React.forwardRef<ScoreboardRef, { boutId?
               <button
                 onClick={handleSaveResult}
                 disabled={isSaving || !currentBout}
-                className={`flex items-center gap-2 px-5 ${onClose ? 'py-2' : 'py-3'} bg-blue-600 hover:bg-blue-500 text-white font-black text-sm rounded-xl transition cursor-pointer shadow-lg shadow-blue-600/20 disabled:opacity-50`}
+                className={`flex items-center gap-2 px-6 ${onClose ? 'py-2.5' : 'py-3.5'} bg-blue-600 hover:bg-blue-500 text-white font-black text-sm sm:text-base rounded-xl transition cursor-pointer shadow-xl shadow-blue-600/30 disabled:opacity-50`}
               >
                 <Save className="h-4 w-4" />
                 {isSaving ? 'Saving...' : 'Save'}
