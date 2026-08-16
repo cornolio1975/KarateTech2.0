@@ -1246,7 +1246,7 @@ function SpectatorDisplayContent() {
             <h2 className="text-3xl font-extrabold uppercase tracking-widest text-yellow-400">Upcoming Tatami Match Schedule</h2>
           </div>
           <div className="w-full max-w-4xl bg-black/60 border border-white/10 rounded-2xl p-4 divide-y divide-white/10">
-            {allBouts.slice(0, 4).map((b) => (
+            {allBouts.filter(b => b.status !== 'Walkover' && b.victory_method !== 'Walkover' && b.round_no !== 99).slice(0, 4).map((b) => (
               <div key={b.id} className="py-3 flex items-center justify-between text-sm font-bold">
                 <div className="flex items-center gap-3">
                   <span className="text-yellow-400 font-mono text-xs font-black">BOUT #{b.bout_no}</span>

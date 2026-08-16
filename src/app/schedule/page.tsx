@@ -81,7 +81,7 @@ export default function SchedulePage() {
   // Auto Sequence Wizard
   const handleAutoSchedule = () => {
     const targetBouts = bouts.filter(b => {
-      if (b.status === 'Completed' || b.status === 'Walkover') return false;
+      if (b.status === 'Completed' || b.status === 'Walkover' || b.victory_method === 'Walkover' || b.round_no === 99) return false;
       const cat = categories.find(c => c.id === b.category_id);
       if (disciplineFilter === 'KUMITE' && !isKumiteCategory(cat)) return false;
       if (disciplineFilter === 'KATA' && !isKataCategory(cat)) return false;
@@ -133,8 +133,9 @@ export default function SchedulePage() {
     return true;
   });
 
-  // Filtered Bouts
+  // Filtered Bouts (Excluding all Walkover and bye matches)
   const filteredBouts = bouts.filter(b => {
+    if (b.status === 'Walkover' || b.victory_method === 'Walkover' || b.round_no === 99) return false;
     const cat = categories.find(c => c.id === b.category_id);
     if (disciplineFilter === 'KUMITE' && !isKumiteCategory(cat)) return false;
     if (disciplineFilter === 'KATA' && !isKataCategory(cat)) return false;

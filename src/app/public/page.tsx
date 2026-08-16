@@ -582,7 +582,7 @@ export default function PublicSpectatorHub() {
               <span>Session Timeline Queue</span>
             </h2>
 
-            {bouts.filter(b => b.status === 'Scheduled').length === 0 ? (
+            {bouts.filter(b => b.status === 'Scheduled' && b.victory_method !== 'Walkover' && b.round_no !== 99).length === 0 ? (
               <div className="bg-[#0d1322] border border-gray-800 rounded-xl p-12 text-center text-xs text-gray-500 italic">
                 All scheduled bouts for this session have been completed or run.
               </div>
@@ -591,7 +591,7 @@ export default function PublicSpectatorHub() {
                 
                 {/* Group by Tatami */}
                 {['Tatami 1', 'Tatami 2', 'Tatami 3'].map((ring) => {
-                  const ringBouts = bouts.filter(b => b.tatami === ring && b.status === 'Scheduled');
+                  const ringBouts = bouts.filter(b => b.tatami === ring && b.status === 'Scheduled' && b.victory_method !== 'Walkover' && b.round_no !== 99);
                   if (ringBouts.length === 0) return null;
 
                   return (
