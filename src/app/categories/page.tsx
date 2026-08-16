@@ -12,7 +12,20 @@ import {
 import ImportCategoryModal from '@/components/ImportCategoryModal';
 
 export default function CategoriesPage() {
-  const { refreshKey, triggerRefresh, canModify, activeLocks, pcId, tatamiId, userEmail, activeTournamentId, acquireLock, releaseLock } = useTournament();
+  const { 
+    refreshKey, 
+    triggerRefresh, 
+    canModify, 
+    activeLocks, 
+    pcId, 
+    tatamiId, 
+    takeoverTatami, 
+    userRole, 
+    userEmail, 
+    activeTournamentId, 
+    acquireLock, 
+    releaseLock 
+  } = useTournament();
   const [lockingCatId, setLockingCatId] = useState<string | null>(null);
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -914,9 +927,19 @@ export default function CategoriesPage() {
                     </div>
                   )}
                   {bouts.some(b => b.category_id === cat.id) && (() => {
+                    const assignedTatami = (cat as any).assigned_tatami;
+                    const effectiveTatamiNum = takeoverTatami || tatamiId;
+                    const isAssignedToOtherTatami = effectiveTatamiNum && assignedTatami && assignedTatami !== `Tatami ${effectiveTatamiNum}` && userRole !== 'Admin';
+                    
                     const lock = activeLocks.find(l => l.category_id === cat.id);
-                    const isLockedByOther = lock && lock.pc_id !== pcId;
+                    const isLockedByOtherPc = lock && lock.pc_id !== pcId && userRole !== 'Admin';
+                    const isLockedByOther = isAssignedToOtherTatami || isLockedByOtherPc;
                     const isLocking = lockingCatId === cat.id;
+
+                    let lockLabel = 'Console';
+                    if (isLocking) lockLabel = 'Locking...';
+                    else if (isAssignedToOtherTatami) lockLabel = `🔒 Locked (${assignedTatami.toUpperCase()})`;
+                    else if (isLockedByOtherPc) lockLabel = `🔒 Locked (${lock?.tatami || 'Other PC'})`;
 
                     return (
                       <button
@@ -924,10 +947,10 @@ export default function CategoriesPage() {
                         disabled={isLockedByOther || isLocking}
                         className={`w-full flex items-center justify-center gap-1.5 py-1.5 px-3 rounded-lg text-[11px] font-bold border transition ${
                           isLockedByOther 
-                            ? 'bg-secondary/50 border-border/50 text-muted-foreground cursor-not-allowed opacity-60'
+                            ? 'bg-red-500/10 border-red-500/20 text-red-400 cursor-not-allowed opacity-80'
                             : 'bg-card hover:bg-secondary border-border text-foreground cursor-pointer'
                         }`}
-                        title={isLockedByOther ? 'Category is locked by another PC' : 'Open match console hub for this category'}
+                        title={isLockedByOther ? `Category is locked / assigned to ${assignedTatami || lock?.tatami || 'another Tatami'}` : 'Open match console hub for this category'}
                       >
                         {isLocking ? (
                           <RefreshCw className="h-3.5 w-3.5 animate-spin" />
@@ -936,7 +959,7 @@ export default function CategoriesPage() {
                         ) : (
                           <Monitor className="h-3.5 w-3.5" />
                         )}
-                        <span>{isLocking ? 'Locking...' : isLockedByOther ? 'Locked' : 'Console'}</span>
+                        <span>{lockLabel}</span>
                       </button>
                     );
                   })()}

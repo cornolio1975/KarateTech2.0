@@ -51,7 +51,14 @@ function calculateAge(dobString?: string) {
 
 export default function OperatorConsolePage() {
   const router = useRouter();
-  const { tournamentName, activeTournamentId } = useTournament();
+  const { 
+    tournamentName, 
+    activeTournamentId, 
+    tatamiId, 
+    takeoverTatami, 
+    userRole, 
+    updateTatamiTelemetry 
+  } = useTournament();
 
   const [mounted, setMounted] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -225,9 +232,21 @@ export default function OperatorConsolePage() {
         channel.close();
       } catch (e) {}
     }
+ 
+    const effectiveTatami = takeoverTatami || tatamiId || (bout.tatami === 'Tatami 2' ? 2 : 1);
+    updateTatamiTelemetry({
+      tatamiId: effectiveTatami as 1 | 2,
+      currentCategoryId: bout.category_id,
+      currentCategoryName: cArr.find(c => c.id === bout.category_id)?.name || null,
+      currentMatchId: bout.id,
+      currentMatchCode: `R${bout.round_no}B${bout.bout_no}`,
+      currentBoutNo: bout.bout_no,
+      currentScreenState: 'Kumite Live Scoreboard',
+      status: 'online'
+    });
 
     addLog('SYSTEM', `Match R${bout.round_no}B${bout.bout_no} loaded to Current Match`);
-  }, [participants, categories, addLog]);
+  }, [participants, categories, addLog, takeoverTatami, tatamiId, updateTatamiTelemetry]);
 
   const loadData = useCallback(async () => {
     try {

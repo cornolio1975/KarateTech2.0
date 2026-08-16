@@ -37,6 +37,21 @@ export type PCIdentity = {
   tatamiId: number | null;
 };
 
+export interface TatamiTelemetry {
+  tatamiId: 1 | 2;
+  pcId: string;
+  username: string;
+  status: 'online' | 'offline' | 'taken_over' | 'disconnected';
+  lastHeartbeat: string;
+  currentCategoryId: string | null;
+  currentCategoryName: string | null;
+  currentMatchId: string | null;
+  currentMatchCode: string | null; // e.g. "R2B3"
+  currentBoutNo: number | null;
+  currentScreenState: string | null; // e.g. "Kumite Scoreboard", "Kata Scoreboard", "Bracket Console", "Idle"
+  isAdminControlled: boolean;
+}
+
 interface TournamentContextType {
   searchQuery: string;
   setSearchQuery: (query: string) => void;
@@ -64,6 +79,17 @@ interface TournamentContextType {
   userEmail: string;
   pcId: string | null;
   tatamiId: number | null;
+  takeoverTatami: 1 | 2 | null;
+  setTakeoverTatami: (tatami: 1 | 2 | null) => void;
+  tatamiTelemetry: Record<number, TatamiTelemetry>;
+  updateTatamiTelemetry: (data: Partial<TatamiTelemetry>) => void;
+  assignCategoryToTatami: (categoryId: string, tatami: 'Tatami 1' | 'Tatami 2') => Promise<void>;
+  releaseCategoryFromTatami: (categoryId: string) => Promise<void>;
+  lockCategoryByAdmin: (categoryId: string) => Promise<void>;
+  disconnectTatamiPC: (tatamiId: 1 | 2) => Promise<void>;
+  reconnectTatamiPC: (tatamiId: 1 | 2) => Promise<void>;
+  takeoverTatamiPC: (tatamiId: 1 | 2) => Promise<void>;
+  releaseTatamiTakeover: (tatamiId: 1 | 2) => Promise<void>;
   logoUrl: string;
   setLogoUrl: (url: string) => void;
   usersList: SystemUser[];
@@ -184,6 +210,276 @@ export function TournamentProvider({ children }: { children: React.ReactNode }) 
   // PC Control & Locks
   const [activeLocks, setActiveLocks] = useState<CategoryLock[]>([]);
   const [activeTournamentId, setActiveTournamentId] = useState<string | null>(null);
+  const [takeoverTatami, setTakeoverTatamiState] = useState<1 | 2 | null>(null);
+
+  const setTakeoverTatami = useCallback((tatami: 1 | 2 | null) => {
+    setTakeoverTatamiState(tatami);
+    if (typeof window !== 'undefined') {
+      if (tatami) localStorage.setItem('ts_takeover_tatami', String(tatami));
+      else localStorage.removeItem('ts_takeover_tatami');
+    }
+  }, []);
+
+  const [tatamiTelemetry, setTatamiTelemetry] = useState<Record<number, TatamiTelemetry>>({
+    1: {
+      tatamiId: 1,
+      pcId: 'tatami_1',
+      username: 'tatami_1@spsportdatasolution.org',
+      status: 'online',
+      lastHeartbeat: new Date().toISOString(),
+      currentCategoryId: null,
+      currentCategoryName: null,
+      currentMatchId: null,
+      currentMatchCode: null,
+      currentBoutNo: null,
+      currentScreenState: 'Kumite Scoreboard (Ready)',
+      isAdminControlled: false,
+    },
+    2: {
+      tatamiId: 2,
+      pcId: 'tatami_2',
+      username: 'tatami_2@spsportdatasolution.org',
+      status: 'online',
+      lastHeartbeat: new Date().toISOString(),
+      currentCategoryId: null,
+      currentCategoryName: null,
+      currentMatchId: null,
+      currentMatchCode: null,
+      currentBoutNo: null,
+      currentScreenState: 'Kata Scoreboard (Ready)',
+      isAdminControlled: false,
+    }
+  });
+
+  const updateTatamiTelemetry = useCallback((data: Partial<TatamiTelemetry>) => {
+    const tId = data.tatamiId || tatamiId || takeoverTatami;
+    if (!tId || (tId !== 1 && tId !== 2)) return;
+
+    setTatamiTelemetry(prev => {
+      const existing = prev[tId] || {
+        tatamiId: tId as 1 | 2,
+        pcId: tId === 1 ? 'tatami_1' : 'tatami_2',
+        username: tId === 1 ? 'tatami_1@spsportdatasolution.org' : 'tatami_2@spsportdatasolution.org',
+        status: 'online',
+        lastHeartbeat: new Date().toISOString(),
+        currentCategoryId: null,
+        currentCategoryName: null,
+        currentMatchId: null,
+        currentMatchCode: null,
+        currentBoutNo: null,
+        currentScreenState: 'Idle',
+        isAdminControlled: false,
+      };
+
+      const updated = {
+        ...existing,
+        ...data,
+        lastHeartbeat: new Date().toISOString()
+      };
+
+      if (typeof window !== 'undefined') {
+        try {
+          const channel = new BroadcastChannel('kt-tatami-heartbeats');
+          channel.postMessage({
+            type: 'TELEMETRY_UPDATE',
+            telemetry: updated
+          });
+          channel.close();
+        } catch (e) {}
+      }
+
+      return {
+        ...prev,
+        [tId]: updated
+      };
+    });
+  }, [tatamiId, takeoverTatami]);
+
+  const assignCategoryToTatami = useCallback(async (categoryId: string, tatami: 'Tatami 1' | 'Tatami 2') => {
+    const tatamiNum = tatami === 'Tatami 1' ? 1 : 2;
+    const targetPcId = tatamiNum === 1 ? 'tatami_1' : 'tatami_2';
+    const targetUsername = tatamiNum === 1 ? 'tatami_1@spsportdatasolution.org' : 'tatami_2@spsportdatasolution.org';
+    
+    await db.categories.update(categoryId, {
+      assigned_tatami: tatami,
+      status: 'Open'
+    } as any);
+
+    if (activeTournamentId) {
+      await db.pcControl.acquireLock(activeTournamentId, categoryId, targetPcId, tatami, targetUsername);
+      const locks = await db.pcControl.getActiveLocks(activeTournamentId);
+      setActiveLocks(locks);
+    }
+
+    if (typeof window !== 'undefined') {
+      try {
+        const channel = new BroadcastChannel('kt-tatami-heartbeats');
+        channel.postMessage({
+          type: 'CATEGORY_ASSIGNED',
+          categoryId,
+          tatami,
+          tatamiNum
+        });
+        channel.close();
+      } catch (e) {}
+    }
+    setRefreshKey(prev => prev + 1);
+  }, [activeTournamentId]);
+
+  const releaseCategoryFromTatami = useCallback(async (categoryId: string) => {
+    await db.categories.update(categoryId, {
+      assigned_tatami: null
+    } as any);
+
+    if (activeTournamentId) {
+      await db.pcControl.overrideLock(activeTournamentId, categoryId, 'admin');
+      const locks = await db.pcControl.getActiveLocks(activeTournamentId);
+      setActiveLocks(locks);
+    }
+
+    if (typeof window !== 'undefined') {
+      try {
+        const channel = new BroadcastChannel('kt-tatami-heartbeats');
+        channel.postMessage({
+          type: 'CATEGORY_RELEASED',
+          categoryId
+        });
+        channel.close();
+      } catch (e) {}
+    }
+    setRefreshKey(prev => prev + 1);
+  }, [activeTournamentId]);
+
+  const lockCategoryByAdmin = useCallback(async (categoryId: string) => {
+    await db.categories.update(categoryId, {
+      status: 'Locked'
+    } as any);
+
+    if (activeTournamentId) {
+      await db.pcControl.acquireLock(activeTournamentId, categoryId, 'admin', 'Admin Lock', 'admin@spsportdatasolution.org');
+      const locks = await db.pcControl.getActiveLocks(activeTournamentId);
+      setActiveLocks(locks);
+    }
+
+    if (typeof window !== 'undefined') {
+      try {
+        const channel = new BroadcastChannel('kt-tatami-heartbeats');
+        channel.postMessage({
+          type: 'CATEGORY_LOCKED',
+          categoryId
+        });
+        channel.close();
+      } catch (e) {}
+    }
+    setRefreshKey(prev => prev + 1);
+  }, [activeTournamentId]);
+
+  const disconnectTatamiPC = useCallback(async (tatamiIdNum: 1 | 2) => {
+    setTatamiTelemetry(prev => ({
+      ...prev,
+      [tatamiIdNum]: {
+        ...prev[tatamiIdNum],
+        status: 'disconnected'
+      }
+    }));
+    if (typeof window !== 'undefined') {
+      try {
+        const channel = new BroadcastChannel('kt-tatami-heartbeats');
+        channel.postMessage({
+          type: 'TATAMI_DISCONNECTED',
+          tatamiId: tatamiIdNum
+        });
+        channel.close();
+      } catch (e) {}
+    }
+  }, []);
+
+  const reconnectTatamiPC = useCallback(async (tatamiIdNum: 1 | 2) => {
+    setTatamiTelemetry(prev => ({
+      ...prev,
+      [tatamiIdNum]: {
+        ...prev[tatamiIdNum],
+        status: 'online',
+        lastHeartbeat: new Date().toISOString()
+      }
+    }));
+    if (typeof window !== 'undefined') {
+      try {
+        const channel = new BroadcastChannel('kt-tatami-heartbeats');
+        channel.postMessage({
+          type: 'TATAMI_RECONNECTED',
+          tatamiId: tatamiIdNum
+        });
+        channel.close();
+      } catch (e) {}
+    }
+  }, []);
+
+  const takeoverTatamiPC = useCallback(async (tatamiIdNum: 1 | 2) => {
+    setTakeoverTatami(tatamiIdNum);
+    setTatamiTelemetry(prev => ({
+      ...prev,
+      [tatamiIdNum]: {
+        ...prev[tatamiIdNum],
+        status: 'taken_over',
+        isAdminControlled: true
+      }
+    }));
+    if (typeof window !== 'undefined') {
+      try {
+        const channel = new BroadcastChannel('kt-tatami-heartbeats');
+        channel.postMessage({
+          type: 'TAKEOVER_ACTIVE',
+          tatamiId: tatamiIdNum
+        });
+        channel.close();
+      } catch (e) {}
+    }
+  }, [setTakeoverTatami]);
+
+  const releaseTatamiTakeover = useCallback(async (tatamiIdNum: 1 | 2) => {
+    setTakeoverTatami(null);
+    setTatamiTelemetry(prev => ({
+      ...prev,
+      [tatamiIdNum]: {
+        ...prev[tatamiIdNum],
+        isAdminControlled: false,
+        status: 'online'
+      }
+    }));
+    if (typeof window !== 'undefined') {
+      try {
+        const channel = new BroadcastChannel('kt-tatami-heartbeats');
+        channel.postMessage({
+          type: 'TAKEOVER_RELEASED',
+          tatamiId: tatamiIdNum
+        });
+        channel.close();
+      } catch (e) {}
+    }
+  }, [setTakeoverTatami]);
+
+  // Heartbeat listener channel
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const channel = new BroadcastChannel('kt-tatami-heartbeats');
+    channel.onmessage = (event) => {
+      const data = event.data;
+      if (data?.type === 'TELEMETRY_UPDATE' && data.telemetry) {
+        const item = data.telemetry as TatamiTelemetry;
+        setTatamiTelemetry(prev => ({
+          ...prev,
+          [item.tatamiId]: item
+        }));
+      } else if (data?.type === 'CATEGORY_ASSIGNED' || data?.type === 'CATEGORY_RELEASED' || data?.type === 'CATEGORY_LOCKED') {
+        setRefreshKey(prev => prev + 1);
+        if (activeTournamentId) {
+          db.pcControl.getActiveLocks(activeTournamentId).then(setActiveLocks).catch(console.error);
+        }
+      }
+    };
+    return () => channel.close();
+  }, [activeTournamentId]);
 
   const refreshLocks = useCallback(async () => {
     if (activeTournamentId) {
@@ -700,6 +996,17 @@ export function TournamentProvider({ children }: { children: React.ReactNode }) 
         userEmail,
         pcId,
         tatamiId,
+        takeoverTatami,
+        setTakeoverTatami,
+        tatamiTelemetry,
+        updateTatamiTelemetry,
+        assignCategoryToTatami,
+        releaseCategoryFromTatami,
+        lockCategoryByAdmin,
+        disconnectTatamiPC,
+        reconnectTatamiPC,
+        takeoverTatamiPC,
+        releaseTatamiTakeover,
         logoUrl,
         setLogoUrl,
         usersList,

@@ -41,12 +41,41 @@ interface SidebarProps {
 
 export default function Sidebar({ isOpen, onClose }: SidebarProps) {
   const pathname = usePathname();
-  const { userRole, userEmail, logout, logoUrl } = useTournament();
+  const { userRole, userEmail, tatamiId, takeoverTatami, releaseTatamiTakeover, logout, logoUrl } = useTournament();
+
+  const isTatamiAccount = userRole === 'Co-Admin';
+  const effectiveTatami = takeoverTatami || tatamiId;
+
+  const filteredMenuItems = MENU_ITEMS.filter(item => {
+    if (isTatamiAccount && !takeoverTatami) {
+      // Tatami 1 / 2 restricted view
+      const allowedPaths = [
+        '/dashboard/operator',
+        '/bracket-hub',
+        '/dashboard/scoreboard',
+        '/dashboard/kata-scoreboard',
+        '/categories',
+        '/draws',
+        '/schedule',
+        '/public'
+      ];
+      return allowedPaths.includes(item.path);
+    }
+    return true;
+  });
 
   const getInitials = () => {
+    if (takeoverTatami) return `T${takeoverTatami}`;
     if (!userRole) return 'AD';
-    if (userRole === 'Co-Admin') return 'CO';
+    if (userRole === 'Co-Admin') return `T${tatamiId || 1}`;
     return 'AD';
+  };
+
+  const getRoleLabel = () => {
+    if (takeoverTatami) return `Tatami ${takeoverTatami} (Takeover)`;
+    if (userRole === 'Admin') return 'Admin Director';
+    if (userRole === 'Co-Admin') return `Tatami ${tatamiId || 1} Controller`;
+    return 'Viewer';
   };
 
   return (
@@ -88,7 +117,7 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
 
       {/* Navigation Links */}
       <nav className="flex-1 overflow-y-auto px-4 py-4 space-y-1">
-        {MENU_ITEMS.map((item) => {
+        {filteredMenuItems.map((item) => {
           const isActive = pathname === item.path;
           const Icon = item.icon;
           const isYellow = item.isYellow;
@@ -139,8 +168,8 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
             {getInitials()}
           </div>
           <div className="min-w-0 flex-1">
-            <span className="font-semibold text-xs block text-foreground truncate">{userRole || 'Admin'} Director</span>
-            <span className="text-[10px] text-muted-foreground truncate block">{userEmail || 'admin@senshikarate.com'}</span>
+            <span className="font-semibold text-xs block text-foreground truncate">{getRoleLabel()}</span>
+            <span className="text-[10px] text-muted-foreground truncate block">{userEmail || 'admin@spsportdatasolution.org'}</span>
           </div>
         </div>
         

@@ -230,16 +230,20 @@ export default function LoginPage() {
         }
 
         if (actualRole === 'Admin') {
-          setMessage('Access granted: Tournament Director.');
+          setMessage('Access granted: Tournament Director (Admin PC).');
         } else if (actualRole === 'Co-Admin') {
-          setMessage(`Access granted: Tatami ${tatami}.`);
+          setMessage(`Access granted: Tatami ${tatami} Operator Console.`);
         }
 
         login(actualRole, matchedUser.email, pcId, tatami);
         
         // Short delay to show success message before redirect
         setTimeout(() => {
-          window.location.href = `${basePath}/admin`;
+          if (actualRole === 'Admin') {
+            window.location.href = `${basePath}/admin`;
+          } else {
+            window.location.href = `${basePath}/dashboard/operator`;
+          }
         }, 800);
         return;
       } else {
@@ -284,14 +288,18 @@ export default function LoginPage() {
         }
 
         if (actualRole === 'Admin') {
-          setMessage('Access granted: Tournament Director.');
+          setMessage('Access granted: Tournament Director (Admin PC).');
         } else if (actualRole === 'Co-Admin') {
-          setMessage(`Access granted: Tatami ${tatami}.`);
+          setMessage(`Access granted: Tatami ${tatami} Operator Console.`);
         }
 
         login(actualRole, userEmail, pcId, tatami);
         setTimeout(() => {
-          window.location.href = `${basePath}/admin`;
+          if (actualRole === 'Admin') {
+            window.location.href = `${basePath}/admin`;
+          } else {
+            window.location.href = `${basePath}/dashboard/operator`;
+          }
         }, 800);
         return;
       }
