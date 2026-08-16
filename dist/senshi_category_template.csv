@@ -1,0 +1,6 @@
+Category Name,Gender,Min Age,Max Age,Min Weight,Max Weight,Capacity,Format
+Senior Male Kumite -60kg (18+),Male,18,99,0,60,32,knockout
+Senior Male Kumite -67kg (18+),Male,18,99,60.01,67,32,knockout
+Senior Female Kumite -50kg (18+),Female,18,99,0,50,16,knockout
+Junior Male Kumite -55kg (16-17),Male,16,17,0,55,16,knockout
+Senior Male Kata (18+),Male,18,99,0,999,32,knockout

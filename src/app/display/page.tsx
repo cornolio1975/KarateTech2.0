@@ -112,6 +112,7 @@ function SpectatorDisplayContent() {
 
   const [mounted, setMounted] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [refreshTrigger, setRefreshTrigger] = useState<number>(0);
 
   // Competitor info
   const [akaName, setAkaName] = useState<string>('TBD Red');
@@ -581,6 +582,31 @@ function SpectatorDisplayContent() {
           return;
         }
 
+        if (data.type === 'SHOW_RESULT' || data.type === 'REFRESH_DISPLAY') {
+          setShowPlayerDetails(false);
+          setShowExtraTimer(false);
+          if (data.boutId && data.boutId !== activeBoutId) {
+            setActiveBoutId(data.boutId);
+          }
+          if (data.scoreAka !== undefined) setScoreAka(data.scoreAka);
+          if (data.scoreAo !== undefined) setScoreAo(data.scoreAo);
+          if (data.senshuAka !== undefined) setSenshuAka(data.senshuAka);
+          if (data.senshuAo !== undefined) setSenshuAo(data.senshuAo);
+          if (data.c1Aka !== undefined) setC1Aka(data.c1Aka);
+          if (data.c1Ao !== undefined) setC1Ao(data.c1Ao);
+          if (data.winnerSide !== undefined || data.winner !== undefined) {
+            setWinnerSide(data.winnerSide || data.winner);
+          }
+          if (data.winMethod !== undefined) {
+            setWinMethod(data.winMethod);
+          }
+          if (data.resultConfirmed !== undefined) {
+            setResultConfirmed(data.resultConfirmed);
+          }
+          setRefreshTrigger(prev => prev + 1);
+          return;
+        }
+
         if (data.boutId) {
           // If the controller shifted to a new match, update our active target boutId
           if (data.boutId !== activeBoutId) {
@@ -775,7 +801,7 @@ function SpectatorDisplayContent() {
     };
 
     fetchBout();
-  }, [mounted, activeBoutId]);
+  }, [mounted, activeBoutId, refreshTrigger]);
 
   // Supabase Realtime fallback subscription
   useEffect(() => {

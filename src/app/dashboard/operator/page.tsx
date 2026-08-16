@@ -483,6 +483,78 @@ export default function OperatorConsolePage() {
     }
   };
 
+  const handleShowResultOnRefereeView = () => {
+    if (!activeBout) {
+      alert('Please load or select a match first.');
+      return;
+    }
+
+    // 1. If scoreboard component has confirm/reveal function, trigger it
+    if (scoreboardRef.current?.confirmResult) {
+      scoreboardRef.current.confirmResult();
+    }
+
+    // 2. Determine winner from current score / match state
+    let winner: 'aka' | 'ao' | 'draw' | null = null;
+    let scoreA = liveScoreAka;
+    let scoreB = liveScoreAo;
+
+    if (boutIsKata) {
+      scoreA = Number(activeBout.total_score_a || activeBout.score_a || 0);
+      scoreB = Number(activeBout.total_score_b || activeBout.score_b || 0);
+      if (scoreA > scoreB) winner = 'aka';
+      else if (scoreB > scoreA) winner = 'ao';
+      else winner = 'draw';
+    } else {
+      if (liveScoreAka > liveScoreAo) winner = 'aka';
+      else if (liveScoreAo > liveScoreAka) winner = 'ao';
+      else if (senshuAka) winner = 'aka';
+      else if (senshuAo) winner = 'ao';
+      else winner = 'draw';
+    }
+
+    // 3. Broadcast full confirmed match result to Referee & Spectator Screen
+    if (typeof window !== 'undefined') {
+      try {
+        const channel = new BroadcastChannel('wkf-scoreboard-sync');
+        channel.postMessage({
+          type: 'SYNC_MATCH_STATE',
+          boutId: activeBout.id,
+          categoryId: activeBout.category_id,
+          akaName: akaFighter?.full_name || 'AKA Red',
+          aoName: aoFighter?.full_name || 'AO Blue',
+          akaClub: akaFighter ? (clubs.find(c => c.id === akaFighter.club_id)?.name || '') : '',
+          aoClub: aoFighter ? (clubs.find(c => c.id === aoFighter.club_id)?.name || '') : '',
+          scoreAka: scoreA,
+          scoreAo: scoreB,
+          senshuAka,
+          senshuAo,
+          c1Aka: parseInt(activeBout.penalties_c1_a || '0') || 0,
+          c1Ao: parseInt(activeBout.penalties_c1_b || '0') || 0,
+          timeLeft: 0,
+          timerActive: false,
+          winner,
+          winnerSide: winner,
+          winMethod: 'Decision / Score',
+          resultConfirmed: true
+        });
+
+        // Also post MATCH_FINISHED event to trigger referee display win celebration
+        if (winner && winner !== 'draw') {
+          channel.postMessage({
+            type: 'MATCH_FINISHED',
+            winnerSide: winner
+          });
+        }
+        channel.close();
+      } catch (e) {
+        console.error('Error broadcasting result to referee screen:', e);
+      }
+    }
+
+    addLog('RESULT', `Match Result for R${activeBout.round_no}B${activeBout.bout_no} sent to Referee View: ${winner ? `${winner.toUpperCase()} Winner` : 'Draw'}`);
+  };
+
   const initialDockButtons: DockBtn[] = [
     { id: 'bracket',         icon: Trophy,         label: 'BRACKET',       color: 'yellow', action: () => {
         setBracketModalCatId(activeCat?.id || (selectedCatId !== 'ALL' ? selectedCatId : (filteredCategories[0]?.id || 'ALL')));
@@ -539,7 +611,7 @@ export default function OperatorConsolePage() {
     { id: 'load_match',      icon: FolderOpen,     label: 'LOAD MATCH',     color: 'blue',   action: () => { setLoadMatchSearch(''); setExpandedCatId(null); setIsLoadMatchModalOpen(true); } },
     { id: 'match_log',       icon: ClipboardList,  label: 'MATCH LOG',      color: 'blue',   action: () => setKeyLogTab('ALL') },
     { id: 'queue',           icon: Users2,         label: 'QUEUE',          color: 'blue',   action: () => setBracketTab('QUEUE') },
-    { id: 'result',          icon: Flag,           label: 'RESULT',         color: 'green',  action: () => activeBout && setIsControlPanelOpen(true) },
+    { id: 'result',          icon: Flag,           label: 'RESULT',         color: 'green',  action: handleShowResultOnRefereeView },
     { id: 'undo',            icon: Undo2,          label: 'UNDO',           color: 'orange', action: () => { scoreboardRef.current?.undoLastAction(); addLog('SYSTEM', 'Undo action triggered'); } },
     { id: 'rematch',         icon: RotateCcw,      label: 'REMATCH',        color: 'red',    action: handleOperatorRematch },
     { id: 'confirm_result',  icon: CheckCircle2,   label: 'CONFIRM RESULT', color: 'green',  action: () => { scoreboardRef.current?.confirmResult(); addLog('SYSTEM', 'Match Result Confirmed'); } },
@@ -641,9 +713,7 @@ export default function OperatorConsolePage() {
           <button onClick={() => document.documentElement.requestFullscreen?.()} className="p-1.5 rounded text-white/30 hover:text-white/70 transition cursor-pointer"><Maximize2 className="h-3.5 w-3.5" /></button>
           <Link href="/" className="p-1.5 rounded text-white/30 hover:text-red-400 transition"><X className="h-3.5 w-3.5" /></Link>
         </div>
-      </header>
-
-      {/* INLINE CONTROL PANEL (SHRUNK) */}
+      </header>      {/* DYNAMIC LIVE SCOREBOARD CONTROL (NO HARDCODED MOCKUPS) */}
       {isControlPanelOpen && activeBout ? (
         <div className="shrink-0 w-full border-b border-white/10 bg-[#07070a] relative overflow-y-auto" style={{ zoom: 0.45, maxHeight: 'calc(100dvh - 30px)' }}>
           <button 
@@ -661,162 +731,29 @@ export default function OperatorConsolePage() {
             )}
           </React.Suspense>
         </div>
-      ) : boutIsKata ? (
-        <section className="shrink-0 bg-[#0c0f14] border-b border-white/10">
-          <div className="grid grid-cols-[1fr_240px_1fr] h-[146px]">
-            {/* AKA (Kata) */}
-            <div className="bg-gradient-to-r from-red-950/70 to-[#0c0f14] border-r border-white/5 px-5 py-3 flex gap-3">
-              <div className="flex flex-col justify-center flex-1 min-w-0">
-                <div className="flex items-center gap-2 mb-1">
-                  <span className="text-2xl font-black text-red-400 tracking-widest">AKA</span>
-                </div>
-                <div className="text-lg font-black tracking-tight text-white uppercase truncate leading-tight">{akaFighter?.full_name || 'AKA Competitor'}</div>
-                <div className="text-xs text-red-300/80 font-bold truncate">{akaFighter ? (clubs.find(c => c.id === akaFighter.club_id)?.name || '') : ''}</div>
-                <div className="text-xs text-red-200/70 uppercase mt-1">KATA: <span className="text-white font-bold">{activeBout?.kata_a || '—'}</span></div>
-              </div>
-              <div className="flex flex-col items-center justify-center pl-4 border-l border-white/5">
-                <div className="text-[52px] leading-none font-black text-red-400 font-mono tabular-nums drop-shadow-[0_0_25px_rgba(239,68,68,0.6)]">
-                  {Number(activeBout?.total_score_a || activeBout?.score_a || 0).toFixed(2)}
-                </div>
-                <div className="text-[8.5px] text-red-300/60 uppercase mt-1 tracking-widest font-black">TOTAL SCORE</div>
-              </div>
-            </div>
-
-            {/* CENTRE (Kata) */}
-            <div className="flex flex-col items-center justify-center gap-1 px-3">
-              <div className="flex items-center gap-2">
-                <div className="text-[9px] text-white/40 uppercase tracking-widest font-bold">KATA MATCH</div>
-                <div className="text-base font-black text-yellow-400">{boutLabel}</div>
-                <div className="text-xs text-white/40 font-mono">#{activeBout?.bout_no || '—'}</div>
-              </div>
-              <div className="text-xs font-black text-white/90 tracking-wider truncate max-w-[220px] text-center uppercase">{activeCat?.name || 'KATA DIVISION'}</div>
-              <div className="text-[9px] text-yellow-400/80 uppercase tracking-widest font-bold mt-0.5">{activeBout?.tatami || 'TATAMI 1'}</div>
-            </div>
-
-            {/* AO (Kata) */}
-            <div className="bg-gradient-to-l from-blue-950/70 to-[#0c0f14] border-l border-white/5 px-5 py-3 flex gap-3">
-              <div className="flex flex-col items-center justify-center pr-4 border-r border-white/5">
-                <div className="text-[52px] leading-none font-black text-blue-400 font-mono tabular-nums drop-shadow-[0_0_25px_rgba(59,130,246,0.6)]">
-                  {Number(activeBout?.total_score_b || activeBout?.score_b || 0).toFixed(2)}
-                </div>
-                <div className="text-[8.5px] text-blue-300/60 uppercase mt-1 tracking-widest font-black">TOTAL SCORE</div>
-              </div>
-              <div className="flex flex-col justify-center flex-1 min-w-0 items-end text-right">
-                <div className="flex items-center gap-2 justify-end mb-1">
-                  <span className="text-2xl font-black text-blue-400 tracking-widest">AO</span>
-                </div>
-                <div className="text-lg font-black tracking-tight text-white uppercase truncate leading-tight">{aoFighter?.full_name || 'AO Competitor'}</div>
-                <div className="text-xs text-blue-300/80 font-bold truncate">{aoFighter ? (clubs.find(c => c.id === aoFighter.club_id)?.name || '') : ''}</div>
-                <div className="text-xs text-blue-200/70 uppercase mt-1">KATA: <span className="text-white font-bold">{activeBout?.kata_b || '—'}</span></div>
-              </div>
-            </div>
-          </div>
-        </section>
-      ) : (
-        <section className="shrink-0 bg-[#0c0f14] border-b border-white/10">
-          <div className="grid grid-cols-[1fr_240px_1fr] h-[146px]">
-
-            {/* AKA */}
-          <div className="bg-gradient-to-r from-red-950/70 to-[#0c0f14] border-r border-white/5 px-4 py-2 flex gap-3">
-            <div className="flex flex-col justify-between flex-1 min-w-0">
-              <div className="flex items-center gap-2">
-                <span className="text-xl font-black text-red-400 tracking-widest">AKA</span>
-                <span className="text-[9px] text-white/40 font-bold">{akaFighter?.nationality_code || ''}</span>
-              </div>
-              <div>
-                <div className="text-base font-black tracking-tight text-white uppercase truncate leading-tight">{akaFighter?.full_name || ''}</div>
-                <div className="text-[9px] text-red-300/60 font-bold truncate">{akaFighter ? (clubs.find(c => c.id === akaFighter.club_id)?.name || '') : ''}</div>
-              </div>
-              <div className="space-y-0.5">
-                <div className="flex items-center gap-1">
-                  <span className="text-[7.5px] text-white/30 w-3.5">C1</span>
-                  <div className="flex gap-0.5">{[1,2,3,4,5].map(i => <div key={i} className={`w-2.5 h-2.5 rounded-full border ${i <= c1A ? 'bg-red-500 border-red-400' : 'bg-white/5 border-white/10'}`} />)}</div>
-                </div>
-                <div className="flex items-center gap-1">
-                  <span className="text-[7.5px] text-white/30 w-3.5">C2</span>
-                  <div className="flex gap-0.5">{[1,2,3,4,5].map(i => <div key={i} className={`w-2.5 h-2.5 rounded-full border ${i <= c2A ? 'bg-orange-500 border-orange-400' : 'bg-white/5 border-white/10'}`} />)}</div>
-                </div>
-                <div className="flex items-center gap-1.5 mt-0.5">
-                  <span className="text-[7.5px] text-white/30">HC</span>
-                  <div className={`w-4 h-3.5 rounded border flex items-center justify-center text-[6.5px] font-black ${hcA ? 'bg-orange-600 border-orange-400 text-white' : 'bg-white/5 border-white/10 text-white/20'}`}>HC</div>
-                  <span className="text-[7.5px] text-white/30">H</span>
-                  <div className={`w-4 h-3.5 rounded border flex items-center justify-center text-[6.5px] font-black ${hA ? 'bg-red-700 border-red-500 text-white' : 'bg-white/5 border-white/10 text-white/20'}`}>H</div>
-                </div>
-              </div>
-            </div>
-            <div className="flex flex-col items-center justify-center">
-              <div className="text-[54px] leading-none font-black text-red-400 font-mono tabular-nums" style={{ textShadow: '0 0 30px rgba(239,68,68,0.5)' }}>
-                {liveScoreAka}
-              </div>
-              <div className="flex gap-1.5 mt-1">
-                <div className="text-center"><div className="text-[9px] font-black text-white bg-white/10 rounded px-1">1</div><div className="text-[6.5px] text-white/30 font-bold">WAZA</div></div>
-                <div className="text-center"><div className="text-[9px] font-black text-white bg-white/10 rounded px-1">2</div><div className="text-[6.5px] text-white/30 font-bold">YUKO</div></div>
-              </div>
-            </div>
-          </div>
-
-          {/* CENTRE */}
-          <div className="flex flex-col items-center justify-center gap-0.5 px-3">
-            <div className="flex items-center gap-2 mb-0.5">
-              <div className="text-[8px] text-white/30 uppercase tracking-widest font-bold">MATCH</div>
-              <div className="text-sm font-black text-yellow-400">{boutLabel}</div>
-              <div className="text-[8px] text-white/25">#{activeBout?.bout_no || '—'}</div>
-            </div>
-            <div className={`text-4xl font-mono font-black tabular-nums leading-none ${timerSeconds <= 30 ? 'text-red-400 drop-shadow-[0_0_15px_rgba(239,68,68,0.7)]' : 'text-white drop-shadow-[0_0_15px_rgba(255,255,255,0.15)]'}`}>{formatTimer(timerSeconds)}</div>
-            <div className="text-[8px] text-white/30 uppercase tracking-widest mt-0.5 font-bold">TATAMI 1</div>
-            {(senshuAka || senshuAo) && (
-              <div className={`text-[8px] font-black uppercase px-2 py-0.5 rounded border mt-0.5 ${senshuAka ? 'bg-red-900/40 border-red-600/40 text-red-300' : 'bg-blue-900/40 border-blue-600/40 text-blue-300'}`}>
-                SENSHU {senshuAka ? '← AKA' : 'AO →'}
-              </div>
+      ) : activeBout ? (
+        <div className="shrink-0 w-full border-b border-white/10 bg-[#07070a] relative overflow-y-auto" style={{ zoom: 0.45, maxHeight: 'calc(100dvh - 30px)' }}>
+          <React.Suspense fallback={<div className="flex h-full items-center justify-center p-10">Loading Live Scoreboard...</div>}>
+            {boutIsKata ? (
+              <KataControlPanelContent ref={scoreboardRef} boutId={activeBout.id} onLogEvent={addLog} />
+            ) : (
+              <KumiteScoreboardControl ref={scoreboardRef} boutId={activeBout.id} onLogEvent={addLog} />
             )}
-
-            <div className="flex gap-1.5 mt-1">
-              {allBoutsFiltered.slice(0, 6).map(b => (
-                <button key={b.id} onClick={() => loadBout(b)}
-                  className={`w-2.5 h-2.5 rounded-full border transition cursor-pointer ${b.id === activeBout?.id ? 'bg-yellow-400 border-yellow-400' : b.status === 'Completed' ? 'bg-green-600 border-green-600' : b.status === 'Running' ? 'bg-red-500 border-red-500 animate-pulse' : 'bg-white/10 border-white/20 hover:bg-white/30'}`} />
-              ))}
-            </div>
+          </React.Suspense>
+        </div>
+      ) : (
+        <section className="shrink-0 h-[140px] bg-[#0c0f14] border-b border-white/10 flex flex-col items-center justify-center p-4 text-center">
+          <div className="flex items-center gap-2 mb-1.5">
+            <Trophy className="h-5 w-5 text-yellow-400" />
+            <span className="text-sm font-black uppercase tracking-widest text-white">NO ACTIVE MATCH LOADED</span>
           </div>
-
-          {/* AO */}
-          <div className="bg-gradient-to-l from-blue-950/70 to-[#0c0f14] border-l border-white/5 px-3 py-1.5 flex gap-2.5 items-center">
-            <div className="flex flex-col items-center justify-center">
-              <div className="text-[40px] leading-none font-black text-blue-400 font-mono tabular-nums" style={{ textShadow: '0 0 25px rgba(59,130,246,0.5)' }}>
-                {liveScoreAo}
-              </div>
-              <div className="flex gap-1 mt-0.5">
-                <div className="text-center"><div className="text-[8px] font-black text-white bg-white/10 rounded px-1">1</div><div className="text-[6px] text-white/30 font-bold">WAZA</div></div>
-                <div className="text-center"><div className="text-[8px] font-black text-white bg-white/10 rounded px-1">1</div><div className="text-[6px] text-white/30 font-bold">YUKO</div></div>
-              </div>
-            </div>
-            <div className="flex flex-col justify-between flex-1 min-w-0 items-end text-right h-full">
-              <div className="flex items-center gap-1.5 justify-end">
-                <span className="text-[8px] text-white/40 font-bold">{aoFighter?.nationality_code || ''}</span>
-                <span className="text-base font-black text-blue-400 tracking-widest">AO</span>
-              </div>
-              <div>
-                <div className="text-sm font-black tracking-tight text-white uppercase truncate leading-tight">{aoFighter?.full_name || ''}</div>
-                <div className="text-[8px] text-blue-300/60 font-bold truncate">{aoFighter ? (clubs.find(c => c.id === aoFighter.club_id)?.name || '') : ''}</div>
-              </div>
-              <div className="space-y-0.5 items-end flex flex-col">
-                <div className="flex items-center gap-1 flex-row-reverse">
-                  <span className="text-[7px] text-white/30 w-3">C1</span>
-                  <div className="flex gap-0.5 flex-row-reverse">{[1,2,3,4,5].map(i => <div key={i} className={`w-2 h-2 rounded-full border ${i <= c1B ? 'bg-red-500 border-red-400' : 'bg-white/5 border-white/10'}`} />)}</div>
-                </div>
-                <div className="flex items-center gap-1 flex-row-reverse">
-                  <span className="text-[7px] text-white/30 w-3">C2</span>
-                  <div className="flex gap-0.5 flex-row-reverse">{[1,2,3,4,5].map(i => <div key={i} className={`w-2 h-2 rounded-full border ${i <= c2B ? 'bg-orange-500 border-orange-400' : 'bg-white/5 border-white/10'}`} />)}</div>
-                </div>
-                <div className="flex items-center gap-1 mt-0.5 flex-row-reverse">
-                  <span className="text-[7px] text-white/30">HC</span>
-                  <div className={`w-3.5 h-3 rounded border flex items-center justify-center text-[6px] font-black ${hcB ? 'bg-orange-600 border-orange-400 text-white' : 'bg-white/5 border-white/10 text-white/20'}`}>HC</div>
-                  <span className="text-[7px] text-white/30">H</span>
-                  <div className={`w-3.5 h-3 rounded border flex items-center justify-center text-[6px] font-black ${hB ? 'bg-red-700 border-red-500 text-white' : 'bg-white/5 border-white/10 text-white/20'}`}>H</div>
-                </div>
-              </div>
-            </div>
-          </div>
-          </div>
+          <p className="text-xs text-white/50 mb-2.5 max-w-md">Select any match from the Match Console bracket list on the left to begin live scoring.</p>
+          <button
+            onClick={() => { setLoadMatchSearch(''); setExpandedCatId(null); setIsLoadMatchModalOpen(true); }}
+            className="px-4 py-1.5 bg-yellow-500 hover:bg-yellow-400 text-black font-black text-xs uppercase tracking-wider rounded-lg transition shadow-md cursor-pointer flex items-center gap-1.5"
+          >
+            <FolderOpen className="h-3.5 w-3.5" /> Load Match
+          </button>
         </section>
       )}
 
@@ -1213,19 +1150,19 @@ export default function OperatorConsolePage() {
           </div>
 
           {/* BOTTOM SECTION: PLAYER DETAILS | EXTRA TIMER | SYSTEM STATUS */}
-          <section className="h-[102px] shrink-0 bg-[#0a0c10] grid grid-cols-[1fr_180px_140px] overflow-hidden border-t border-white/10">
+          <section className="h-[108px] shrink-0 bg-[#0a0c10] flex items-stretch overflow-hidden border-t border-white/10">
 
             {/* PLAYER DETAILS (Full Database Fields for AKA & AO) */}
-            <div className="border-r border-white/10 px-3 py-2 flex gap-3 items-center overflow-hidden h-full">
+            <div className="flex-1 min-w-0 border-r border-white/10 px-3 py-2 flex gap-2.5 items-center overflow-hidden h-full">
               {/* AKA */}
               <div
                 onClick={() => akaFighter && setSelectedProfileModal({ participant: akaFighter, corner: 'AKA' })}
-                className="flex gap-2.5 flex-1 items-center min-w-0 h-full bg-red-950/20 hover:bg-red-950/40 border border-red-900/30 rounded-xl p-2 transition cursor-pointer"
+                className="flex gap-2 flex-1 items-center min-w-0 h-full bg-red-950/20 hover:bg-red-950/40 border border-red-900/30 rounded-xl p-2 transition cursor-pointer"
                 title="Click for full participant profile"
               >
                 <div className="flex flex-col items-center gap-1 shrink-0">
                   <span className="text-[7.5px] font-black text-red-300 bg-red-900/60 border border-red-700/50 px-1.5 py-0.5 rounded leading-none">AKA</span>
-                  <div className="w-11 h-14 rounded-lg bg-white/5 border border-white/10 overflow-hidden flex items-center justify-center shadow-inner">
+                  <div className="w-10 h-13 rounded-lg bg-white/5 border border-white/10 overflow-hidden flex items-center justify-center shadow-inner">
                     {akaFighter?.photo_url
                       ? <img src={akaFighter.photo_url} alt={akaFighter.full_name} className="w-full h-full object-cover" />
                       : <UserSquare2 className="h-5 w-5 text-red-300/40" />}
@@ -1233,17 +1170,17 @@ export default function OperatorConsolePage() {
                 </div>
 
                 <div className="text-[8px] leading-tight text-white/70 space-y-0.5 min-w-0 flex-1">
-                  <div className="font-black text-white text-[10px] truncate flex items-center gap-1">
+                  <div className="font-black text-white text-[9.5px] truncate flex items-center gap-1">
                     <span>{akaFighter?.full_name || '—'}</span>
                     {akaFighter?.gender && <span className="text-[7px] text-white/40">({akaFighter.gender})</span>}
                   </div>
-                  <div className="text-[8px] text-white/50 truncate">
+                  <div className="text-[7.5px] text-white/50 truncate">
                     <span>REG: #{akaFighter?.registration_no || '—'}</span> · <span>AGE: {calculateAge(akaFighter?.dob) ?? '—'}</span>
                   </div>
-                  <div className="text-[8.5px] text-yellow-400 font-bold truncate">
+                  <div className="text-[8px] text-yellow-400 font-bold truncate">
                     <span>CLUB: {akaFighter ? (clubs.find(c => c.id === akaFighter.club_id)?.name || '—') : '—'}</span>
                   </div>
-                  <div className="text-[8px] text-white/50 truncate">
+                  <div className="text-[7.5px] text-white/50 truncate">
                     <span>COACH: {akaFighter ? (coaches.find(c => c.id === akaFighter.coach_id)?.name || '—') : '—'}</span> · <span>WT: {akaFighter?.weight ? `${akaFighter.weight}kg` : '—'}</span>
                   </div>
                 </div>
@@ -1254,38 +1191,38 @@ export default function OperatorConsolePage() {
               {/* AO */}
               <div
                 onClick={() => aoFighter && setSelectedProfileModal({ participant: aoFighter, corner: 'AO' })}
-                className="flex gap-1.5 flex-1 items-center min-w-0 h-full bg-blue-950/20 hover:bg-blue-950/40 border border-blue-900/30 rounded-lg p-1 transition cursor-pointer"
+                className="flex gap-2 flex-1 items-center min-w-0 h-full bg-blue-950/20 hover:bg-blue-950/40 border border-blue-900/30 rounded-xl p-2 transition cursor-pointer"
                 title="Click for full participant profile"
               >
-                <div className="flex flex-col items-center gap-0.5 shrink-0">
-                  <span className="text-[6.5px] font-black text-blue-300 bg-blue-900/60 border border-blue-700/50 px-1 rounded leading-none">AO</span>
-                  <div className="w-7 h-9 rounded bg-white/5 border border-white/10 overflow-hidden flex items-center justify-center shadow-inner">
+                <div className="flex flex-col items-center gap-1 shrink-0">
+                  <span className="text-[7.5px] font-black text-blue-300 bg-blue-900/60 border border-blue-700/50 px-1.5 py-0.5 rounded leading-none">AO</span>
+                  <div className="w-10 h-13 rounded-lg bg-white/5 border border-white/10 overflow-hidden flex items-center justify-center shadow-inner">
                     {aoFighter?.photo_url
                       ? <img src={aoFighter.photo_url} alt={aoFighter.full_name} className="w-full h-full object-cover" />
-                      : <UserSquare2 className="h-3.5 w-3.5 text-blue-300/40" />}
+                      : <UserSquare2 className="h-5 w-5 text-blue-300/40" />}
                   </div>
                 </div>
 
-                <div className="text-[7px] leading-tight text-white/70 space-y-0.2 min-w-0 flex-1">
-                  <div className="font-black text-white text-[8.5px] truncate flex items-center gap-1">
+                <div className="text-[8px] leading-tight text-white/70 space-y-0.5 min-w-0 flex-1">
+                  <div className="font-black text-white text-[9.5px] truncate flex items-center gap-1">
                     <span>{aoFighter?.full_name || '—'}</span>
-                    {aoFighter?.gender && <span className="text-[6px] text-white/40">({aoFighter.gender})</span>}
+                    {aoFighter?.gender && <span className="text-[7px] text-white/40">({aoFighter.gender})</span>}
                   </div>
-                  <div className="text-[6.5px] text-white/50 truncate">
+                  <div className="text-[7.5px] text-white/50 truncate">
                     <span>REG: #{aoFighter?.registration_no || '—'}</span> · <span>AGE: {calculateAge(aoFighter?.dob) ?? '—'}</span>
                   </div>
-                  <div className="text-[7px] text-cyan-400 font-bold truncate">
+                  <div className="text-[8px] text-cyan-400 font-bold truncate">
                     <span>CLUB: {aoFighter ? (clubs.find(c => c.id === aoFighter.club_id)?.name || '—') : '—'}</span>
                   </div>
-                  <div className="text-[6.5px] text-white/50 truncate">
+                  <div className="text-[7.5px] text-white/50 truncate">
                     <span>COACH: {aoFighter ? (coaches.find(c => c.id === aoFighter.coach_id)?.name || '—') : '—'}</span> · <span>WT: {aoFighter?.weight ? `${aoFighter.weight}kg` : '—'}</span>
                   </div>
                 </div>
               </div>
             </div>
 
-            {/* EXTRA TIMER */}
-            <div className="border-r border-white/10 px-3 py-2 flex flex-col justify-between h-full min-w-[200px] extra-timer-panel">
+            {/* EXTRA TIMER (Fixed width, zero overflow) */}
+            <div className="w-[210px] shrink-0 border-r border-white/10 px-3 py-2 flex flex-col justify-between h-full bg-[#0c0f16] extra-timer-panel">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-1.5">
                   <span className="text-[7.5px] font-black uppercase tracking-wider text-white/40">EXTRA TIMER</span>
@@ -1306,7 +1243,7 @@ export default function OperatorConsolePage() {
                 </div>
                 <span className="text-[7px] text-yellow-400 font-bold">NEXT {nextBout ? `R${nextBout.round_no}B${nextBout.bout_no}` : '—'}</span>
               </div>
-              <div className="text-xl font-mono font-black text-white text-center leading-none my-auto tracking-wider">{formatTimer(extraTime)}</div>
+              <div className="text-xl font-mono font-black text-white text-center leading-none my-0.5 tracking-wider">{formatTimer(extraTime)}</div>
               <div className="grid grid-cols-4 gap-1">
                 {[600, 300, 180, 120].map(t => (
                   <button key={t} onClick={() => { 
@@ -1339,8 +1276,8 @@ export default function OperatorConsolePage() {
               </div>
             </div>
 
-            {/* SYSTEM STATUS */}
-            <div className="px-3 py-2 flex flex-col justify-center gap-0.5 h-full">
+            {/* SYSTEM STATUS (Fixed width, clean layout) */}
+            <div className="w-[145px] shrink-0 px-3 py-2 flex flex-col justify-center gap-0.5 h-full bg-[#0a0c10]">
               <div className="text-[7px] font-black uppercase tracking-widest text-white/30 mb-0.5">SYSTEM STATUS</div>
               {[
                 { label: 'DATABASE', value: dbStatus, color: dbStatus === 'CONNECTED' ? 'text-green-400' : 'text-orange-400', dot: dbStatus === 'CONNECTED' ? 'bg-green-400' : 'bg-orange-400' },

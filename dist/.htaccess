@@ -1,0 +1,38 @@
+# Hostinger-compatible SPA routing for Next.js static export
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+  RewriteBase /
+
+  # Prevent rewriting for real files
+  RewriteCond %{REQUEST_FILENAME} -f [OR]
+  RewriteCond %{REQUEST_FILENAME} -d
+  RewriteRule ^ - [L]
+
+  # Rewrite routes to index.html for SPA
+  RewriteRule ^.*$ /index.html [L]
+</IfModule>
+
+# ─── Correct MIME Types ───────────────────────────────────────────────────────
+<IfModule mod_mime.c>
+  AddType application/javascript .js .mjs
+  AddType text/css .css
+  AddType application/json .json
+  AddType image/svg+xml .svg
+  AddCharset UTF-8 .js .mjs .css .html .json .svg .txt
+</IfModule>
+
+# ─── Fix ERR_CONTENT_DECODING_FAILED on Hostinger CDN ────────────────────────
+# Disable origin compression so CDN doesn't double-encode
+<IfModule mod_deflate.c>
+  SetEnvIfNoCase Request_URI "\.(js|mjs|css|json|svg)$" no-gzip
+</IfModule>
+
+# Keep Content-Encoding headers intact so browsers can decode compressed assets.
+# Only signal no-transform to reduce CDN re-encoding issues.
+<FilesMatch "\.(js|mjs|css|json|svg)$">
+  <IfModule mod_headers.c>
+    Header always set Cache-Control "no-cache, no-store, must-revalidate, max-age=0, no-transform"
+    Header always set Pragma "no-cache"
+    Header always set Expires "0"
+  </IfModule>
+</FilesMatch>
