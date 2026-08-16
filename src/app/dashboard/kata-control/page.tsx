@@ -1039,22 +1039,22 @@ export const KataControlPanelContent = React.forwardRef<ScoreboardRef, { boutId?
               )}
             </div>
 
-            {/* LIVE RESULT PANE (Close Proximity to Judge Score Matrix) */}
-            <div className="bg-gradient-to-r from-red-950/40 via-[#0d0f16] to-blue-950/40 border border-yellow-500/40 rounded-xl p-3.5 flex items-center justify-between shadow-lg gap-3">
+            {/* LIVE RESULT PANE (Embedded directly above Judge Score Matrix) */}
+            <div className="bg-gradient-to-r from-red-950/70 via-[#0d0f16] to-blue-950/70 border-2 border-yellow-400/50 rounded-2xl p-4 flex items-center justify-between shadow-2xl gap-4">
               {/* AKA Live Total */}
-              <div className="flex items-center gap-2.5 min-w-0">
-                <span className="px-2.5 py-1 bg-red-600 text-white font-black text-xs rounded uppercase shadow">AKA</span>
+              <div className="flex items-center gap-3 min-w-0">
+                <span className="px-3 py-1.5 bg-red-600 text-white font-black text-sm rounded-lg uppercase tracking-wider shadow-lg shadow-red-950/50">AKA</span>
                 <div className="min-w-0">
-                  <div className="text-xs font-black text-white truncate max-w-[130px]">{participantA?.full_name || 'AKA'}</div>
-                  <div className="text-[9px] text-red-300 font-bold uppercase tracking-wider">RESULT</div>
+                  <div className="text-sm font-black text-white truncate max-w-[150px] leading-tight">{participantA?.full_name || 'AKA'}</div>
+                  <div className="text-[10px] text-red-300 font-bold uppercase tracking-wider mt-0.5">LIVE SCORE</div>
                 </div>
-                <div className="text-3xl sm:text-4xl font-mono font-black text-red-400 tabular-nums ml-1 drop-shadow-[0_0_12px_rgba(239,68,68,0.5)]">
+                <div className="text-4xl sm:text-5xl font-mono font-black text-red-400 tabular-nums ml-2 drop-shadow-[0_0_20px_rgba(239,68,68,0.7)]">
                   {scoringMethod === 'Flags' ? (
-                    <div className="flex items-center gap-1">
+                    <div className="flex items-center gap-1.5">
                       {Array.from({ length: totalScoreA }).map((_, i) => (
-                        <Flag key={`res-aka-${i}`} className="h-5 w-5 fill-red-500 text-red-500" />
+                        <Flag key={`res-aka-${i}`} className="h-6 w-6 fill-red-500 text-red-500" />
                       ))}
-                      {totalScoreA === 0 && <span className="text-xl text-white/30">0</span>}
+                      {totalScoreA === 0 && <span className="text-2xl text-white/30">0</span>}
                     </div>
                   ) : (
                     totalScoreA.toFixed(2)
@@ -1063,38 +1063,38 @@ export const KataControlPanelContent = React.forwardRef<ScoreboardRef, { boutId?
               </div>
 
               {/* Center Match Decision Status */}
-              <div className="flex flex-col items-center justify-center px-3 py-1.5 bg-black/60 rounded-lg border border-white/10 shrink-0">
-                <span className="text-[10px] font-black uppercase tracking-widest text-yellow-400">
-                  {penaltyH ? `PENALTY (${penaltyH})` : totalScoreA > totalScoreB ? 'AKA LEADING' : totalScoreB > totalScoreA ? 'AO LEADING' : 'TIED'}
+              <div className="flex flex-col items-center justify-center px-4 py-2 bg-black/80 rounded-xl border border-yellow-400/30 shrink-0 shadow-inner">
+                <span className="text-xs font-black uppercase tracking-widest text-yellow-400">
+                  {penaltyH ? `PENALTY (${penaltyH})` : totalScoreA > totalScoreB ? '★ AKA LEADS' : totalScoreB > totalScoreA ? '★ AO LEADS' : 'TIED'}
                 </span>
-                <span className="text-[8px] text-white/50 font-mono mt-0.5">LIVE RESULT</span>
+                <span className="text-[9px] text-white/60 font-mono mt-0.5 font-bold">MATCH RESULT</span>
               </div>
 
               {/* AO Live Total */}
-              <div className="flex items-center gap-2.5 min-w-0 justify-end text-right">
-                <div className="text-3xl sm:text-4xl font-mono font-black text-blue-400 tabular-nums mr-1 drop-shadow-[0_0_12px_rgba(59,130,246,0.5)]">
+              <div className="flex items-center gap-3 min-w-0 justify-end text-right">
+                <div className="text-4xl sm:text-5xl font-mono font-black text-blue-400 tabular-nums mr-2 drop-shadow-[0_0_20px_rgba(59,130,246,0.7)]">
                   {scoringMethod === 'Flags' ? (
-                    <div className="flex items-center gap-1">
+                    <div className="flex items-center gap-1.5">
                       {Array.from({ length: totalScoreB }).map((_, i) => (
-                        <Flag key={`res-ao-${i}`} className="h-5 w-5 fill-blue-500 text-blue-500" />
+                        <Flag key={`res-ao-${i}`} className="h-6 w-6 fill-blue-500 text-blue-500" />
                       ))}
-                      {totalScoreB === 0 && <span className="text-xl text-white/30">0</span>}
+                      {totalScoreB === 0 && <span className="text-2xl text-white/30">0</span>}
                     </div>
                   ) : (
                     totalScoreB.toFixed(2)
                   )}
                 </div>
                 <div className="min-w-0">
-                  <div className="text-xs font-black text-white truncate max-w-[130px]">{participantB?.full_name || 'AO'}</div>
-                  <div className="text-[9px] text-blue-300 font-bold uppercase tracking-wider">RESULT</div>
+                  <div className="text-sm font-black text-white truncate max-w-[150px] leading-tight">{participantB?.full_name || 'AO'}</div>
+                  <div className="text-[10px] text-blue-300 font-bold uppercase tracking-wider mt-0.5">LIVE SCORE</div>
                 </div>
-                <span className="px-2.5 py-1 bg-blue-600 text-white font-black text-xs rounded uppercase shadow">AO</span>
+                <span className="px-3 py-1.5 bg-blue-600 text-white font-black text-sm rounded-lg uppercase tracking-wider shadow-lg shadow-blue-950/50">AO</span>
               </div>
             </div>
 
             {/* Quick Presets Bar */}
-            <div className={`flex flex-wrap items-center justify-between gap-2 ${onClose ? 'p-1.5' : 'p-3'} bg-white/5 rounded-xl`}>
-              <span className={`${onClose ? 'text-[10px]' : 'text-xs'} font-bold text-gray-300`}>Set All Judges:</span>
+            <div className={`flex flex-wrap items-center justify-between gap-2 ${onClose ? 'p-1.5' : 'p-2.5'} bg-white/5 rounded-xl`}>
+              <span className={`${onClose ? 'text-[10px]' : 'text-xs'} font-bold text-gray-300`}>Quick Presets:</span>
               <div className="flex flex-wrap gap-1.5">
                 {scoringMethod === 'Points' ? (
                   [8.0, 8.2, 8.4, 8.5, 8.8, 9.0].map(val => (
@@ -1113,18 +1113,18 @@ export const KataControlPanelContent = React.forwardRef<ScoreboardRef, { boutId?
                         setJudgeScoresA(Array(panelSize).fill(1));
                         setJudgeScoresB(Array(panelSize).fill(0));
                       }}
-                      className="flex items-center gap-1 px-3 py-1 bg-red-950/40 hover:bg-red-900/60 text-red-400 border border-red-500/30 text-xs font-bold rounded-lg transition cursor-pointer"
+                      className="flex items-center gap-1.5 px-3.5 py-1.5 bg-red-950/60 hover:bg-red-900/80 text-red-300 border border-red-500/40 text-xs font-black rounded-lg transition cursor-pointer shadow"
                     >
-                      All Flags AKA <Flag className="h-3 w-3 fill-current" />
+                      All Flags AKA <Flag className="h-3.5 w-3.5 fill-current" />
                     </button>
                     <button
                       onClick={() => {
                         setJudgeScoresA(Array(panelSize).fill(0));
                         setJudgeScoresB(Array(panelSize).fill(1));
                       }}
-                      className="flex items-center gap-1 px-3 py-1 bg-blue-950/40 hover:bg-blue-900/60 text-blue-400 border border-blue-500/30 text-xs font-bold rounded-lg transition cursor-pointer"
+                      className="flex items-center gap-1.5 px-3.5 py-1.5 bg-blue-950/60 hover:bg-blue-900/80 text-blue-300 border border-blue-500/40 text-xs font-black rounded-lg transition cursor-pointer shadow"
                     >
-                      All Flags AO <Flag className="h-3 w-3 fill-current" />
+                      All Flags AO <Flag className="h-3.5 w-3.5 fill-current" />
                     </button>
                   </>
                 )}
