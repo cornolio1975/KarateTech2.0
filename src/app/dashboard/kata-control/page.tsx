@@ -804,11 +804,11 @@ export const KataControlPanelContent = React.forwardRef<ScoreboardRef, { boutId?
       {/* Control Grid */}
       <div className={`max-w-[1800px] w-full mx-auto grid grid-cols-1 lg:grid-cols-12 gap-4 lg:gap-6 ${onClose ? 'flex-1 min-h-0' : ''}`}>
         
-        {/* Left Panel: Fighters and Timer (Expanded to fit left corner pane) */}
+        {/* Left Panel: Vertical View for Fighter Panes & Match Info */}
         <div className={`lg:col-span-6 flex flex-col ${onClose ? 'gap-2 min-h-0' : 'gap-4'} overflow-y-auto`}>
           
-          {/* Match Info & Digital Timer Bar */}
-          <div className={`bg-[#0d0f16] border border-white/10 rounded-2xl flex items-center justify-between shadow-lg ${onClose ? 'p-2.5' : 'p-4'}`}>
+          {/* Top Match Info & Digital Timer Bar */}
+          <div className={`bg-[#0d0f16] border border-white/10 rounded-2xl flex items-center justify-between shadow-lg shrink-0 ${onClose ? 'p-2.5' : 'p-3.5'}`}>
             <div className="min-w-0">
               <span className="text-[10px] font-black uppercase tracking-widest text-yellow-400 block truncate">
                 {category?.name || 'Kata Division'}
@@ -824,7 +824,7 @@ export const KataControlPanelContent = React.forwardRef<ScoreboardRef, { boutId?
               </div>
             </div>
 
-            {/* Digital Countdown Timer & Quick Controls */}
+            {/* Digital Countdown Timer & Controls */}
             <div className="flex items-center gap-3">
               <div className="flex flex-col items-end">
                 <div className={`flex items-baseline justify-end font-mono text-3xl sm:text-4xl font-black leading-none select-none tracking-tight ${
@@ -874,92 +874,113 @@ export const KataControlPanelContent = React.forwardRef<ScoreboardRef, { boutId?
             </div>
           </div>
 
-          {/* BIG AKA FIGHTER PANE (RED CORNER) */}
-          <div className={`bg-gradient-to-br from-red-950/70 via-red-900/30 to-[#0d0d14] border-2 border-red-500/40 rounded-2xl flex flex-col justify-between overflow-hidden shadow-xl shadow-red-950/30 ${onClose ? 'p-3' : 'p-5'}`}>
-            <div>
-              <div className="flex items-center justify-between mb-3">
-                <span className="px-3.5 py-1.5 bg-red-600 text-white font-black text-sm rounded-xl uppercase tracking-wider shadow-lg shadow-red-950/50">
-                  AKA (RED)
-                </span>
-                <div className="text-4xl sm:text-5xl font-mono font-black text-red-400 tabular-nums drop-shadow-[0_0_20px_rgba(239,68,68,0.7)]">
+          {/* VERTICAL VIEW: 2 SIDE-BY-SIDE FIGHTER PILLARS */}
+          <div className="grid grid-cols-2 gap-4 flex-1 min-h-[380px]">
+            
+            {/* VERTICAL PANE 1: AKA ATHLETE (RED) */}
+            <div className={`bg-gradient-to-b from-red-950/80 via-red-900/30 to-[#0d0d14] border-2 border-red-500/40 rounded-2xl flex flex-col justify-between overflow-hidden shadow-xl shadow-red-950/40 ${onClose ? 'p-3' : 'p-5'}`}>
+              <div className="flex flex-col">
+                <div className="flex items-center justify-between mb-3">
+                  <span className="px-3.5 py-1.5 bg-red-600 text-white font-black text-sm rounded-xl uppercase tracking-wider shadow-lg shadow-red-950/50">
+                    AKA (RED)
+                  </span>
+                  <span className="text-[10px] font-black text-red-400 uppercase tracking-widest bg-red-950/60 px-2 py-0.5 rounded border border-red-800/40">
+                    CORNER 1
+                  </span>
+                </div>
+
+                <h3 className="text-xl sm:text-2xl font-black text-white tracking-tight leading-tight mb-1 truncate" title={participantA?.full_name || 'AKA Athlete'}>
+                  {participantA?.full_name || 'AKA Athlete'}
+                </h3>
+                <p className="text-xs font-bold text-red-300/80 mb-4 truncate" title={clubA?.name || 'Independent Dojo'}>
+                  {clubA?.name || 'Independent Dojo'}
+                </p>
+
+                {/* Declared Kata Selector */}
+                <div className="mb-4">
+                  <label className="block text-[10px] font-black uppercase tracking-wider text-red-300 mb-1">Declared Kata</label>
+                  <select
+                    value={kataA}
+                    onChange={e => setKataA(e.target.value)}
+                    className="w-full bg-[#181015] border border-red-500/40 rounded-xl px-3 py-2 text-xs font-black text-red-100 focus:outline-none focus:border-red-400 transition cursor-pointer shadow-inner"
+                  >
+                    {OFFICIAL_WKF_KATAS.map(k => (
+                      <option key={k} value={k}>{k}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              {/* Vertical Score Bottom Readout */}
+              <div className="pt-3 border-t border-red-500/30 flex flex-col items-center justify-center bg-red-950/30 rounded-xl p-3">
+                <span className="text-[10px] uppercase font-black tracking-wider text-red-300/80 mb-1">TOTAL SCORE</span>
+                <div className="text-4xl sm:text-5xl font-mono font-black text-red-400 tabular-nums drop-shadow-[0_0_20px_rgba(239,68,68,0.8)]">
                   {scoringMethod === 'Flags' ? (
-                    <div className="flex items-center gap-1.5">
+                    <div className="flex items-center gap-1.5 flex-wrap justify-center">
                       {Array.from({ length: totalScoreA }).map((_, i) => (
-                        <Flag key={`card-aka-${i}`} className="h-7 w-7 fill-red-500 text-red-500" />
+                        <Flag key={`v-card-aka-${i}`} className="h-6 w-6 fill-red-500 text-red-500" />
                       ))}
-                      {totalScoreA === 0 && <span className="text-2xl text-white/30 font-sans font-bold">0 FLAGS</span>}
+                      {totalScoreA === 0 && <span className="text-xl text-white/30 font-sans font-bold">0 FLAGS</span>}
                     </div>
                   ) : (
                     totalScoreA.toFixed(2)
                   )}
                 </div>
               </div>
-
-              <h3 className="text-2xl sm:text-3xl font-black text-white tracking-tight leading-tight truncate w-full" title={participantA?.full_name || 'AKA Athlete'}>
-                {participantA?.full_name || 'AKA Athlete'}
-              </h3>
-              <p className="text-sm font-bold text-red-300/80 mb-4 truncate w-full" title={clubA?.name || 'Independent Dojo'}>
-                {clubA?.name || 'Independent Dojo'}
-              </p>
-
-              {/* Declared Kata Selector */}
-              <div>
-                <label className="block text-[10px] font-black uppercase tracking-wider text-red-300 mb-1">Declared Kata</label>
-                <select
-                  value={kataA}
-                  onChange={e => setKataA(e.target.value)}
-                  className="w-full bg-[#181015] border border-red-500/40 rounded-xl px-3.5 py-2 text-sm font-black text-red-100 focus:outline-none focus:border-red-400 transition cursor-pointer shadow-inner"
-                >
-                  {OFFICIAL_WKF_KATAS.map(k => (
-                    <option key={k} value={k}>{k}</option>
-                  ))}
-                </select>
-              </div>
             </div>
-          </div>
 
-          {/* BIG AO FIGHTER PANE (BLUE CORNER) */}
-          <div className={`bg-gradient-to-br from-blue-950/70 via-blue-900/30 to-[#0d0d14] border-2 border-blue-500/40 rounded-2xl flex flex-col justify-between overflow-hidden shadow-xl shadow-blue-950/30 ${onClose ? 'p-3' : 'p-5'}`}>
-            <div>
-              <div className="flex items-center justify-between mb-3">
-                <span className="px-3.5 py-1.5 bg-blue-600 text-white font-black text-sm rounded-xl uppercase tracking-wider shadow-lg shadow-blue-950/50">
-                  AO (BLUE)
-                </span>
-                <div className="text-4xl sm:text-5xl font-mono font-black text-blue-400 tabular-nums drop-shadow-[0_0_20px_rgba(59,130,246,0.7)]">
+            {/* VERTICAL PANE 2: AO ATHLETE (BLUE) */}
+            <div className={`bg-gradient-to-b from-blue-950/80 via-blue-900/30 to-[#0d0d14] border-2 border-blue-500/40 rounded-2xl flex flex-col justify-between overflow-hidden shadow-xl shadow-blue-950/40 ${onClose ? 'p-3' : 'p-5'}`}>
+              <div className="flex flex-col">
+                <div className="flex items-center justify-between mb-3">
+                  <span className="px-3.5 py-1.5 bg-blue-600 text-white font-black text-sm rounded-xl uppercase tracking-wider shadow-lg shadow-blue-950/50">
+                    AO (BLUE)
+                  </span>
+                  <span className="text-[10px] font-black text-blue-400 uppercase tracking-widest bg-blue-950/60 px-2 py-0.5 rounded border border-blue-800/40">
+                    CORNER 2
+                  </span>
+                </div>
+
+                <h3 className="text-xl sm:text-2xl font-black text-white tracking-tight leading-tight mb-1 truncate" title={participantB?.full_name || 'AO Athlete'}>
+                  {participantB?.full_name || 'AO Athlete'}
+                </h3>
+                <p className="text-xs font-bold text-blue-300/80 mb-4 truncate" title={clubB?.name || 'Independent Dojo'}>
+                  {clubB?.name || 'Independent Dojo'}
+                </p>
+
+                {/* Declared Kata Selector */}
+                <div className="mb-4">
+                  <label className="block text-[10px] font-black uppercase tracking-wider text-blue-300 mb-1">Declared Kata</label>
+                  <select
+                    value={kataB}
+                    onChange={e => setKataB(e.target.value)}
+                    className="w-full bg-[#101420] border border-blue-500/40 rounded-xl px-3 py-2 text-xs font-black text-blue-100 focus:outline-none focus:border-blue-400 transition cursor-pointer shadow-inner"
+                  >
+                    {OFFICIAL_WKF_KATAS.map(k => (
+                      <option key={k} value={k}>{k}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              {/* Vertical Score Bottom Readout */}
+              <div className="pt-3 border-t border-blue-500/30 flex flex-col items-center justify-center bg-blue-950/30 rounded-xl p-3">
+                <span className="text-[10px] uppercase font-black tracking-wider text-blue-300/80 mb-1">TOTAL SCORE</span>
+                <div className="text-4xl sm:text-5xl font-mono font-black text-blue-400 tabular-nums drop-shadow-[0_0_20px_rgba(59,130,246,0.8)]">
                   {scoringMethod === 'Flags' ? (
-                    <div className="flex items-center gap-1.5">
+                    <div className="flex items-center gap-1.5 flex-wrap justify-center">
                       {Array.from({ length: totalScoreB }).map((_, i) => (
-                        <Flag key={`card-ao-${i}`} className="h-7 w-7 fill-blue-500 text-blue-500" />
+                        <Flag key={`v-card-ao-${i}`} className="h-6 w-6 fill-blue-500 text-blue-500" />
                       ))}
-                      {totalScoreB === 0 && <span className="text-2xl text-white/30 font-sans font-bold">0 FLAGS</span>}
+                      {totalScoreB === 0 && <span className="text-xl text-white/30 font-sans font-bold">0 FLAGS</span>}
                     </div>
                   ) : (
                     totalScoreB.toFixed(2)
                   )}
                 </div>
               </div>
-
-              <h3 className="text-2xl sm:text-3xl font-black text-white tracking-tight leading-tight truncate w-full" title={participantB?.full_name || 'AO Athlete'}>
-                {participantB?.full_name || 'AO Athlete'}
-              </h3>
-              <p className="text-sm font-bold text-blue-300/80 mb-4 truncate w-full" title={clubB?.name || 'Independent Dojo'}>
-                {clubB?.name || 'Independent Dojo'}
-              </p>
-
-              {/* Declared Kata Selector */}
-              <div>
-                <label className="block text-[10px] font-black uppercase tracking-wider text-blue-300 mb-1">Declared Kata</label>
-                <select
-                  value={kataB}
-                  onChange={e => setKataB(e.target.value)}
-                  className="w-full bg-[#101420] border border-blue-500/40 rounded-xl px-3.5 py-2 text-sm font-black text-blue-100 focus:outline-none focus:border-blue-400 transition cursor-pointer shadow-inner"
-                >
-                  {OFFICIAL_WKF_KATAS.map(k => (
-                    <option key={k} value={k}>{k}</option>
-                  ))}
-                </select>
-              </div>
             </div>
+
           </div>
 
         </div>
