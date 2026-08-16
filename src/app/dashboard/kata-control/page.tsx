@@ -1039,6 +1039,59 @@ export const KataControlPanelContent = React.forwardRef<ScoreboardRef, { boutId?
               )}
             </div>
 
+            {/* LIVE RESULT PANE (Close Proximity to Judge Score Matrix) */}
+            <div className="bg-gradient-to-r from-red-950/40 via-[#0d0f16] to-blue-950/40 border border-yellow-500/40 rounded-xl p-3.5 flex items-center justify-between shadow-lg gap-3">
+              {/* AKA Live Total */}
+              <div className="flex items-center gap-2.5 min-w-0">
+                <span className="px-2.5 py-1 bg-red-600 text-white font-black text-xs rounded uppercase shadow">AKA</span>
+                <div className="min-w-0">
+                  <div className="text-xs font-black text-white truncate max-w-[130px]">{participantA?.full_name || 'AKA'}</div>
+                  <div className="text-[9px] text-red-300 font-bold uppercase tracking-wider">RESULT</div>
+                </div>
+                <div className="text-3xl sm:text-4xl font-mono font-black text-red-400 tabular-nums ml-1 drop-shadow-[0_0_12px_rgba(239,68,68,0.5)]">
+                  {scoringMethod === 'Flags' ? (
+                    <div className="flex items-center gap-1">
+                      {Array.from({ length: totalScoreA }).map((_, i) => (
+                        <Flag key={`res-aka-${i}`} className="h-5 w-5 fill-red-500 text-red-500" />
+                      ))}
+                      {totalScoreA === 0 && <span className="text-xl text-white/30">0</span>}
+                    </div>
+                  ) : (
+                    totalScoreA.toFixed(2)
+                  )}
+                </div>
+              </div>
+
+              {/* Center Match Decision Status */}
+              <div className="flex flex-col items-center justify-center px-3 py-1.5 bg-black/60 rounded-lg border border-white/10 shrink-0">
+                <span className="text-[10px] font-black uppercase tracking-widest text-yellow-400">
+                  {penaltyH ? `PENALTY (${penaltyH})` : totalScoreA > totalScoreB ? 'AKA LEADING' : totalScoreB > totalScoreA ? 'AO LEADING' : 'TIED'}
+                </span>
+                <span className="text-[8px] text-white/50 font-mono mt-0.5">LIVE RESULT</span>
+              </div>
+
+              {/* AO Live Total */}
+              <div className="flex items-center gap-2.5 min-w-0 justify-end text-right">
+                <div className="text-3xl sm:text-4xl font-mono font-black text-blue-400 tabular-nums mr-1 drop-shadow-[0_0_12px_rgba(59,130,246,0.5)]">
+                  {scoringMethod === 'Flags' ? (
+                    <div className="flex items-center gap-1">
+                      {Array.from({ length: totalScoreB }).map((_, i) => (
+                        <Flag key={`res-ao-${i}`} className="h-5 w-5 fill-blue-500 text-blue-500" />
+                      ))}
+                      {totalScoreB === 0 && <span className="text-xl text-white/30">0</span>}
+                    </div>
+                  ) : (
+                    totalScoreB.toFixed(2)
+                  )}
+                </div>
+                <div className="min-w-0">
+                  <div className="text-xs font-black text-white truncate max-w-[130px]">{participantB?.full_name || 'AO'}</div>
+                  <div className="text-[9px] text-blue-300 font-bold uppercase tracking-wider">RESULT</div>
+                </div>
+                <span className="px-2.5 py-1 bg-blue-600 text-white font-black text-xs rounded uppercase shadow">AO</span>
+              </div>
+            </div>
+
             {/* Quick Presets Bar */}
             <div className={`flex flex-wrap items-center justify-between gap-2 ${onClose ? 'p-1.5' : 'p-3'} bg-white/5 rounded-xl`}>
               <span className={`${onClose ? 'text-[10px]' : 'text-xs'} font-bold text-gray-300`}>Set All Judges:</span>
