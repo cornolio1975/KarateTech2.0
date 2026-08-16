@@ -665,49 +665,49 @@ export default function OperatorConsolePage() {
         <section className="shrink-0 bg-[#0c0f14] border-b border-white/10">
           <div className="grid grid-cols-[1fr_240px_1fr] h-[146px]">
             {/* AKA (Kata) */}
-            <div className="bg-gradient-to-r from-red-950/70 to-[#0c0f14] border-r border-white/5 px-4 py-2 flex gap-3">
+            <div className="bg-gradient-to-r from-red-950/70 to-[#0c0f14] border-r border-white/5 px-5 py-3 flex gap-3">
               <div className="flex flex-col justify-center flex-1 min-w-0">
-                <div className="flex items-center gap-2 mb-0.5">
-                  <span className="text-xl font-black text-red-400 tracking-widest">AKA</span>
+                <div className="flex items-center gap-2 mb-1">
+                  <span className="text-2xl font-black text-red-400 tracking-widest">AKA</span>
                 </div>
-                <div className="text-base font-black tracking-tight text-white uppercase truncate leading-tight">{akaFighter?.full_name || ''}</div>
-                <div className="text-[9px] text-red-300/60 font-bold truncate">{akaFighter ? (clubs.find(c => c.id === akaFighter.club_id)?.name || '') : ''}</div>
-                <div className="text-[10px] text-white/50 uppercase mt-1">KATA: <span className="text-white font-bold">{activeBout?.kata_a || '—'}</span></div>
+                <div className="text-lg font-black tracking-tight text-white uppercase truncate leading-tight">{akaFighter?.full_name || 'AKA Competitor'}</div>
+                <div className="text-xs text-red-300/80 font-bold truncate">{akaFighter ? (clubs.find(c => c.id === akaFighter.club_id)?.name || '') : ''}</div>
+                <div className="text-xs text-red-200/70 uppercase mt-1">KATA: <span className="text-white font-bold">{activeBout?.kata_a || '—'}</span></div>
               </div>
-              <div className="flex flex-col items-center justify-center pl-3 border-l border-white/5">
-                <div className="text-[44px] leading-none font-black text-red-400 font-mono tabular-nums" style={{ textShadow: '0 0 30px rgba(239,68,68,0.5)' }}>
+              <div className="flex flex-col items-center justify-center pl-4 border-l border-white/5">
+                <div className="text-[52px] leading-none font-black text-red-400 font-mono tabular-nums drop-shadow-[0_0_25px_rgba(239,68,68,0.6)]">
                   {Number(activeBout?.total_score_a || activeBout?.score_a || 0).toFixed(2)}
                 </div>
-                <div className="text-[7.5px] text-white/30 uppercase mt-0.5 tracking-widest font-bold">TOTAL SCORE</div>
+                <div className="text-[8.5px] text-red-300/60 uppercase mt-1 tracking-widest font-black">TOTAL SCORE</div>
               </div>
             </div>
 
             {/* CENTRE (Kata) */}
-            <div className="flex flex-col items-center justify-center gap-0.5 px-3">
-              <div className="flex items-center gap-2 mb-0.5">
-                <div className="text-[8px] text-white/30 uppercase tracking-widest">KATA MATCH</div>
-                <div className="text-sm font-black text-yellow-400">{boutLabel}</div>
-                <div className="text-[8px] text-white/25">#{activeBout?.bout_no || '—'}</div>
+            <div className="flex flex-col items-center justify-center gap-1 px-3">
+              <div className="flex items-center gap-2">
+                <div className="text-[9px] text-white/40 uppercase tracking-widest font-bold">KATA MATCH</div>
+                <div className="text-base font-black text-yellow-400">{boutLabel}</div>
+                <div className="text-xs text-white/40 font-mono">#{activeBout?.bout_no || '—'}</div>
               </div>
-              <div className="text-sm font-black text-white/60 tracking-wider truncate max-w-[220px] text-center">{activeCat?.name || 'KATA DIVISION'}</div>
-              <div className="text-[8px] text-white/30 uppercase tracking-widest mt-1">TATAMI 1</div>
+              <div className="text-xs font-black text-white/90 tracking-wider truncate max-w-[220px] text-center uppercase">{activeCat?.name || 'KATA DIVISION'}</div>
+              <div className="text-[9px] text-yellow-400/80 uppercase tracking-widest font-bold mt-0.5">{activeBout?.tatami || 'TATAMI 1'}</div>
             </div>
 
             {/* AO (Kata) */}
-            <div className="bg-gradient-to-l from-blue-950/70 to-[#0c0f14] border-l border-white/5 px-4 py-2 flex gap-3">
-              <div className="flex flex-col items-center justify-center pr-3 border-r border-white/5">
-                <div className="text-[44px] leading-none font-black text-blue-400 font-mono tabular-nums" style={{ textShadow: '0 0 30px rgba(59,130,246,0.5)' }}>
+            <div className="bg-gradient-to-l from-blue-950/70 to-[#0c0f14] border-l border-white/5 px-5 py-3 flex gap-3">
+              <div className="flex flex-col items-center justify-center pr-4 border-r border-white/5">
+                <div className="text-[52px] leading-none font-black text-blue-400 font-mono tabular-nums drop-shadow-[0_0_25px_rgba(59,130,246,0.6)]">
                   {Number(activeBout?.total_score_b || activeBout?.score_b || 0).toFixed(2)}
                 </div>
-                <div className="text-[7.5px] text-white/30 uppercase mt-0.5 tracking-widest font-bold">TOTAL SCORE</div>
+                <div className="text-[8.5px] text-blue-300/60 uppercase mt-1 tracking-widest font-black">TOTAL SCORE</div>
               </div>
               <div className="flex flex-col justify-center flex-1 min-w-0 items-end text-right">
-                <div className="flex items-center gap-2 justify-end mb-0.5">
-                  <span className="text-xl font-black text-blue-400 tracking-widest">AO</span>
+                <div className="flex items-center gap-2 justify-end mb-1">
+                  <span className="text-2xl font-black text-blue-400 tracking-widest">AO</span>
                 </div>
-                <div className="text-base font-black tracking-tight text-white uppercase truncate leading-tight">{aoFighter?.full_name || ''}</div>
-                <div className="text-[9px] text-blue-300/60 font-bold truncate">{aoFighter ? (clubs.find(c => c.id === aoFighter.club_id)?.name || '') : ''}</div>
-                <div className="text-[10px] text-white/50 uppercase mt-1">KATA: <span className="text-white font-bold">{activeBout?.kata_b || '—'}</span></div>
+                <div className="text-lg font-black tracking-tight text-white uppercase truncate leading-tight">{aoFighter?.full_name || 'AO Competitor'}</div>
+                <div className="text-xs text-blue-300/80 font-bold truncate">{aoFighter ? (clubs.find(c => c.id === aoFighter.club_id)?.name || '') : ''}</div>
+                <div className="text-xs text-blue-200/70 uppercase mt-1">KATA: <span className="text-white font-bold">{activeBout?.kata_b || '—'}</span></div>
               </div>
             </div>
           </div>

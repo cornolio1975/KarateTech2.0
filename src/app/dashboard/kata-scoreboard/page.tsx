@@ -271,78 +271,120 @@ export default function KataScoreboardHubPage() {
               <p className="text-gray-400 text-sm">No matches found matching the filter criteria.</p>
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4">
               {filteredBouts.map(bout => {
                 const competitorA = participants.find(p => p.id === bout.participant_a_id);
                 const competitorB = participants.find(p => p.id === bout.participant_b_id);
                 const category = categories.find(c => c.id === bout.category_id);
+                const clubA = clubs.find(c => c.id === competitorA?.club_id);
+                const clubB = clubs.find(c => c.id === competitorB?.club_id);
 
                 const getStatusColor = (status: string) => {
                   switch (status) {
-                    case 'Running': return 'bg-yellow-400/10 text-yellow-400 border-yellow-400/20';
-                    case 'Completed': return 'bg-green-400/10 text-green-400 border-green-400/20';
-                    default: return 'bg-gray-400/10 text-gray-400 border-white/5';
+                    case 'Running': return 'bg-yellow-400/20 text-yellow-400 border-yellow-400/40';
+                    case 'Completed': return 'bg-green-400/20 text-green-400 border-green-400/40';
+                    default: return 'bg-gray-400/10 text-gray-400 border-white/10';
                   }
                 };
+
+                const scoreA = Number(bout.total_score_a ?? bout.score_a ?? 0);
+                const scoreB = Number(bout.total_score_b ?? bout.score_b ?? 0);
 
                 return (
                   <div
                     key={bout.id}
-                    className="relative bg-white/[0.02] border border-white/5 hover:border-white/10 rounded-2xl p-5 backdrop-blur-sm transition flex flex-col justify-between"
+                    className="relative bg-[#0d0f16] border border-white/10 hover:border-white/20 rounded-2xl p-4 backdrop-blur-sm transition flex flex-col justify-between shadow-xl"
                   >
-                    <div>
-                      {/* Badge / Info */}
-                      <div className="flex items-center justify-between mb-3">
-                        <span className={`text-[10px] font-black uppercase px-2 py-0.5 rounded-full border ${getStatusColor(bout.status)}`}>
+                    {/* Top Info Header */}
+                    <div className="flex items-center justify-between pb-3 mb-3 border-b border-white/10">
+                      <div className="flex items-center gap-3">
+                        <span className={`text-xs font-black uppercase px-3 py-1 rounded-full border ${getStatusColor(bout.status)}`}>
                           {bout.status}
                         </span>
-                        <div className="flex items-center gap-3 text-white/40 text-[10px] font-bold">
-                          <span className="flex items-center gap-1">
-                            <MapPin className="h-3 w-3" />
-                            {bout.tatami || 'Tatami 1'}
-                          </span>
-                          <span>Bout #{bout.bout_no}</span>
-                          <span>Round {bout.round_no}</span>
-                        </div>
+                        <span className="text-white/80 text-sm font-black truncate max-w-[280px]">
+                          {category?.name || 'Kata Division'}
+                        </span>
                       </div>
-
-                      {/* Division Name */}
-                      <p className="text-white/60 text-xs font-bold mb-4 line-clamp-1">
-                        {category?.name || 'Kata Division'}
-                      </p>
-
-                      {/* Competitor Matchup */}
-                      <div className="space-y-3 bg-[#0d0d12]/80 border border-white/5 rounded-xl p-3 mb-5">
-                        {/* Competitor A - AKA (Red) */}
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-2">
-                            <span className="w-2.5 h-2.5 rounded-full bg-red-600 block shrink-0" />
-                            <span className="text-xs font-black truncate max-w-[150px]">
-                              {competitorA?.full_name || 'TBD (Winner of previous)'}
-                            </span>
-                          </div>
-                          <span className="text-xs font-bold text-red-500 font-mono pr-1">
-                            {bout.score_a || 0} pts
-                          </span>
-                        </div>
-
-                        {/* Competitor B - AO (Blue) */}
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-2">
-                            <span className="w-2.5 h-2.5 rounded-full bg-blue-600 block shrink-0" />
-                            <span className="text-xs font-black truncate max-w-[150px]">
-                              {competitorB?.full_name || 'TBD (Winner of previous)'}
-                            </span>
-                          </div>
-                          <span className="text-xs font-bold text-blue-400 font-mono pr-1">
-                            {bout.score_b || 0} pts
-                          </span>
-                        </div>
+                      <div className="flex items-center gap-3 text-white/50 text-xs font-bold">
+                        <span className="flex items-center gap-1">
+                          <MapPin className="h-3.5 w-3.5 text-yellow-400" />
+                          {bout.tatami || 'Tatami 1'}
+                        </span>
+                        <span>•</span>
+                        <span className="text-white/80 font-black">Bout #{bout.bout_no}</span>
+                        <span>•</span>
+                        <span>Round {bout.round_no}</span>
                       </div>
                     </div>
 
+                    {/* 3-PANE KATA MATCHUP SCOREBOARD */}
+                    <div className="grid grid-cols-1 md:grid-cols-[1fr_140px_1fr] items-stretch gap-3 mb-4">
+                      
+                      {/* PANE 1: AKA (RED) */}
+                      <div className="bg-gradient-to-r from-red-950/60 to-[#12131d] border border-red-500/30 rounded-xl p-3.5 flex items-center justify-between gap-3">
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-1.5 mb-1">
+                            <span className="px-2 py-0.5 bg-red-600 text-white font-black text-[10px] rounded uppercase tracking-wider">
+                              AKA
+                            </span>
+                            <span className="text-[10px] text-red-300/80 font-bold truncate">
+                              {clubA?.name || competitorA?.nationality_code || ''}
+                            </span>
+                          </div>
+                          <h4 className="text-base sm:text-lg font-black text-white truncate">
+                            {competitorA?.full_name || 'TBD'}
+                          </h4>
+                          {bout.kata_a && (
+                            <span className="text-[10px] text-red-200/60 font-bold uppercase block mt-0.5">
+                              Kata: <strong className="text-white">{bout.kata_a}</strong>
+                            </span>
+                          )}
+                        </div>
+                        <div className="text-3xl sm:text-4xl font-mono font-black text-red-400 tabular-nums shrink-0 drop-shadow-[0_0_15px_rgba(239,68,68,0.5)]">
+                          {scoreA.toFixed(scoreA % 1 === 0 && scoreA === 0 ? 0 : 2)}
+                        </div>
+                      </div>
+
+                      {/* PANE 2: CENTER (VS / STATUS) */}
+                      <div className="bg-black/40 border border-white/5 rounded-xl p-3 flex flex-col items-center justify-center text-center">
+                        <span className="text-xs font-black text-white/30 uppercase tracking-widest">VS</span>
+                        <div className="text-[10px] font-black text-yellow-400 uppercase mt-1">
+                          {bout.winner_id ? (bout.winner_id === bout.participant_a_id ? 'AKA WINNER' : 'AO WINNER') : 'MATCH'}
+                        </div>
+                        <span className="text-[9px] text-white/40 font-mono mt-0.5">
+                          {bout.status === 'Completed' ? 'FINAL' : 'LIVE'}
+                        </span>
+                      </div>
+
+                      {/* PANE 3: AO (BLUE) */}
+                      <div className="bg-gradient-to-l from-blue-950/60 to-[#12131d] border border-blue-500/30 rounded-xl p-3.5 flex items-center justify-between gap-3 text-right">
+                        <div className="text-3xl sm:text-4xl font-mono font-black text-blue-400 tabular-nums shrink-0 drop-shadow-[0_0_15px_rgba(59,130,246,0.5)]">
+                          {scoreB.toFixed(scoreB % 1 === 0 && scoreB === 0 ? 0 : 2)}
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-1.5 mb-1 justify-end">
+                            <span className="text-[10px] text-blue-300/80 font-bold truncate">
+                              {clubB?.name || competitorB?.nationality_code || ''}
+                            </span>
+                            <span className="px-2 py-0.5 bg-blue-600 text-white font-black text-[10px] rounded uppercase tracking-wider">
+                              AO
+                            </span>
+                          </div>
+                          <h4 className="text-base sm:text-lg font-black text-white truncate">
+                            {competitorB?.full_name || 'TBD'}
+                          </h4>
+                          {bout.kata_b && (
+                            <span className="text-[10px] text-blue-200/60 font-bold uppercase block mt-0.5">
+                              Kata: <strong className="text-white">{bout.kata_b}</strong>
+                            </span>
+                          )}
+                        </div>
+                      </div>
+
+                    </div>
+
                     {/* Actions */}
-                    <div className="flex items-center gap-2 mt-auto pt-2 border-t border-white/5">
+                    <div className="flex items-center gap-2 pt-2 border-t border-white/5">
                       <Link
                         href={`/dashboard/kata-control?boutId=${bout.id}`}
                         className="flex-1 flex items-center justify-center gap-1.5 py-2.5 bg-yellow-500 hover:bg-yellow-400 text-black font-black text-xs uppercase tracking-wider rounded-xl transition cursor-pointer"
