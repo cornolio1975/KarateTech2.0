@@ -719,81 +719,81 @@ export const KataControlPanelContent = React.forwardRef<ScoreboardRef, { boutId?
   });
 
   return (
-    <div className={`text-white ${onClose ? 'h-[100dvh] w-full flex flex-col p-4 bg-[#0a0c10] overflow-hidden relative' : 'min-h-screen bg-[#07070a] p-6 pb-12'}`}>
+    <div className={`text-white ${onClose ? 'h-[100dvh] w-full flex flex-col p-3 bg-[#0a0c10] overflow-hidden relative justify-between' : 'min-h-screen bg-[#07070a] p-4 lg:p-6 pb-6 flex flex-col justify-between'}`}>
       
       {/* Top Banner */}
       {!onClose && (
-        <div className="max-w-7xl mx-auto mb-8">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-white/10 pb-6">
+        <div className="max-w-[1800px] w-full mx-auto mb-4 shrink-0">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 border-b border-white/10 pb-3">
           <div>
             {onClose ? (
-              <button onClick={onClose} className="text-xs text-yellow-400 hover:text-yellow-300 font-bold mb-2 flex items-center gap-1 cursor-pointer">
+              <button onClick={onClose} className="text-xs text-yellow-400 hover:text-yellow-300 font-bold mb-1 flex items-center gap-1 cursor-pointer">
                  <ArrowRight className="h-3 w-3 rotate-180" /> Back to Hub
               </button>
             ) : (
-              <Link href="/dashboard/kata-scoreboard" className="text-xs text-yellow-400 hover:text-yellow-300 font-bold mb-2 flex items-center gap-1">
+              <Link href="/dashboard/kata-scoreboard" className="text-xs text-yellow-400 hover:text-yellow-300 font-bold mb-1 flex items-center gap-1">
                  <ArrowRight className="h-3 w-3 rotate-180" /> Back to Hub
               </Link>
             )}
-            <div className="flex items-center gap-2 mb-1.5 mt-2">
-              <Zap className="h-5 w-5 text-yellow-400 animate-pulse" />
+            <div className="flex items-center gap-2 mb-1 mt-1">
+              <Zap className="h-4 w-4 text-yellow-400 animate-pulse" />
               <span className="text-xs font-black uppercase tracking-widest text-yellow-400">
                 KATA SCORING CONSOLE
               </span>
             </div>
-            <h1 className="text-3xl font-black tracking-tight bg-gradient-to-r from-white via-gray-200 to-gray-400 bg-clip-text text-transparent flex flex-wrap items-center gap-4">
+            <h1 className="text-2xl sm:text-3xl font-black tracking-tight bg-gradient-to-r from-white via-gray-200 to-gray-400 bg-clip-text text-transparent flex flex-wrap items-center gap-3">
               Match Console (Kata)
               {spectatorConnected ? (
-                <span className="flex items-center gap-1.5 px-3 py-1 bg-green-500/20 text-green-400 border border-green-500/30 rounded-full text-xs font-black tracking-widest uppercase shadow-[0_0_15px_rgba(34,197,94,0.3)]">
+                <span className="flex items-center gap-1.5 px-3 py-0.5 bg-green-500/20 text-green-400 border border-green-500/30 rounded-full text-xs font-black tracking-widest uppercase shadow-[0_0_15px_rgba(34,197,94,0.3)]">
                   <span className="w-2 h-2 bg-green-400 rounded-full animate-pulse" />
                   Display Connected
                 </span>
               ) : (
-                <span className="flex items-center gap-1.5 px-3 py-1 bg-red-500/10 text-red-400 border border-red-500/20 rounded-full text-xs font-black tracking-widest uppercase">
+                <span className="flex items-center gap-1.5 px-3 py-0.5 bg-red-500/10 text-red-400 border border-red-500/20 rounded-full text-xs font-black tracking-widest uppercase">
                   <span className="w-2 h-2 bg-red-500/50 rounded-full" />
                   Display Disconnected
                 </span>
               )}
             </h1>
-            <p className="text-gray-400 text-sm mt-1">{tournamentName || 'Kelab Karate Do Senshi Goju-Ryu Championship'}</p>
+            <p className="text-gray-400 text-xs mt-0.5">{tournamentName || 'Kelab Karate Do Senshi Goju-Ryu Championship'}</p>
           </div>
           
-          <div className="flex items-center gap-3 flex-wrap">
+          <div className="flex items-center gap-2.5 flex-wrap">
             <button
               onClick={loadData}
-              className="flex items-center gap-2 px-4 py-2 bg-white/5 hover:bg-white/10 text-white border border-white/10 hover:border-white/20 rounded-xl text-xs font-bold transition cursor-pointer"
+              className="flex items-center gap-2 px-3.5 py-1.5 bg-white/5 hover:bg-white/10 text-white border border-white/10 hover:border-white/20 rounded-xl text-xs font-bold transition cursor-pointer"
             >
-              <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+              <RefreshCw className={`h-3.5 w-3.5 ${loading ? 'animate-spin' : ''}`} />
               Sync Matches
             </button>
 
             <button
               onClick={toggleFullscreen}
-              className={`flex items-center gap-2 px-4 py-2 border rounded-xl text-xs font-bold transition cursor-pointer ${
+              className={`flex items-center gap-2 px-3.5 py-1.5 border rounded-xl text-xs font-bold transition cursor-pointer ${
                 isFullscreen
                   ? 'bg-white/10 text-white border-white/20 hover:bg-white/20'
                   : 'bg-white/5 text-white/80 border-white/10 hover:bg-white/10'
               }`}
             >
-              {isFullscreen ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
+              {isFullscreen ? <Minimize2 className="h-3.5 w-3.5" /> : <Maximize2 className="h-3.5 w-3.5" />}
               <span>{isFullscreen ? 'Exit Fullscreen' : 'Fullscreen'}</span>
             </button>
 
             <button
               onClick={() => setShowSpectatorModal(true)}
               disabled={!currentBout}
-              className="flex items-center gap-2 px-4 py-2 bg-purple-600/20 hover:bg-purple-600/40 text-purple-400 border border-purple-500/30 hover:border-purple-500/50 rounded-xl text-xs font-bold transition cursor-pointer disabled:opacity-50"
+              className="flex items-center gap-2 px-3.5 py-1.5 bg-purple-600/20 hover:bg-purple-600/40 text-purple-400 border border-purple-500/30 hover:border-purple-500/50 rounded-xl text-xs font-bold transition cursor-pointer disabled:opacity-50"
             >
-              <Tv className="h-4 w-4" />
+              <Tv className="h-3.5 w-3.5" />
               Open Spectator View
             </button>
             
             <button
               onClick={() => setIsResultBookOpen(true)}
               disabled={!currentBout}
-              className="flex items-center gap-2 px-4 py-2 bg-yellow-400/10 hover:bg-yellow-400/20 text-yellow-400 border border-yellow-400/30 hover:border-yellow-400/50 rounded-xl text-xs font-bold transition cursor-pointer disabled:opacity-50"
+              className="flex items-center gap-2 px-3.5 py-1.5 bg-yellow-400/10 hover:bg-yellow-400/20 text-yellow-400 border border-yellow-400/30 hover:border-yellow-400/50 rounded-xl text-xs font-bold transition cursor-pointer disabled:opacity-50"
             >
-              <FileText className="h-4 w-4" />
+              <FileText className="h-3.5 w-3.5" />
               Official Result Book
             </button>
           </div>
@@ -801,11 +801,11 @@ export const KataControlPanelContent = React.forwardRef<ScoreboardRef, { boutId?
         </div>
       )}
 
-      {/* Control Grid */}
-      <div className={`max-w-[1800px] w-full mx-auto grid grid-cols-1 lg:grid-cols-12 gap-4 lg:gap-6 ${onClose ? 'flex-1 min-h-0' : ''}`}>
+      {/* Control Grid (Auto-Adjust Height) */}
+      <div className={`max-w-[1800px] w-full mx-auto grid grid-cols-1 lg:grid-cols-12 gap-3 lg:gap-4 flex-1 min-h-0`}>
         
-        {/* Left Panel: Vertical View for Fighter Panes & Match Info */}
-        <div className={`lg:col-span-6 flex flex-col ${onClose ? 'gap-1.5 min-h-0' : 'gap-2.5'} overflow-y-auto`}>
+        {/* Left Panel: Auto-adjusting Fighter Panes & Match Info */}
+        <div className="lg:col-span-6 flex flex-col gap-2.5 h-full justify-between min-h-0 overflow-y-auto">
           
           {/* Top Match Info & Digital Timer Bar (Reduced Height) */}
           <div className={`bg-[#0d0f16] border border-white/10 rounded-2xl flex items-center justify-between shadow-lg shrink-0 ${onClose ? 'p-2' : 'p-2.5 sm:p-3'}`}>
@@ -874,8 +874,8 @@ export const KataControlPanelContent = React.forwardRef<ScoreboardRef, { boutId?
             </div>
           </div>
 
-          {/* VERTICAL VIEW: 2 SIDE-BY-SIDE FIGHTER PILLARS (Reduced Height, Max Fonts) */}
-          <div className="grid grid-cols-2 gap-3 flex-1">
+          {/* VERTICAL VIEW: 2 SIDE-BY-SIDE FIGHTER PILLARS (Auto-Adjusting) */}
+          <div className="grid grid-cols-2 gap-3 flex-1 min-h-0">
             
             {/* VERTICAL PANE 1: AKA ATHLETE (RED) */}
             <div className={`bg-gradient-to-b from-red-950/80 via-red-900/30 to-[#0d0d14] border-2 border-red-500/40 rounded-2xl flex flex-col justify-between overflow-hidden shadow-2xl shadow-red-950/50 ${onClose ? 'p-2.5' : 'p-3.5'}`}>
@@ -985,8 +985,8 @@ export const KataControlPanelContent = React.forwardRef<ScoreboardRef, { boutId?
 
         </div>
 
-        {/* Right Panel: Judge Matrix */}
-        <div className={`lg:col-span-6 flex flex-col ${onClose ? 'min-h-0' : ''}`}>
+        {/* Right Panel: Auto-adjusting Judge Matrix & Live Result */}
+        <div className="lg:col-span-6 flex flex-col gap-2.5 h-full justify-between min-h-0">
 
           {/* Interactive Judge Scoring Matrix */}
           <div className={`flex-1 bg-[#0d0f16] border border-white/10 rounded-2xl flex flex-col ${onClose ? 'p-2 space-y-2' : 'p-3 space-y-2.5 overflow-y-auto shadow-2xl'}`}>
