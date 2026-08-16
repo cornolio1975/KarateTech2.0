@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useRef, useMemo, Suspense } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { db, supabase, basePath, dbManager } from '@/db/dbClient';
 import { Bout, Participant, Category, Club, DisplayPlaylist, DisplayPlaylistSlide, TournamentDatabase, isKataCategory } from '@/db/types';
@@ -112,7 +112,6 @@ function SpectatorDisplayContent() {
 
   const [mounted, setMounted] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [refreshTrigger, setRefreshTrigger] = useState<number>(0);
 
   // Competitor info
   const [akaName, setAkaName] = useState<string>('TBD Red');
@@ -603,7 +602,7 @@ function SpectatorDisplayContent() {
           if (data.resultConfirmed !== undefined) {
             setResultConfirmed(data.resultConfirmed);
           }
-          setRefreshTrigger(prev => prev + 1);
+          fetchBout();
           return;
         }
 
@@ -670,138 +669,138 @@ function SpectatorDisplayContent() {
     }
   }, [activeBoutId, searchParams]);
 
-  // Initial load from Database client
+  // Fetch bout data from Database client
+  const fetchBout = useCallback(async () => {
+    if (!activeBoutId) return;
+    try {
+      setLoading(true);
+      const [boutsList, partsList, categoriesList] = await Promise.all([
+        db.bouts.list(),
+        db.participants.list(),
+        db.categories.list()
+      ]);
+
+      const bout = boutsList.find(b => b.id === activeBoutId);
+      if (bout) {
+        const compAka = partsList.find(p => p.id === bout.participant_a_id);
+        const compAo = partsList.find(p => p.id === bout.participant_b_id);
+        const cat = categoriesList.find(c => c.id === bout.category_id);
+
+        const kataBout = isKataCategory(cat);
+        setIsKata(kataBout);
+
+        if (kataBout) {
+          setKataA(bout.kata_a || '');
+          setKataB(bout.kata_b || '');
+          
+          const parsedA = parseJudgeScores(bout.judge_scores_a);
+          if (parsedA) setJudgeScoresA(parsedA);
+          
+          const parsedB = parseJudgeScores(bout.judge_scores_b);
+          if (parsedB) setJudgeScoresB(parsedB);
+
+          const inferredMethod = inferKataScoringMethod(parsedA, parsedB);
+          if (inferredMethod) setScoringMethod(inferredMethod);
+          const inferredPanelSize = parsedA?.length || parsedB?.length;
+          if (inferredPanelSize === 5 || inferredPanelSize === 7) setPanelSize(inferredPanelSize);
+          
+          setScoreAka(bout.total_score_a || bout.score_a || 0);
+          setScoreAo(bout.total_score_b || bout.score_b || 0);
+        }
+
+        if ((bout.status === 'Completed' || bout.winner_id) && bout.winner_id) {
+          setWinnerSide(bout.winner_id === compAka?.id ? 'aka' : bout.winner_id === compAo?.id ? 'ao' : null);
+          setWinMethod(bout.victory_method || (bout.status === 'Completed' ? 'Completed' : 'Winner Declared'));
+          setResultConfirmed(bout.status === 'Completed');
+          if (bout.victory_method?.includes('Penalty AKA')) setPenaltyH('AKA');
+          else if (bout.victory_method?.includes('Penalty AO')) setPenaltyH('AO');
+          else setPenaltyH(null);
+        } else {
+          setWinnerSide(null);
+          setWinMethod('');
+          setPenaltyH(null);
+          setResultConfirmed(false);
+        }
+
+        setAkaName(compAka?.full_name || 'TBD Red');
+        setAkaClub(compAka?.club_id ? 'Senshi Karate Academy' : 'Senshi Club');
+        setAoName(compAo?.full_name || 'TBD Blue');
+        setAoClub(compAo?.club_id ? 'Goju-Ryu Karate Club' : 'Goju-Ryu Club');
+        
+        setCategoryName(cat?.name || 'Kumite Open Division');
+        setTatamiName(bout.tatami || 'Tatami 1');
+        setBoutNo(bout.bout_no);
+        setRoundNo(bout.round_no);
+
+        if (!kataBout) {
+          setScoreAka(bout.score_a ?? 0);
+          setScoreAo(bout.score_b ?? 0);
+        }
+        setSenshuAka(bout.senshu_a ?? false);
+        setSenshuAo(bout.senshu_b ?? false);
+        let parsedEventsAka: { fighter: string; points: number; technique: string; timestamp: number; matchId: string }[] = [];
+        let parsedEventsAo: { fighter: string; points: number; technique: string; timestamp: number; matchId: string }[] = [];
+
+        if (bout.points_aka_history) {
+          if (bout.points_aka_history.startsWith('[')) {
+            try {
+              parsedEventsAka = JSON.parse(bout.points_aka_history);
+            } catch (e) {
+              console.error(e);
+            }
+          } else {
+            const pointsList = bout.points_aka_history.split(',').map(Number).filter(Boolean);
+            parsedEventsAka = pointsList.map((pts: number) => ({
+              fighter: 'AKA',
+              points: pts,
+              technique: pts === 1 ? 'Yuko' : pts === 2 ? 'Waza-ari' : pts === 3 ? 'Ippon' : 'Point',
+              timestamp: 0,
+              matchId: bout.id
+            }));
+          }
+        }
+
+        if (bout.points_ao_history) {
+          if (bout.points_ao_history.startsWith('[')) {
+            try {
+              parsedEventsAo = JSON.parse(bout.points_ao_history);
+            } catch (e) {
+              console.error(e);
+            }
+          } else {
+            const pointsList = bout.points_ao_history.split(',').map(Number).filter(Boolean);
+            parsedEventsAo = pointsList.map((pts: number) => ({
+              fighter: 'AO',
+              points: pts,
+              technique: pts === 1 ? 'Yuko' : pts === 2 ? 'Waza-ari' : pts === 3 ? 'Ippon' : 'Point',
+              timestamp: 0,
+              matchId: bout.id
+            }));
+          }
+        }
+
+        setEventsAka(parsedEventsAka);
+        setEventsAo(parsedEventsAo);
+        setPenaltiesAka(bout.penalties_a ? bout.penalties_a.split(',').filter(Boolean) : []);
+        setPenaltiesAo(bout.penalties_b ? bout.penalties_b.split(',').filter(Boolean) : []);
+        
+        setC1Aka(bout.penalties_c1_a ? parseInt(bout.penalties_c1_a) || 0 : 0);
+        setC1Ao(bout.penalties_c1_b ? parseInt(bout.penalties_c1_b) || 0 : 0);
+
+        setTimeLeft((bout.timer_seconds ?? 180) * 10);
+        setTimerActive(bout.timer_active ?? false);
+      }
+    } catch (e) {
+      console.error('Fetch bout error:', e);
+    } finally {
+      setLoading(false);
+    }
+  }, [activeBoutId]);
+
   useEffect(() => {
     if (!mounted || !activeBoutId) return;
-
-    const fetchBout = async () => {
-      try {
-        setLoading(true);
-        const [boutsList, partsList, categoriesList] = await Promise.all([
-          db.bouts.list(),
-          db.participants.list(),
-          db.categories.list()
-        ]);
-
-        const bout = boutsList.find(b => b.id === activeBoutId);
-        if (bout) {
-          const compAka = partsList.find(p => p.id === bout.participant_a_id);
-          const compAo = partsList.find(p => p.id === bout.participant_b_id);
-          const cat = categoriesList.find(c => c.id === bout.category_id);
-
-          const kataBout = isKataCategory(cat);
-          setIsKata(kataBout);
-
-          if (kataBout) {
-            setKataA(bout.kata_a || '');
-            setKataB(bout.kata_b || '');
-            
-            const parsedA = parseJudgeScores(bout.judge_scores_a);
-            if (parsedA) setJudgeScoresA(parsedA);
-            
-            const parsedB = parseJudgeScores(bout.judge_scores_b);
-            if (parsedB) setJudgeScoresB(parsedB);
-
-            const inferredMethod = inferKataScoringMethod(parsedA, parsedB);
-            if (inferredMethod) setScoringMethod(inferredMethod);
-            const inferredPanelSize = parsedA?.length || parsedB?.length;
-            if (inferredPanelSize === 5 || inferredPanelSize === 7) setPanelSize(inferredPanelSize);
-            
-            setScoreAka(bout.total_score_a || bout.score_a || 0);
-            setScoreAo(bout.total_score_b || bout.score_b || 0);
-          }
-
-          if ((bout.status === 'Completed' || bout.winner_id) && bout.winner_id) {
-            setWinnerSide(bout.winner_id === compAka?.id ? 'aka' : bout.winner_id === compAo?.id ? 'ao' : null);
-            setWinMethod(bout.victory_method || (bout.status === 'Completed' ? 'Completed' : 'Winner Declared'));
-            setResultConfirmed(bout.status === 'Completed');
-            if (bout.victory_method?.includes('Penalty AKA')) setPenaltyH('AKA');
-            else if (bout.victory_method?.includes('Penalty AO')) setPenaltyH('AO');
-            else setPenaltyH(null);
-          } else {
-            setWinnerSide(null);
-            setWinMethod('');
-            setPenaltyH(null);
-            setResultConfirmed(false);
-          }
-
-          setAkaName(compAka?.full_name || 'TBD Red');
-          setAkaClub(compAka?.club_id ? 'Senshi Karate Academy' : 'Senshi Club');
-          setAoName(compAo?.full_name || 'TBD Blue');
-          setAoClub(compAo?.club_id ? 'Goju-Ryu Karate Club' : 'Goju-Ryu Club');
-          
-          setCategoryName(cat?.name || 'Kumite Open Division');
-          setTatamiName(bout.tatami || 'Tatami 1');
-          setBoutNo(bout.bout_no);
-          setRoundNo(bout.round_no);
-
-          if (!kataBout) {
-            setScoreAka(bout.score_a ?? 0);
-            setScoreAo(bout.score_b ?? 0);
-          }
-          setSenshuAka(bout.senshu_a ?? false);
-          setSenshuAo(bout.senshu_b ?? false);
-          let parsedEventsAka: { fighter: string; points: number; technique: string; timestamp: number; matchId: string }[] = [];
-          let parsedEventsAo: { fighter: string; points: number; technique: string; timestamp: number; matchId: string }[] = [];
-
-          if (bout.points_aka_history) {
-            if (bout.points_aka_history.startsWith('[')) {
-              try {
-                parsedEventsAka = JSON.parse(bout.points_aka_history);
-              } catch (e) {
-                console.error(e);
-              }
-            } else {
-              const pointsList = bout.points_aka_history.split(',').map(Number).filter(Boolean);
-              parsedEventsAka = pointsList.map((pts: number) => ({
-                fighter: 'AKA',
-                points: pts,
-                technique: pts === 1 ? 'Yuko' : pts === 2 ? 'Waza-ari' : pts === 3 ? 'Ippon' : 'Point',
-                timestamp: 0,
-                matchId: bout.id
-              }));
-            }
-          }
-
-          if (bout.points_ao_history) {
-            if (bout.points_ao_history.startsWith('[')) {
-              try {
-                parsedEventsAo = JSON.parse(bout.points_ao_history);
-              } catch (e) {
-                console.error(e);
-              }
-            } else {
-              const pointsList = bout.points_ao_history.split(',').map(Number).filter(Boolean);
-              parsedEventsAo = pointsList.map((pts: number) => ({
-                fighter: 'AO',
-                points: pts,
-                technique: pts === 1 ? 'Yuko' : pts === 2 ? 'Waza-ari' : pts === 3 ? 'Ippon' : 'Point',
-                timestamp: 0,
-                matchId: bout.id
-              }));
-            }
-          }
-
-          setEventsAka(parsedEventsAka);
-          setEventsAo(parsedEventsAo);
-          setPenaltiesAka(bout.penalties_a ? bout.penalties_a.split(',').filter(Boolean) : []);
-          setPenaltiesAo(bout.penalties_b ? bout.penalties_b.split(',').filter(Boolean) : []);
-          
-          setC1Aka(bout.penalties_c1_a ? parseInt(bout.penalties_c1_a) || 0 : 0);
-          setC1Ao(bout.penalties_c1_b ? parseInt(bout.penalties_c1_b) || 0 : 0);
-
-          setTimeLeft((bout.timer_seconds ?? 180) * 10);
-          setTimerActive(bout.timer_active ?? false);
-        }
-      } catch (e) {
-        console.error('Fetch bout error:', e);
-      } finally {
-        setLoading(false);
-      }
-    };
-
     fetchBout();
-  }, [mounted, activeBoutId, refreshTrigger]);
+  }, [mounted, activeBoutId, fetchBout]);
 
   // Supabase Realtime fallback subscription
   useEffect(() => {
