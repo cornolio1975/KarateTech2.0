@@ -7,7 +7,9 @@ import { CalendarDays, Save, Sparkles, Clock, RefreshCw, Layers, X } from 'lucid
 import { useTournament } from '@/context/TournamentContext';
 
 export default function SchedulePage() {
-  const { canModify } = useTournament();
+  const { canModify, tatamiId, takeoverTatami, userEmail } = useTournament();
+  const effectiveTatami = takeoverTatami || tatamiId || (userEmail === 'tatami_2@spsportdatasolution.org' ? 2 : userEmail === 'tatami_1@spsportdatasolution.org' ? 1 : null);
+
   const [mounted, setMounted] = useState(false);
   const [loading, setLoading] = useState(true);
   const [bouts, setBouts] = useState<Bout[]>([]);
@@ -17,14 +19,17 @@ export default function SchedulePage() {
   // Selection/filters
   const [selectedCatId, setSelectedCatId] = useState<string>('ALL');
   const [disciplineFilter, setDisciplineFilter] = useState<'ALL' | 'KUMITE' | 'KATA'>('ALL');
+  const [tatamiFilter, setTatamiFilter] = useState<'ALL' | 'Tatami 1' | 'Tatami 2' | 'Tatami 3' | 'UNASSIGNED'>(
+    effectiveTatami === 2 ? 'Tatami 2' : effectiveTatami === 1 ? 'Tatami 1' : 'ALL'
+  );
   
   // Edit schedule form
   const [editBoutId, setEditBoutId] = useState<string | null>(null);
-  const [tatami, setTatami] = useState<string>('Tatami 1');
+  const [tatami, setTatami] = useState<string>(effectiveTatami === 2 ? 'Tatami 2' : 'Tatami 1');
   const [scheduleTime, setScheduleTime] = useState<string>('09:00');
 
   // Auto Schedule Wizard Configuration
-  const [wizardTatami, setWizardTatami] = useState<string>('Tatami 1');
+  const [wizardTatami, setWizardTatami] = useState<string>(effectiveTatami === 2 ? 'Tatami 2' : 'Tatami 1');
   const [wizardStartTime, setWizardStartTime] = useState<string>('09:00');
   const [wizardInterval, setWizardInterval] = useState<number>(5); // 5 mins
   const [wizardMessage, setWizardMessage] = useState<string | null>(null);
@@ -32,6 +37,18 @@ export default function SchedulePage() {
   useEffect(() => {
     setMounted(true);
     loadData();
+  }, []);
+
+  // Real-time synchronization for schedule updates across tabs & Tatamis
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const channel = new BroadcastChannel('kt-schedule-sync');
+    channel.onmessage = (event) => {
+      if (event.data?.type === 'SCHEDULE_UPDATED' || event.data?.type === 'BULK_SCHEDULE_UPDATED') {
+        db.bouts.list().then(setBouts).catch(console.error);
+      }
+    };
+    return () => channel.close();
   }, []);
 
   const loadData = async () => {
@@ -55,32 +72,30 @@ export default function SchedulePage() {
   const handleSaveSchedule = async (boutId: string) => {
     try {
       setLoading(true);
-      
-      // Load current local store lists
-      const list = [...bouts];
-      const idx = list.findIndex(b => b.id === boutId);
-      if (idx !== -1) {
-        list[idx] = {
-          ...list[idx],
-          tatami,
-          scheduled_time: scheduleTime
-        };
-        setBouts(list);
-        if (typeof window !== 'undefined') {
-          localStorage.setItem('ts_bouts', JSON.stringify(list));
-        }
-      }
+      await db.bouts.update(boutId, {
+        tatami,
+        scheduled_time: scheduleTime
+      });
+
+      setBouts(prev => prev.map(b => b.id === boutId ? { ...b, tatami, scheduled_time: scheduleTime } : b));
       setEditBoutId(null);
-    } catch (err) {
-      console.error(err);
+
+      if (typeof window !== 'undefined') {
+        const channel = new BroadcastChannel('kt-schedule-sync');
+        channel.postMessage({ type: 'SCHEDULE_UPDATED', boutId, tatami, scheduled_time: scheduleTime });
+        channel.close();
+      }
+    } catch (err: any) {
+      console.error('Error saving schedule:', err);
+      alert('Error saving schedule: ' + (err?.message || 'Database error'));
     } finally {
       setLoading(false);
     }
   };
 
   // Auto Sequence Wizard
-  const handleAutoSchedule = () => {
-    const targetBouts = bouts.filter(b => {
+  const handleAutoSchedule = async () => {
+    const rawTargetBouts = bouts.filter(b => {
       if (b.status === 'Completed' || b.status === 'Walkover' || b.victory_method === 'Walkover' || b.round_no === 99) return false;
       const cat = categories.find(c => c.id === b.category_id);
       if (disciplineFilter === 'KUMITE' && !isKumiteCategory(cat)) return false;
@@ -89,39 +104,58 @@ export default function SchedulePage() {
       return true;
     });
 
-    if (targetBouts.length === 0) {
-      setWizardMessage('No editable scheduled bouts found matching filters.');
+    if (rawTargetBouts.length === 0) {
+      setWizardMessage('No uncompleted bouts found matching filters. Please ensure draws have been generated for the selected category.');
       return;
     }
 
-    // Parse start time "HH:MM"
-    const [hours, minutes] = wizardStartTime.split(':').map(Number);
-    let currentMin = hours * 60 + minutes;
+    // Sort bouts chronologically: earlier rounds first, then by bout number
+    const targetBouts = [...rawTargetBouts].sort((a, b) => {
+      if (a.category_id !== b.category_id) return a.category_id.localeCompare(b.category_id);
+      if (a.round_no !== b.round_no) return a.round_no - b.round_no;
+      return a.bout_no - b.bout_no;
+    });
 
-    const list = [...bouts];
-    targetBouts.forEach((bout) => {
-      const idx = list.findIndex(b => b.id === bout.id);
-      if (idx !== -1) {
+    setLoading(true);
+    try {
+      // Parse start time "HH:MM"
+      const [hours, minutes] = (wizardStartTime || '09:00').split(':').map(Number);
+      let currentMin = (isNaN(hours) ? 9 : hours) * 60 + (isNaN(minutes) ? 0 : minutes);
+
+      const updates: { id: string; tatami: string; scheduled_time: string }[] = [];
+      targetBouts.forEach((bout) => {
         const hh = Math.floor(currentMin / 60) % 24;
         const mm = currentMin % 60;
         const timeStr = `${hh < 10 ? '0' : ''}${hh}:${mm < 10 ? '0' : ''}${mm}`;
-        
-        list[idx] = {
-          ...list[idx],
-          tatami: wizardTatami,
-          scheduled_time: timeStr
-        };
-        currentMin += wizardInterval;
-      }
-    });
+        updates.push({ id: bout.id, tatami: wizardTatami, scheduled_time: timeStr });
+        currentMin += (wizardInterval || 5);
+      });
 
-    setBouts(list);
-    if (typeof window !== 'undefined') {
-      localStorage.setItem('ts_bouts', JSON.stringify(list));
+      // Update in database
+      await Promise.all(updates.map(u => db.bouts.update(u.id, { tatami: u.tatami, scheduled_time: u.scheduled_time })));
+
+      // Update in state & localStorage
+      const updatedBouts = bouts.map(b => {
+        const found = updates.find(u => u.id === b.id);
+        return found ? { ...b, tatami: found.tatami, scheduled_time: found.scheduled_time } : b;
+      });
+
+      setBouts(updatedBouts);
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('ts_bouts', JSON.stringify(updatedBouts));
+        const channel = new BroadcastChannel('kt-schedule-sync');
+        channel.postMessage({ type: 'BULK_SCHEDULE_UPDATED', count: updates.length });
+        channel.close();
+      }
+      
+      setWizardMessage(`✅ Successfully scheduled ${targetBouts.length} bouts on ${wizardTatami} starting at ${wizardStartTime} with ${wizardInterval}m intervals!`);
+      setTimeout(() => setWizardMessage(null), 5000);
+    } catch (err: any) {
+      console.error('Error in bulk auto schedule:', err);
+      setWizardMessage('⚠️ Error scheduling matches: ' + (err?.message || 'Unknown error'));
+    } finally {
+      setLoading(false);
     }
-    
-    setWizardMessage(`Successfully scheduled ${targetBouts.length} bouts on ${wizardTatami} starting at ${wizardStartTime}!`);
-    setTimeout(() => setWizardMessage(null), 4000);
   };
 
   if (!mounted) return null;
@@ -133,13 +167,20 @@ export default function SchedulePage() {
     return true;
   });
 
-  // Filtered Bouts (Excluding all Walkover and bye matches)
+  // Filtered Bouts (Excluding all Walkover and bye matches, filtered by tatami)
   const filteredBouts = bouts.filter(b => {
     if (b.status === 'Walkover' || b.victory_method === 'Walkover' || b.round_no === 99) return false;
     const cat = categories.find(c => c.id === b.category_id);
     if (disciplineFilter === 'KUMITE' && !isKumiteCategory(cat)) return false;
     if (disciplineFilter === 'KATA' && !isKataCategory(cat)) return false;
     if (selectedCatId !== 'ALL' && b.category_id !== selectedCatId) return false;
+    if (tatamiFilter !== 'ALL') {
+      if (tatamiFilter === 'UNASSIGNED') {
+        if (b.tatami && b.tatami !== 'No Tatami Assigned' && b.tatami !== '') return false;
+      } else {
+        if (b.tatami !== tatamiFilter) return false;
+      }
+    }
     return true;
   });
 
@@ -279,7 +320,28 @@ export default function SchedulePage() {
               <h2 className="text-sm font-bold uppercase tracking-wider text-foreground">Matches Scheduled List</h2>
             </div>
             
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
+              {/* Tatami Ring Tabs */}
+              <div className="flex bg-secondary p-0.5 rounded-lg text-[10px] font-bold">
+                {(['ALL', 'Tatami 1', 'Tatami 2', 'Tatami 3', 'UNASSIGNED'] as const).map(tRing => (
+                  <button
+                    key={tRing}
+                    onClick={() => setTatamiFilter(tRing)}
+                    className={`px-2 py-1 rounded transition ${
+                      tatamiFilter === tRing
+                        ? tRing === 'Tatami 2'
+                          ? 'bg-blue-600 text-white font-black shadow-xs'
+                          : tRing === 'Tatami 1'
+                          ? 'bg-red-600 text-white font-black shadow-xs'
+                          : 'bg-card text-foreground font-black shadow-xs'
+                        : 'text-muted-foreground hover:text-foreground'
+                    }`}
+                  >
+                    {tRing === 'ALL' ? 'ALL RINGS' : tRing}
+                  </button>
+                ))}
+              </div>
+
               {/* Discipline Tabs */}
               <div className="flex bg-secondary p-0.5 rounded-lg text-[10px] font-bold">
                 <button

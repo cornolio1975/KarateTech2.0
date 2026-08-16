@@ -12,7 +12,8 @@ import {
 import { useTournament } from '@/context/TournamentContext';
 
 export default function BracketHubPage() {
-  const { canModify } = useTournament();
+  const { canModify, tatamiId, takeoverTatami, userEmail } = useTournament();
+  const effectiveTatami = takeoverTatami || tatamiId || (userEmail === 'tatami_2@spsportdatasolution.org' ? 2 : userEmail === 'tatami_1@spsportdatasolution.org' ? 1 : null);
   const router = useRouter();
   const [mounted, setMounted] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -22,6 +23,9 @@ export default function BracketHubPage() {
   
   const [selectedCatId, setSelectedCatId] = useState<string>('');
   const [typeFilter, setTypeFilter] = useState<'All' | 'Kata' | 'Kumite'>('All');
+  const [tatamiFilter, setTatamiFilter] = useState<'All' | 'Tatami 1' | 'Tatami 2' | 'Tatami 3'>(
+    effectiveTatami === 2 ? 'Tatami 2' : effectiveTatami === 1 ? 'Tatami 1' : 'All'
+  );
 
   useEffect(() => {
     setMounted(true);
@@ -135,37 +139,72 @@ export default function BracketHubPage() {
           <h1 className="text-2xl font-bold tracking-tight">Bracket Management Console Hub</h1>
           <p className="text-sm text-muted-foreground">Tournament control center for bracket execution and display broadcasting.</p>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 flex-wrap">
+          <select
+            value={tatamiFilter}
+            onChange={(e) => {
+              const val = e.target.value as 'All' | 'Tatami 1' | 'Tatami 2' | 'Tatami 3';
+              setTatamiFilter(val);
+              const matchingCats = categories.filter(c => {
+                if (typeFilter === 'Kata' && !isKataCategory(c)) return false;
+                if (typeFilter === 'Kumite' && !isKumiteCategory(c)) return false;
+                if (val !== 'All') {
+                  const hasTatamiBouts = bouts.some(b => b.category_id === c.id && b.tatami === val);
+                  const isAssigned = (c as any).assigned_tatami === val;
+                  if (!hasTatamiBouts && !isAssigned) return false;
+                }
+                return true;
+              });
+              if (matchingCats.length > 0) {
+                setSelectedCatId(matchingCats[0].id);
+              }
+            }}
+            className="px-3 py-2 bg-secondary border border-border rounded-lg text-xs font-semibold text-foreground focus:outline-none"
+          >
+            <option value="All">All Rings</option>
+            <option value="Tatami 1">Tatami 1</option>
+            <option value="Tatami 2">Tatami 2</option>
+            <option value="Tatami 3">Tatami 3</option>
+          </select>
           <select
             value={typeFilter}
             onChange={(e) => {
               const newFilter = e.target.value as 'All' | 'Kata' | 'Kumite';
               setTypeFilter(newFilter);
               
-              // Automatically select the first category in the new filtered list if current one doesn't match
               const newFilteredCats = categories.filter(c => {
                 if (newFilter === 'Kata') return isKataCategory(c);
                 if (newFilter === 'Kumite') return isKumiteCategory(c);
+                if (tatamiFilter !== 'All') {
+                  const hasTatamiBouts = bouts.some(b => b.category_id === c.id && b.tatami === tatamiFilter);
+                  const isAssigned = (c as any).assigned_tatami === tatamiFilter;
+                  if (!hasTatamiBouts && !isAssigned) return false;
+                }
                 return true;
               });
               if (newFilteredCats.length > 0 && !newFilteredCats.find(c => c.id === selectedCatId)) {
                 setSelectedCatId(newFilteredCats[0].id);
               }
             }}
-            className="px-4 py-2 bg-secondary border border-border rounded-lg text-sm font-semibold text-foreground focus:outline-none"
+            className="px-3 py-2 bg-secondary border border-border rounded-lg text-xs font-semibold text-foreground focus:outline-none"
           >
-            <option value="All">All Types</option>
+            <option value="All">All Disciplines</option>
             <option value="Kata">Kata</option>
             <option value="Kumite">Kumite</option>
           </select>
           <select 
             value={selectedCatId}
             onChange={(e) => setSelectedCatId(e.target.value)}
-            className="px-4 py-2 bg-secondary border border-border rounded-lg text-sm font-semibold text-foreground focus:outline-none max-w-[300px] truncate"
+            className="px-3 py-2 bg-secondary border border-border rounded-lg text-xs font-semibold text-foreground focus:outline-none max-w-[280px] truncate"
           >
             {categories.filter(c => {
-              if (typeFilter === 'Kata') return isKataCategory(c);
-              if (typeFilter === 'Kumite') return isKumiteCategory(c);
+              if (typeFilter === 'Kata' && !isKataCategory(c)) return false;
+              if (typeFilter === 'Kumite' && !isKumiteCategory(c)) return false;
+              if (tatamiFilter !== 'All') {
+                const hasTatamiBouts = bouts.some(b => b.category_id === c.id && b.tatami === tatamiFilter);
+                const isAssigned = (c as any).assigned_tatami === tatamiFilter;
+                if (!hasTatamiBouts && !isAssigned) return false;
+              }
               return true;
             }).map(c => (
               <option key={c.id} value={c.id}>

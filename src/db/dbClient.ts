@@ -1035,6 +1035,8 @@ export const db = {
             if (updates.status !== undefined) coreUpdates.status = updates.status;
             if (updates.winner_id !== undefined) coreUpdates.winner_id = updates.winner_id;
             if (updates.victory_method !== undefined) coreUpdates.victory_method = updates.victory_method;
+            if (updates.tatami !== undefined) coreUpdates.tatami = updates.tatami;
+            if (updates.scheduled_time !== undefined) coreUpdates.scheduled_time = updates.scheduled_time;
             
             const { data: coreData, error: coreErr } = await supabase.from('bouts').update(coreUpdates).eq('id', id).select().single();
             if (coreErr) throw coreErr;
