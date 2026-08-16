@@ -1254,30 +1254,30 @@ export default function OperatorConsolePage() {
               {/* AO */}
               <div
                 onClick={() => aoFighter && setSelectedProfileModal({ participant: aoFighter, corner: 'AO' })}
-                className="flex gap-2.5 flex-1 items-center min-w-0 h-full bg-blue-950/20 hover:bg-blue-950/40 border border-blue-900/30 rounded-xl p-2 transition cursor-pointer"
+                className="flex gap-2 flex-1 items-center min-w-0 h-full bg-blue-950/20 hover:bg-blue-950/40 border border-blue-900/30 rounded-lg p-1.5 transition cursor-pointer"
                 title="Click for full participant profile"
               >
-                <div className="flex flex-col items-center gap-1 shrink-0">
-                  <span className="text-[7.5px] font-black text-blue-300 bg-blue-900/60 border border-blue-700/50 px-1.5 py-0.5 rounded leading-none">AO</span>
-                  <div className="w-11 h-14 rounded-lg bg-white/5 border border-white/10 overflow-hidden flex items-center justify-center shadow-inner">
+                <div className="flex flex-col items-center gap-0.5 shrink-0">
+                  <span className="text-[7px] font-black text-blue-300 bg-blue-900/60 border border-blue-700/50 px-1 py-0.2 rounded leading-none">AO</span>
+                  <div className="w-9 h-11 rounded bg-white/5 border border-white/10 overflow-hidden flex items-center justify-center shadow-inner">
                     {aoFighter?.photo_url
                       ? <img src={aoFighter.photo_url} alt={aoFighter.full_name} className="w-full h-full object-cover" />
-                      : <UserSquare2 className="h-5 w-5 text-blue-300/40" />}
+                      : <UserSquare2 className="h-4 w-4 text-blue-300/40" />}
                   </div>
                 </div>
 
-                <div className="text-[8px] leading-tight text-white/70 space-y-0.5 min-w-0 flex-1">
-                  <div className="font-black text-white text-[10px] truncate flex items-center gap-1">
+                <div className="text-[7.5px] leading-tight text-white/70 space-y-0.2 min-w-0 flex-1">
+                  <div className="font-black text-white text-[9px] truncate flex items-center gap-1">
                     <span>{aoFighter?.full_name || '—'}</span>
-                    {aoFighter?.gender && <span className="text-[7px] text-white/40">({aoFighter.gender})</span>}
+                    {aoFighter?.gender && <span className="text-[6.5px] text-white/40">({aoFighter.gender})</span>}
                   </div>
-                  <div className="text-[8px] text-white/50 truncate">
+                  <div className="text-[7px] text-white/50 truncate">
                     <span>REG: #{aoFighter?.registration_no || '—'}</span> · <span>AGE: {calculateAge(aoFighter?.dob) ?? '—'}</span>
                   </div>
-                  <div className="text-[8.5px] text-yellow-400 font-bold truncate">
+                  <div className="text-[7.5px] text-cyan-400 font-bold truncate">
                     <span>CLUB: {aoFighter ? (clubs.find(c => c.id === aoFighter.club_id)?.name || '—') : '—'}</span>
                   </div>
-                  <div className="text-[8px] text-white/50 truncate">
+                  <div className="text-[7px] text-white/50 truncate">
                     <span>COACH: {aoFighter ? (coaches.find(c => c.id === aoFighter.coach_id)?.name || '—') : '—'}</span> · <span>WT: {aoFighter?.weight ? `${aoFighter.weight}kg` : '—'}</span>
                   </div>
                 </div>
