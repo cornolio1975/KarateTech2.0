@@ -1,6 +1,7 @@
 'use client';
 
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import { usePathname } from 'next/navigation';
 import { supabase, basePath, db } from '@/db/dbClient';
 import { CategoryLock } from '@/db/types';
 
@@ -220,6 +221,24 @@ export function TournamentProvider({ children }: { children: React.ReactNode }) 
     }
   }, []);
 
+  const pathname = usePathname();
+
+  const getScreenLabel = useCallback((path: string) => {
+    if (!path) return 'Standby';
+    if (path.includes('/dashboard/operator')) return 'Operator Console 2.0';
+    if (path.includes('/dashboard/scoreboard')) return 'Kumite Scoreboard (Live Scoring)';
+    if (path.includes('/dashboard/kata-scoreboard')) return 'Kata Scoreboard (Live Scoring)';
+    if (path.includes('/dashboard/control')) return 'Kumite Control Panel';
+    if (path.includes('/dashboard/kata-control')) return 'Kata Control Panel';
+    if (path.includes('/bracket-hub')) return 'Bracket Console Hub';
+    if (path.includes('/categories')) return 'Category Management';
+    if (path.includes('/draws')) return 'Draws & Bracket Generator';
+    if (path.includes('/schedule')) return 'Match Scheduler';
+    if (path.includes('/display')) return 'Spectator Arena Display';
+    if (path.includes('/admin')) return 'Admin Command Center';
+    return 'Operator Standby';
+  }, []);
+
   const [tatamiTelemetry, setTatamiTelemetry] = useState<Record<number, TatamiTelemetry>>({
     1: {
       tatamiId: 1,
@@ -232,7 +251,7 @@ export function TournamentProvider({ children }: { children: React.ReactNode }) 
       currentMatchId: null,
       currentMatchCode: null,
       currentBoutNo: null,
-      currentScreenState: 'Kumite Scoreboard (Ready)',
+      currentScreenState: 'Operator Console 2.0',
       isAdminControlled: false,
     },
     2: {
@@ -246,13 +265,13 @@ export function TournamentProvider({ children }: { children: React.ReactNode }) 
       currentMatchId: null,
       currentMatchCode: null,
       currentBoutNo: null,
-      currentScreenState: 'Kata Scoreboard (Ready)',
+      currentScreenState: 'Operator Console 2.0',
       isAdminControlled: false,
     }
   });
 
   const updateTatamiTelemetry = useCallback((data: Partial<TatamiTelemetry>) => {
-    const tId = data.tatamiId || tatamiId || takeoverTatami;
+    const tId = data.tatamiId || tatamiId || takeoverTatami || (userEmail === 'tatami_2@spsportdatasolution.org' ? 2 : userEmail === 'tatami_1@spsportdatasolution.org' ? 1 : null);
     if (!tId || (tId !== 1 && tId !== 2)) return;
 
     setTatamiTelemetry(prev => {
@@ -267,7 +286,7 @@ export function TournamentProvider({ children }: { children: React.ReactNode }) 
         currentMatchId: null,
         currentMatchCode: null,
         currentBoutNo: null,
-        currentScreenState: 'Idle',
+        currentScreenState: 'Operator Console 2.0',
         isAdminControlled: false,
       };
 
@@ -279,6 +298,7 @@ export function TournamentProvider({ children }: { children: React.ReactNode }) 
 
       if (typeof window !== 'undefined') {
         try {
+          localStorage.setItem(`kt_tatami_telemetry_${tId}`, JSON.stringify(updated));
           const channel = new BroadcastChannel('kt-tatami-heartbeats');
           channel.postMessage({
             type: 'TELEMETRY_UPDATE',
@@ -293,7 +313,7 @@ export function TournamentProvider({ children }: { children: React.ReactNode }) 
         [tId]: updated
       };
     });
-  }, [tatamiId, takeoverTatami]);
+  }, [tatamiId, takeoverTatami, userEmail]);
 
   const assignCategoryToTatami = useCallback(async (categoryId: string, tatami: 'Tatami 1' | 'Tatami 2') => {
     const tatamiNum = tatami === 'Tatami 1' ? 1 : 2;
@@ -738,38 +758,52 @@ export function TournamentProvider({ children }: { children: React.ReactNode }) 
     };
   }, []);
 
-  // Heartbeat for logged-in Tatami PCs
+  // Auto-track screen updates when navigation occurs
   useEffect(() => {
-    if (!isLoggedIn || !pcId) return;
+    const effectiveTatami = takeoverTatami || tatamiId || (userEmail === 'tatami_2@spsportdatasolution.org' ? 2 : userEmail === 'tatami_1@spsportdatasolution.org' ? 1 : null);
+    if (effectiveTatami === 1 || effectiveTatami === 2) {
+      const screenLabel = getScreenLabel(pathname || '');
+      updateTatamiTelemetry({
+        tatamiId: effectiveTatami as 1 | 2,
+        currentScreenState: screenLabel,
+        status: 'online',
+        username: effectiveTatami === 2 ? 'tatami_2@spsportdatasolution.org' : 'tatami_1@spsportdatasolution.org'
+      });
+    }
+  }, [pathname, tatamiId, takeoverTatami, userEmail, getScreenLabel, updateTatamiTelemetry]);
 
-    // Register PC and send initial heartbeat
-    const registerAndHeartbeat = async () => {
-      if (supabase) {
-        try {
-          await db.pcControl.registerPC(pcId, `Tatami ${tatamiId || 'Admin'}`, activeTournamentId || undefined, tatamiId?.toString(), undefined, userEmail);
-        } catch (e: any) {
-          console.error('Failed to register PC:', {
-            message: e?.message,
-            details: e?.details,
-            hint: e?.hint,
-            code: e?.code,
-            error: e,
-          });
-        }
-      }
-    };
+  // Heartbeat & Telemetry Broadcaster for Logged-in Tatamis (every 3 seconds)
+  useEffect(() => {
+    const effectiveTatami = takeoverTatami || tatamiId || (userEmail === 'tatami_2@spsportdatasolution.org' ? 2 : userEmail === 'tatami_1@spsportdatasolution.org' ? 1 : null);
+    if (!isLoggedIn || !effectiveTatami) return;
 
-    registerAndHeartbeat();
+    const screenLabel = getScreenLabel(pathname || '');
+    updateTatamiTelemetry({
+      tatamiId: effectiveTatami as 1 | 2,
+      currentScreenState: screenLabel,
+      status: 'online',
+      username: effectiveTatami === 2 ? 'tatami_2@spsportdatasolution.org' : 'tatami_1@spsportdatasolution.org'
+    });
 
-    // Send heartbeat every 15 seconds
+    if (supabase && pcId) {
+      db.pcControl.registerPC(pcId, `Tatami ${effectiveTatami}`, activeTournamentId || undefined, effectiveTatami.toString(), undefined, userEmail).catch(console.error);
+    }
+
     const interval = setInterval(() => {
-      if (supabase) {
+      const currentLiveScreen = getScreenLabel(pathname || '');
+      updateTatamiTelemetry({
+        tatamiId: effectiveTatami as 1 | 2,
+        currentScreenState: currentLiveScreen,
+        status: 'online'
+      });
+
+      if (supabase && pcId) {
         db.pcControl.heartbeat(pcId).catch(console.error);
       }
-    }, 15000);
+    }, 3000);
 
     return () => clearInterval(interval);
-  }, [isLoggedIn, pcId, tatamiId, userEmail, activeTournamentId]);
+  }, [isLoggedIn, pcId, tatamiId, takeoverTatami, userEmail, pathname, activeTournamentId, getScreenLabel, updateTatamiTelemetry]);
 
   // Dynamically apply accessibility classes
   useEffect(() => {

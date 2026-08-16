@@ -161,12 +161,22 @@ export default function AdminDashboard() {
 
   // Derive tatami heartbeats and statuses
   const getTatamiStatus = (tNum: 1 | 2) => {
-    const tele = tatamiTelemetry[tNum];
+    let localTele: any = null;
+    if (typeof window !== 'undefined') {
+      try {
+        const stored = localStorage.getItem(`kt_tatami_telemetry_${tNum}`);
+        if (stored) localTele = JSON.parse(stored);
+      } catch (e) {}
+    }
+
+    const tele = tatamiTelemetry[tNum] || localTele;
     const pc = pcs.find(p => p.tatami === `Tatami ${tNum}` || p.pc_identifier === `tatami_${tNum}`);
     
     let lastSeen = 0;
     if (tele?.lastHeartbeat) {
       lastSeen = new Date(tele.lastHeartbeat).getTime();
+    } else if (localTele?.lastHeartbeat) {
+      lastSeen = new Date(localTele.lastHeartbeat).getTime();
     } else if (pc) {
       const rawDate = pc.last_heartbeat || pc.updated_at;
       const dateStr = (rawDate.endsWith('Z') || rawDate.includes('+')) ? rawDate : rawDate + 'Z';
@@ -187,13 +197,13 @@ export default function AdminDashboard() {
     const assignedCat = categories.find(c => (c as any).assigned_tatami === `Tatami ${tNum}`);
     const activeLock = locks.find(l => l.tatami === `Tatami ${tNum}` && l.is_active);
     const lockedCat = activeLock ? categories.find(c => c.id === activeLock.category_id) : null;
-    const activeCategoryName = tele?.currentCategoryName || assignedCat?.name || lockedCat?.name || 'No active category assigned';
+    const activeCategoryName = tele?.currentCategoryName || localTele?.currentCategoryName || assignedCat?.name || lockedCat?.name || 'No active category assigned';
 
     // Find active bout for this tatami
     const activeBout = bouts.find(b => b.tatami === `Tatami ${tNum}` && b.status === 'Running') ||
                        bouts.find(b => (b.category_id === assignedCat?.id || b.category_id === lockedCat?.id) && b.status === 'Running');
-    const matchCode = tele?.currentMatchCode || (activeBout ? `R${activeBout.round_no}B${activeBout.bout_no}` : 'Waiting for Match');
-    const screenState = tele?.currentScreenState || (activeBout ? 'Live Scoring Console' : 'Standby / Bracket');
+    const matchCode = tele?.currentMatchCode || localTele?.currentMatchCode || (activeBout ? `R${activeBout.round_no}B${activeBout.bout_no}` : 'Waiting for Match');
+    const screenState = tele?.currentScreenState || localTele?.currentScreenState || (activeBout ? 'Kumite Scoreboard (Live)' : 'Operator Console 2.0');
 
     return {
       tNum,
