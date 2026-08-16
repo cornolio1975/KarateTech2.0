@@ -1184,14 +1184,14 @@ export default function OperatorConsolePage() {
               </div>
               <div ref={logContainerRef} className="flex-1 overflow-y-auto font-mono text-[9px] scroll-smooth p-1">
                 {filteredLog.length === 0 ? (
-                  <div className="flex items-center justify-center py-6 text-white/20 text-[9px]">No entries</div>
+                  <div className="flex items-center justify-center py-4 text-white/20 text-[9px]">No entries</div>
                 ) : (
                   <div className="divide-y divide-white/5">
-                    {filteredLog.slice(0, 8).map(entry => (
+                    {filteredLog.slice(0, 3).map(entry => (
                       <div key={entry.id} className="px-2 py-1 hover:bg-white/5 flex gap-1.5 items-center">
                         <span className="text-white/20 shrink-0 text-[8px]">{entry.time}</span>
                         <span className={`shrink-0 px-1 py-0.2 rounded text-[6.5px] font-black ${logColorMap[entry.category] || ''}`}>{entry.category}</span>
-                        <span className="text-white/70 break-all text-[8px]">{entry.message}</span>
+                        <span className="text-white/70 break-all text-[8px] truncate">{entry.message}</span>
                       </div>
                     ))}
                   </div>
