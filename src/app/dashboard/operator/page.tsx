@@ -483,18 +483,59 @@ export default function OperatorConsolePage() {
     }
   };
 
-  const handleShowResultOnRefereeView = () => {
+  const [isResultConfirmedOnReferee, setIsResultConfirmedOnReferee] = useState<boolean>(false);
+
+  const handleToggleResultOnRefereeView = () => {
     if (!activeBout) {
       alert('Please load or select a match first.');
       return;
     }
+
+    const nextConfirmed = !isResultConfirmedOnReferee;
+    setIsResultConfirmedOnReferee(nextConfirmed);
 
     // 1. If scoreboard component has confirm/reveal function, trigger it
     if (scoreboardRef.current?.confirmResult) {
       scoreboardRef.current.confirmResult();
     }
 
-    // 2. Determine winner from current score / match state
+    if (!nextConfirmed) {
+      // 2nd CLICK: REVERSE BACK ACTION — Restore live scoreboard on Referee View
+      if (typeof window !== 'undefined') {
+        try {
+          const channel = new BroadcastChannel('wkf-scoreboard-sync');
+          channel.postMessage({
+            type: 'SYNC_MATCH_STATE',
+            boutId: activeBout.id,
+            categoryId: activeBout.category_id,
+            akaName: akaFighter?.full_name || 'AKA Red',
+            aoName: aoFighter?.full_name || 'AO Blue',
+            akaClub: akaFighter ? (clubs.find(c => c.id === akaFighter.club_id)?.name || '') : '',
+            aoClub: aoFighter ? (clubs.find(c => c.id === aoFighter.club_id)?.name || '') : '',
+            scoreAka: boutIsKata ? Number(activeBout.total_score_a || activeBout.score_a || 0) : liveScoreAka,
+            scoreAo: boutIsKata ? Number(activeBout.total_score_b || activeBout.score_b || 0) : liveScoreAo,
+            senshuAka,
+            senshuAo,
+            c1Aka: parseInt(activeBout.penalties_c1_a || '0') || 0,
+            c1Ao: parseInt(activeBout.penalties_c1_b || '0') || 0,
+            timeLeft: timerSeconds * 10,
+            timerActive: false,
+            winner: null,
+            winnerSide: null,
+            winMethod: '',
+            resultConfirmed: false
+          });
+          channel.close();
+        } catch (e) {
+          console.error('Error broadcasting result reversal to referee screen:', e);
+        }
+      }
+
+      addLog('RESULT', `Match Result for R${activeBout.round_no}B${activeBout.bout_no} reversed — Scoreboard restored on Referee View`);
+      return;
+    }
+
+    // 1st CLICK: CONFIRM RESULT — Display full-screen Winner Page on Referee View
     let winner: 'aka' | 'ao' | 'draw' | null = null;
     let scoreA = liveScoreAka;
     let scoreB = liveScoreAo;
@@ -513,7 +554,6 @@ export default function OperatorConsolePage() {
       else winner = 'draw';
     }
 
-    // 3. Broadcast full confirmed match result to Referee & Spectator Screen
     if (typeof window !== 'undefined') {
       try {
         const channel = new BroadcastChannel('wkf-scoreboard-sync');
@@ -539,7 +579,6 @@ export default function OperatorConsolePage() {
           resultConfirmed: true
         });
 
-        // Also post MATCH_FINISHED event to trigger referee display win celebration
         if (winner && winner !== 'draw') {
           channel.postMessage({
             type: 'MATCH_FINISHED',
@@ -552,7 +591,71 @@ export default function OperatorConsolePage() {
       }
     }
 
-    addLog('RESULT', `Match Result for R${activeBout.round_no}B${activeBout.bout_no} sent to Referee View: ${winner ? `${winner.toUpperCase()} Winner` : 'Draw'}`);
+    addLog('RESULT', `Match Result for R${activeBout.round_no}B${activeBout.bout_no} sent to Referee View: ${winner ? `${winner.toUpperCase()} Winner (Full-Screen Winner Page)` : 'Draw'}`);
+  };
+
+  const handleSaveResultAndLoadNextMatch = async () => {
+    if (!activeBout) {
+      alert('Please load or select a match first.');
+      return;
+    }
+
+    try {
+      // 1. If scoreboard component has custom saveResult implementation, call it
+      if (scoreboardRef.current?.saveResult) {
+        await scoreboardRef.current.saveResult();
+      } else {
+        // Calculate winner and update database directly
+        let winnerId: string | null = null;
+        let victoryMethod = 'Decision / Score';
+        if (boutIsKata) {
+          const scoreA = Number(activeBout.total_score_a || activeBout.score_a || 0);
+          const scoreB = Number(activeBout.total_score_b || activeBout.score_b || 0);
+          if (scoreA > scoreB) winnerId = activeBout.participant_a_id;
+          else if (scoreB > scoreA) winnerId = activeBout.participant_b_id;
+        } else {
+          if (liveScoreAka > liveScoreAo) winnerId = activeBout.participant_a_id;
+          else if (liveScoreAo > liveScoreAka) winnerId = activeBout.participant_b_id;
+          else if (senshuAka) winnerId = activeBout.participant_a_id;
+          else if (senshuAo) winnerId = activeBout.participant_b_id;
+        }
+
+        await db.bouts.updateBoutState(activeBout.id, {
+          status: 'Completed',
+          winner_id: winnerId,
+          score_a: boutIsKata ? (activeBout.score_a || 0) : liveScoreAka,
+          score_b: boutIsKata ? (activeBout.score_b || 0) : liveScoreAo,
+          senshu_a: senshuAka,
+          senshu_b: senshuAo,
+          timer_seconds: timerSeconds,
+          victory_method: victoryMethod
+        });
+      }
+
+      addLog('SYSTEM', `Match R${activeBout.round_no}B${activeBout.bout_no} saved to database as Completed`);
+
+      // 2. Fetch fresh bouts list
+      const freshBouts = await db.bouts.list();
+      setBouts(freshBouts);
+
+      // 3. Auto load next match in queue
+      const catBouts = freshBouts.filter(b => b.category_id === activeBout.category_id);
+      const nextInCat = catBouts.find(b => b.id !== activeBout.id && b.status !== 'Completed' && (b.round_no > activeBout.round_no || (b.round_no === activeBout.round_no && b.bout_no > activeBout.bout_no)));
+      const nextPendingAny = freshBouts.find(b => b.id !== activeBout.id && b.status !== 'Completed');
+
+      const targetNextBout = nextInCat || nextPendingAny;
+
+      if (targetNextBout) {
+        loadBout(targetNextBout, participants, categories, true);
+        setIsResultConfirmedOnReferee(false);
+        addLog('SYSTEM', `Auto-loaded next match: R${targetNextBout.round_no}B${targetNextBout.bout_no}`);
+      } else {
+        addLog('SYSTEM', 'All scheduled matches completed in queue');
+      }
+    } catch (err) {
+      console.error('Error saving result and auto loading next match:', err);
+      alert('Failed to save result. Please check connection and try again.');
+    }
   };
 
   const initialDockButtons: DockBtn[] = [
@@ -611,11 +714,10 @@ export default function OperatorConsolePage() {
     { id: 'load_match',      icon: FolderOpen,     label: 'LOAD MATCH',     color: 'blue',   action: () => { setLoadMatchSearch(''); setExpandedCatId(null); setIsLoadMatchModalOpen(true); } },
     { id: 'match_log',       icon: ClipboardList,  label: 'MATCH LOG',      color: 'blue',   action: () => setKeyLogTab('ALL') },
     { id: 'queue',           icon: Users2,         label: 'QUEUE',          color: 'blue',   action: () => setBracketTab('QUEUE') },
-    { id: 'result',          icon: Flag,           label: 'RESULT',         color: 'green',  action: handleShowResultOnRefereeView },
     { id: 'undo',            icon: Undo2,          label: 'UNDO',           color: 'orange', action: () => { scoreboardRef.current?.undoLastAction(); addLog('SYSTEM', 'Undo action triggered'); } },
     { id: 'rematch',         icon: RotateCcw,      label: 'REMATCH',        color: 'red',    action: handleOperatorRematch },
-    { id: 'confirm_result',  icon: CheckCircle2,   label: 'CONFIRM RESULT', color: 'green',  action: () => { scoreboardRef.current?.confirmResult(); addLog('SYSTEM', 'Match Result Confirmed'); } },
-    { id: 'save_result',     icon: Save,           label: 'SAVE RESULT',    color: 'green',  action: () => { scoreboardRef.current?.confirmResult(); } },
+    { id: 'confirm_result',  icon: CheckCircle2,   label: isResultConfirmedOnReferee ? 'REVERSE RESULT' : 'CONFIRM RESULT', color: isResultConfirmedOnReferee ? 'orange' : 'green', action: handleToggleResultOnRefereeView },
+    { id: 'save_result',     icon: Save,           label: 'SAVE RESULT',    color: 'green',  action: handleSaveResultAndLoadNextMatch },
     { id: 'print',           icon: Printer,        label: 'PRINT',          color: 'blue',   action: () => window.print() },
     { id: 'display',         icon: Monitor,        label: 'DISPLAY',        color: 'blue',   action: () => router.push(`/display?liveOnly=true${activeBout ? `&boutId=${activeBout.id}` : ''}`) },
     { id: 'live_display',    icon: Radio,          label: 'LIVE DISPLAY',   color: 'blue',   action: () => window.open(`${basePath}/display?liveOnly=true${activeBout ? `&boutId=${activeBout.id}` : ''}`, '_blank') },

@@ -15,6 +15,7 @@ import DisplayPlaylistModal from '@/components/DisplayPlaylistModal';
 export interface ScoreboardRef {
   undoLastAction: () => void;
   confirmResult: () => void;
+  saveResult?: () => Promise<void> | void;
   rematch?: () => void;
 }
 
@@ -33,6 +34,7 @@ export const KumiteScoreboardControl = React.forwardRef<ScoreboardRef, { boutId?
   React.useImperativeHandle(ref, () => ({
     undoLastAction: () => handleUndo(),
     confirmResult: () => handleConfirmResult(),
+    saveResult: () => handleSaveResult(),
     rematch: () => handleRematch()
   }));
   const [isLockedByOther, setIsLockedByOther] = useState<boolean>(false);
@@ -1303,12 +1305,23 @@ export const KumiteScoreboardControl = React.forwardRef<ScoreboardRef, { boutId?
     }
   };
 
-  // Confirm Result: locks in the auto-determined winner and transitions the Referee View to Winner Page.
-  // This does NOT save the bout to the database — that requires a separate Save Result click.
+  // Confirm Result: 1st click locks in the auto-determined winner and displays full-screen Winner Page on Referee View.
+  // 2nd click reverses back and restores the live scoreboard.
   const handleConfirmResult = () => {
-    if (resultConfirmed || bout?.status === 'Completed') return;
+    if (resultConfirmed) {
+      // 2nd CLICK: Reverse back action
+      setResultConfirmed(false);
+      resultConfirmedRef.current = false;
+      setWinnerConfirmed(false);
+      setWinnerSide(null);
+      setWinMethod('');
+      if (onLogEvent) onLogEvent('SYSTEM', 'Result confirmation reversed — Scoreboard restored on Referee View');
+      return;
+    }
 
-    // Use currently determined winner, or try to auto-determine if not set
+    if (bout?.status === 'Completed') return;
+
+    // 1st CLICK: Confirm winner & show full-screen Winner Page
     let side = winnerSide;
     let method = winMethod;
     if (!side) {
@@ -1326,8 +1339,9 @@ export const KumiteScoreboardControl = React.forwardRef<ScoreboardRef, { boutId?
 
     setTimerActive(false);
     setResultConfirmed(true);
+    setWinnerConfirmed(true);
     resultConfirmedRef.current = true;
-    // broadcastState will now send winner to display → Referee View shows Winner Page
+    if (onLogEvent) onLogEvent('SYSTEM', `Match Result Confirmed — Winner: ${side.toUpperCase()} (${method})`);
   };
 
   // Next Match: resets local scoring/timer state and navigates to match selection.
@@ -2071,20 +2085,21 @@ export const KumiteScoreboardControl = React.forwardRef<ScoreboardRef, { boutId?
             <RotateCcw className="h-3 w-3" /> Clear All Result
           </button>
 
-          {/* CONFIRM RESULT — Stage 1 of 3 */}
+          {/* CONFIRM RESULT / REVERSE RESULT — 1st click confirms & shows Winner Page, 2nd click reverses back */}
           <button
             onClick={handleConfirmResult}
-            disabled={saving || resultConfirmed || bout.status === 'Completed'}
-            title={resultConfirmed ? 'Result already confirmed' : !winnerSide ? 'No winner determined yet' : 'Confirm result and show Winner Page on Referee View'}
+            disabled={saving || (bout.status === 'Completed' && !resultConfirmed)}
+            title={resultConfirmed ? 'Click to reverse back and restore live scoreboard' : !winnerSide ? 'No winner determined yet' : 'Confirm result and show Winner Page on Referee View'}
             className={`flex items-center gap-1 px-2.5 py-1 font-black text-[10px] uppercase tracking-wider rounded-lg transition cursor-pointer active:scale-95 border ${
-              resultConfirmed || bout.status === 'Completed'
-                ? 'bg-emerald-600/20 text-emerald-400 border-emerald-500/40 cursor-default opacity-80'
+              resultConfirmed
+                ? 'bg-yellow-500 hover:bg-yellow-400 text-black border-yellow-400 shadow-md shadow-yellow-500/20'
                 : winnerSide && timeLeft === 0
                   ? 'bg-emerald-500 hover:bg-emerald-400 text-black border-emerald-400 shadow-md shadow-emerald-500/20 animate-pulse'
                   : 'bg-emerald-600/10 hover:bg-emerald-600/20 text-emerald-400 border-emerald-600/30 disabled:opacity-40 disabled:cursor-not-allowed'
             }`}
           >
-            <Check className="h-3 w-3" /> {resultConfirmed ? '✓ Result Confirmed' : 'Confirm Result'}
+            {resultConfirmed ? <RotateCcw className="h-3 w-3" /> : <Check className="h-3 w-3" />}
+            {resultConfirmed ? '↩ Reverse Result' : 'Confirm Result'}
           </button>
 
           {/* Rematch (conditional) */}

@@ -67,6 +67,7 @@ export const KataControlPanelContent = React.forwardRef<ScoreboardRef, { boutId?
   React.useImperativeHandle(ref, () => ({
     undoLastAction: () => {}, // No-op for Kata
     confirmResult: () => handleSaveAndCompleteBout(),
+    saveResult: () => handleSaveAndCompleteBout(),
     rematch: () => handleRematchKata()
   }));
   const [isLockedByOther, setIsLockedByOther] = useState<boolean>(false);
