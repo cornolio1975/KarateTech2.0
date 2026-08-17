@@ -32,7 +32,9 @@ export default function SchedulePage() {
   // Left Column (Auto Schedule Planner Wizard) State
   const [wizardDiscipline, setWizardDiscipline] = useState<'ALL' | 'KUMITE' | 'KATA'>('ALL');
   const [wizardCatId, setWizardCatId] = useState<string>('ALL');
-  const [wizardTatami, setWizardTatami] = useState<string>(effectiveTatami === 2 ? 'Tatami 2' : 'Tatami 1');
+  const [wizardTatami, setWizardTatami] = useState<string>(
+    effectiveTatami === 2 ? 'Tatami 2' : effectiveTatami === 1 ? 'Tatami 1' : 'AUTO_CATEGORY'
+  );
   const [wizardStartTime, setWizardStartTime] = useState<string>('09:00');
   const [wizardInterval, setWizardInterval] = useState<number>(5); // 5 mins
   const [wizardMessage, setWizardMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
@@ -155,15 +157,30 @@ export default function SchedulePage() {
     try {
       // Parse start time "HH:MM"
       const [hours, minutes] = (wizardStartTime || '09:00').split(':').map(Number);
-      let currentMin = (isNaN(hours) ? 9 : hours) * 60 + (isNaN(minutes) ? 0 : minutes);
+      const startMin = (isNaN(hours) ? 9 : hours) * 60 + (isNaN(minutes) ? 0 : minutes);
+
+      // Track timeline independently per Tatami ring so parallel scheduling works accurately
+      const ringMinutes: Record<string, number> = {
+        'Tatami 1': startMin,
+        'Tatami 2': startMin,
+        'Tatami 3': startMin,
+      };
 
       const updates: { id: string; tatami: string; scheduled_time: string }[] = [];
       targetBouts.forEach((bout) => {
-        const hh = Math.floor(currentMin / 60) % 24;
-        const mm = currentMin % 60;
+        const cat = categories.find(c => String(c.id) === String(bout.category_id));
+        let ring = wizardTatami;
+        if (wizardTatami === 'AUTO_CATEGORY') {
+          ring = (cat as any)?.assigned_tatami || 'Tatami 1';
+        }
+
+        const curMin = ringMinutes[ring] !== undefined ? ringMinutes[ring] : startMin;
+        const hh = Math.floor(curMin / 60) % 24;
+        const mm = curMin % 60;
         const timeStr = `${hh < 10 ? '0' : ''}${hh}:${mm < 10 ? '0' : ''}${mm}`;
-        updates.push({ id: bout.id, tatami: wizardTatami, scheduled_time: timeStr });
-        currentMin += (wizardInterval || 5);
+
+        updates.push({ id: bout.id, tatami: ring, scheduled_time: timeStr });
+        ringMinutes[ring] = curMin + (wizardInterval || 5);
       });
 
       // 1. Immediately update state and localStorage
@@ -180,6 +197,8 @@ export default function SchedulePage() {
       // Automatically align right-hand list tab to target tatami and category so user immediately sees results
       if (wizardTatami === 'Tatami 1' || wizardTatami === 'Tatami 2' || wizardTatami === 'Tatami 3') {
         setTatamiFilter(wizardTatami);
+      } else {
+        setTatamiFilter('ALL');
       }
       if (wizardDiscipline !== 'ALL') {
         setDisciplineFilter(wizardDiscipline);
@@ -206,7 +225,7 @@ export default function SchedulePage() {
       
       setWizardMessage({
         type: 'success',
-        text: `Successfully scheduled ${targetBouts.length} bouts on ${wizardTatami} starting at ${wizardStartTime} with ${wizardInterval}m intervals!`
+        text: `Successfully scheduled ${targetBouts.length} bouts starting at ${wizardStartTime} with ${wizardInterval}m intervals!`
       });
       setTimeout(() => setWizardMessage(null), 5000);
     } catch (err: any) {
@@ -351,15 +370,26 @@ export default function SchedulePage() {
                 <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest block mb-1">Target Category Selection</label>
                 <select 
                   value={wizardCatId}
-                  onChange={(e) => setWizardCatId(e.target.value)}
+                  onChange={(e) => {
+                    const newCatId = e.target.value;
+                    setWizardCatId(newCatId);
+                    if (newCatId !== 'ALL') {
+                      const matchedCat = categories.find(c => String(c.id) === String(newCatId));
+                      const catAssignedTatami = (matchedCat as any)?.assigned_tatami;
+                      if (catAssignedTatami === 'Tatami 1' || catAssignedTatami === 'Tatami 2' || catAssignedTatami === 'Tatami 3') {
+                        setWizardTatami(catAssignedTatami);
+                      }
+                    }
+                  }}
                   className="w-full px-3 py-2 bg-secondary border border-border rounded-lg text-xs font-semibold text-foreground focus:outline-none"
                 >
                   <option value="ALL">All Categories in Discipline ({wizardCategories.length})</option>
                   {wizardCategories.map(c => {
                     const catBoutsCount = bouts.filter(b => String(b.category_id) === String(c.id) && b.status !== 'Walkover' && b.status !== 'Completed').length;
+                    const ringTag = (c as any)?.assigned_tatami ? ` · [${(c as any).assigned_tatami}]` : '';
                     return (
                       <option key={c.id} value={c.id}>
-                        {isKataCategory(c) ? '🏆 [KATA] ' : '🥋 [KUMITE] '}{c.name} ({catBoutsCount} pending bouts)
+                        {isKataCategory(c) ? '🏆 [KATA] ' : '🥋 [KUMITE] '}{c.name}{ringTag} ({catBoutsCount} bouts)
                       </option>
                     );
                   })}
@@ -374,9 +404,10 @@ export default function SchedulePage() {
                   onChange={(e) => setWizardTatami(e.target.value)}
                   className="w-full px-3 py-2 bg-secondary border border-border rounded-lg text-xs font-semibold text-foreground focus:outline-none"
                 >
-                  <option value="Tatami 1">Tatami 1</option>
-                  <option value="Tatami 2">Tatami 2</option>
-                  <option value="Tatami 3">Tatami 3</option>
+                  <option value="AUTO_CATEGORY">🎯 Auto-Assign by Category's Tatami Ring</option>
+                  <option value="Tatami 1">Tatami 1 (Force to Ring 1)</option>
+                  <option value="Tatami 2">Tatami 2 (Force to Ring 2)</option>
+                  <option value="Tatami 3">Tatami 3 (Force to Ring 3)</option>
                 </select>
               </div>
 
@@ -406,6 +437,35 @@ export default function SchedulePage() {
                   <option value={10}>10 Minutes</option>
                 </select>
               </div>
+
+              {/* Live Preview Summary Box */}
+              {(() => {
+                const targetMatchesCount = bouts.filter(b => {
+                  if (b.status === 'Completed' || b.status === 'Walkover' || b.victory_method === 'Walkover' || b.round_no === 99) return false;
+                  const cat = categories.find(c => String(c.id) === String(b.category_id));
+                  if (wizardDiscipline === 'KUMITE' && !isKumiteCategory(cat)) return false;
+                  if (wizardDiscipline === 'KATA' && !isKataCategory(cat)) return false;
+                  if (wizardCatId !== 'ALL' && String(b.category_id) !== String(wizardCatId)) return false;
+                  return true;
+                }).length;
+                const catObj = categories.find(c => String(c.id) === String(wizardCatId));
+
+                return (
+                  <div className="p-3 bg-secondary/60 border border-border rounded-xl text-xs space-y-1.5">
+                    <div className="flex items-center justify-between font-bold">
+                      <span className="text-muted-foreground uppercase text-[9.5px]">Matches to Schedule:</span>
+                      <span className="text-yellow-400 font-mono font-black">{targetMatchesCount} Matches</span>
+                    </div>
+                    <div className="text-[11px] text-foreground font-bold truncate">
+                      {wizardCatId === 'ALL' ? `All ${wizardDiscipline} Categories` : (catObj?.name || 'Selected Category')}
+                    </div>
+                    <div className="text-[10px] text-muted-foreground flex items-center justify-between pt-1 border-t border-border/50">
+                      <span>Target: <strong className="text-primary font-bold">{wizardTatami}</strong></span>
+                      <span>Starts: <strong className="font-mono text-foreground font-bold">{wizardStartTime || '09:00'}</strong> (+{wizardInterval}m)</span>
+                    </div>
+                  </div>
+                );
+              })()}
 
               {/* Submit Auto scheduler */}
               <button
