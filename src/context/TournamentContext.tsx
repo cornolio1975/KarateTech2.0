@@ -320,11 +320,31 @@ export function TournamentProvider({ children }: { children: React.ReactNode }) 
     const targetPcId = tatamiNum === 1 ? 'tatami_1' : 'tatami_2';
     const targetUsername = tatamiNum === 1 ? 'tatami_1@spsportdatasolution.org' : 'tatami_2@spsportdatasolution.org';
     
+    // 1. Update Category record
     await db.categories.update(categoryId, {
       assigned_tatami: tatami,
       status: 'Open'
     } as any);
 
+    // 2. Cascade Tatami Ring to all existing bouts in this Category
+    try {
+      const allBouts = await db.bouts.list();
+      const catBouts = allBouts.filter(b => String(b.category_id) === String(categoryId));
+      await Promise.all(catBouts.map(b => db.bouts.update(b.id, { tatami })));
+
+      if (typeof window !== 'undefined') {
+        const storedBouts = localStorage.getItem('ts_bouts');
+        if (storedBouts) {
+          const parsed = JSON.parse(storedBouts);
+          const updated = parsed.map((b: any) => String(b.category_id) === String(categoryId) ? { ...b, tatami } : b);
+          localStorage.setItem('ts_bouts', JSON.stringify(updated));
+        }
+      }
+    } catch (e) {
+      console.warn('Failed cascading tatami assignment to category bouts:', e);
+    }
+
+    // 3. Update PC locks
     if (activeTournamentId) {
       await db.pcControl.acquireLock(activeTournamentId, categoryId, targetPcId, tatami, targetUsername);
       const locks = await db.pcControl.getActiveLocks(activeTournamentId);
@@ -341,16 +361,44 @@ export function TournamentProvider({ children }: { children: React.ReactNode }) 
           tatamiNum
         });
         channel.close();
+
+        const schedChannel = new BroadcastChannel('kt-schedule-sync');
+        schedChannel.postMessage({
+          type: 'CATEGORY_ASSIGNED',
+          categoryId,
+          tatami
+        });
+        schedChannel.close();
       } catch (e) {}
     }
     setRefreshKey(prev => prev + 1);
   }, [activeTournamentId]);
 
   const releaseCategoryFromTatami = useCallback(async (categoryId: string) => {
+    // 1. Update Category record
     await db.categories.update(categoryId, {
       assigned_tatami: null
     } as any);
 
+    // 2. Cascade unassigned state to bouts
+    try {
+      const allBouts = await db.bouts.list();
+      const catBouts = allBouts.filter(b => String(b.category_id) === String(categoryId));
+      await Promise.all(catBouts.map(b => db.bouts.update(b.id, { tatami: null as any })));
+
+      if (typeof window !== 'undefined') {
+        const storedBouts = localStorage.getItem('ts_bouts');
+        if (storedBouts) {
+          const parsed = JSON.parse(storedBouts);
+          const updated = parsed.map((b: any) => String(b.category_id) === String(categoryId) ? { ...b, tatami: null } : b);
+          localStorage.setItem('ts_bouts', JSON.stringify(updated));
+        }
+      }
+    } catch (e) {
+      console.warn('Failed clearing tatami from category bouts:', e);
+    }
+
+    // 3. Release locks
     if (activeTournamentId) {
       await db.pcControl.overrideLock(activeTournamentId, categoryId, 'admin');
       const locks = await db.pcControl.getActiveLocks(activeTournamentId);
@@ -365,6 +413,13 @@ export function TournamentProvider({ children }: { children: React.ReactNode }) 
           categoryId
         });
         channel.close();
+
+        const schedChannel = new BroadcastChannel('kt-schedule-sync');
+        schedChannel.postMessage({
+          type: 'CATEGORY_RELEASED',
+          categoryId
+        });
+        schedChannel.close();
       } catch (e) {}
     }
     setRefreshKey(prev => prev + 1);

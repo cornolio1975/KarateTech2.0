@@ -1180,6 +1180,10 @@ export const mockStore = {
       const generatedBouts: Bout[] = [];
       const allBouts = getStoreData<Bout>('ts_bouts', []);
 
+      const catList = getStoreData<Category>('ts_categories', SEED_CATEGORIES);
+      const matchedCat = catList.find(c => String(c.id) === String(catId));
+      const targetTatami = (matchedCat as any)?.assigned_tatami || 'Tatami 1';
+
       if (drawType === 'Round-robin' || drawType === 'round_robin') {
         let boutIndex = 1;
         for (let i = 0; i < athletes.length; i++) {
@@ -1195,7 +1199,7 @@ export const mockStore = {
               score_a: 0,
               score_b: 0,
               status: 'Scheduled',
-              tatami: 'Tatami 1',
+              tatami: targetTatami,
               senshu_a: false,
               senshu_b: false,
               penalties_a: '',
@@ -1272,7 +1276,7 @@ export const mockStore = {
             score_a: 0,
             score_b: 0,
             status,
-            tatami: `Tatami ${Math.ceil(boutNo / 4) === 1 ? '1' : '2'}`,
+            tatami: targetTatami,
             senshu_a: false,
             senshu_b: false,
             penalties_a: '',
@@ -1310,7 +1314,7 @@ export const mockStore = {
               score_a: 0,
               score_b: 0,
               status: 'Scheduled',
-              tatami: `Tatami 1`,
+              tatami: targetTatami,
               senshu_a: false,
               senshu_b: false,
               penalties_a: '',
@@ -1345,7 +1349,7 @@ export const mockStore = {
             score_a: 0,
             score_b: 0,
             status: 'Scheduled',
-            tatami: 'Tatami 1',
+            tatami: targetTatami,
             senshu_a: false,
             senshu_b: false,
             penalties_a: '',
