@@ -78,14 +78,48 @@ export default function AdminDashboard() {
       setCountries(cntList);
       setPcs(pcList);
       setLocks(lockList);
-      setCategories(catList);
       setBouts(bList);
+
+      // Enrich categories with ts_cat_tatami_map (admin-set assignments, survives Supabase reloads)
+      let enrichedCats = catList;
+      if (typeof window !== 'undefined') {
+        try {
+          const rawMap = localStorage.getItem('ts_cat_tatami_map');
+          if (rawMap) {
+            const catTatamiMap: Record<string, string> = JSON.parse(rawMap);
+            enrichedCats = catList.map(c => {
+              const mapped = catTatamiMap[String(c.id)];
+              return mapped ? { ...c, assigned_tatami: mapped } : c;
+            });
+          }
+        } catch (e) {
+          console.warn('Failed to read ts_cat_tatami_map in admin:', e);
+        }
+      }
+      setCategories(enrichedCats);
     } catch (e) {
       console.error('Error loading Admin dashboard telemetry:', e);
     } finally {
       setLoading(false);
     }
   }, [activeTournamentId]);
+
+  // Re-read categories from map after an assignment (fast local refresh)
+  const refreshCategoriesFromMap = useCallback(() => {
+    if (typeof window === 'undefined') return;
+    try {
+      const rawMap = localStorage.getItem('ts_cat_tatami_map');
+      const catTatamiMap: Record<string, string> = rawMap ? JSON.parse(rawMap) : {};
+      setCategories(prev => prev.map(c => {
+        const mapped = catTatamiMap[String(c.id)];
+        if (mapped) return { ...c, assigned_tatami: mapped };
+        // If not in map, clear any stale assigned_tatami
+        return { ...c, assigned_tatami: undefined };
+      }));
+    } catch (e) {
+      console.warn('Failed to refresh categories from map:', e);
+    }
+  }, []);
 
   useEffect(() => {
     setMounted(true);
@@ -632,7 +666,7 @@ export default function AdminDashboard() {
                       <td className="p-3 text-right">
                         <div className="flex items-center justify-end gap-1.5 flex-wrap">
                           <button
-                            onClick={() => assignCategoryToTatami(cat.id, 'Tatami 1')}
+                            onClick={async () => { await assignCategoryToTatami(cat.id, 'Tatami 1'); refreshCategoriesFromMap(); }}
                             className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition cursor-pointer border ${
                               assignedTatami === 'Tatami 1'
                                 ? 'bg-indigo-600 text-white border-indigo-500'
@@ -642,7 +676,7 @@ export default function AdminDashboard() {
                             Tatami 1
                           </button>
                           <button
-                            onClick={() => assignCategoryToTatami(cat.id, 'Tatami 2')}
+                            onClick={async () => { await assignCategoryToTatami(cat.id, 'Tatami 2'); refreshCategoriesFromMap(); }}
                             className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition cursor-pointer border ${
                               assignedTatami === 'Tatami 2'
                                 ? 'bg-indigo-600 text-white border-indigo-500'
@@ -653,7 +687,7 @@ export default function AdminDashboard() {
                           </button>
                           {assignedTatami && (
                             <button
-                              onClick={() => releaseCategoryFromTatami(cat.id)}
+                              onClick={async () => { await releaseCategoryFromTatami(cat.id); refreshCategoriesFromMap(); }}
                               className="px-2.5 py-1 bg-yellow-500/10 hover:bg-yellow-500/20 text-yellow-400 border border-yellow-500/30 rounded-lg text-[11px] font-bold transition cursor-pointer"
                               title="Release back to pool"
                             >
