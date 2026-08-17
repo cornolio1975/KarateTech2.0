@@ -905,21 +905,35 @@ export const db = {
     generateDraw: async (catId: string, drawType: string, hasThirdPlace: boolean): Promise<Bout[]> => {
       console.log('[dbClient.generateDraw] catId:', catId, 'drawType:', drawType, 'hasThirdPlace:', hasThirdPlace, 'isSupabase:', !!supabase);
 
-      // Resolve the category's assigned tatami from localStorage (set by Admin ring assignment)
+      // Resolve the category's assigned tatami.
+      // Priority: 1) ts_cat_tatami_map (admin-set, never overwritten by Supabase sync)
+      //           2) ts_categories.assigned_tatami (legacy fallback)
       let resolvedTatami: string | undefined;
       if (typeof window !== 'undefined') {
         try {
-          const rawCats = localStorage.getItem('ts_categories');
-          if (rawCats) {
-            const catList = JSON.parse(rawCats);
-            const matchedCat = catList.find((c: any) => String(c.id) === String(catId));
-            if (matchedCat?.assigned_tatami) {
-              resolvedTatami = matchedCat.assigned_tatami;
-              console.log('[dbClient.generateDraw] resolved tatami from localStorage:', resolvedTatami);
+          // First try the dedicated map (most reliable)
+          const rawMap = localStorage.getItem('ts_cat_tatami_map');
+          if (rawMap) {
+            const catTatamiMap = JSON.parse(rawMap);
+            if (catTatamiMap[String(catId)]) {
+              resolvedTatami = catTatamiMap[String(catId)];
+              console.log('[dbClient.generateDraw] resolved tatami from ts_cat_tatami_map:', resolvedTatami);
+            }
+          }
+          // Fall back to ts_categories
+          if (!resolvedTatami) {
+            const rawCats = localStorage.getItem('ts_categories');
+            if (rawCats) {
+              const catList = JSON.parse(rawCats);
+              const matchedCat = catList.find((c: any) => String(c.id) === String(catId));
+              if (matchedCat?.assigned_tatami) {
+                resolvedTatami = matchedCat.assigned_tatami;
+                console.log('[dbClient.generateDraw] resolved tatami from ts_categories:', resolvedTatami);
+              }
             }
           }
         } catch (e) {
-          console.warn('[dbClient.generateDraw] failed to read ts_categories from localStorage:', e);
+          console.warn('[dbClient.generateDraw] failed to read tatami from localStorage:', e);
         }
       }
 

@@ -64,8 +64,26 @@ export default function SchedulePage() {
         db.categories.list(),
         db.participants.list()
       ]);
+
+      // Merge assigned_tatami from dedicated map (survives Supabase reloads)
+      let enrichedCats = cList || [];
+      if (typeof window !== 'undefined') {
+        try {
+          const rawMap = localStorage.getItem('ts_cat_tatami_map');
+          if (rawMap) {
+            const catTatamiMap: Record<string, string> = JSON.parse(rawMap);
+            enrichedCats = enrichedCats.map(c => {
+              const mapped = catTatamiMap[String(c.id)];
+              return mapped ? { ...c, assigned_tatami: mapped } : c;
+            });
+          }
+        } catch (e) {
+          console.warn('Failed to read ts_cat_tatami_map:', e);
+        }
+      }
+
       setBouts(bList || []);
-      setCategories(cList || []);
+      setCategories(enrichedCats);
       setParticipants(pList || []);
     } catch (err) {
       console.error('Failed to load schedule data:', err);

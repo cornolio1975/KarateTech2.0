@@ -348,6 +348,16 @@ export function TournamentProvider({ children }: { children: React.ReactNode }) 
           const updatedCats = parsedCats.map((c: any) => String(c.id) === String(categoryId) ? { ...c, assigned_tatami: tatami } : c);
           localStorage.setItem('ts_categories', JSON.stringify(updatedCats));
         }
+
+        // *** MOST RELIABLE: Persist to dedicated cat-tatami map key (survives Supabase syncs) ***
+        try {
+          const rawMap = localStorage.getItem('ts_cat_tatami_map');
+          const catTatamiMap = rawMap ? JSON.parse(rawMap) : {};
+          catTatamiMap[String(categoryId)] = tatami;
+          localStorage.setItem('ts_cat_tatami_map', JSON.stringify(catTatamiMap));
+        } catch (mapErr) {
+          console.warn('Failed to persist cat-tatami map:', mapErr);
+        }
       }
     } catch (e) {
       console.warn('Failed cascading tatami assignment to category bouts:', e);
@@ -409,6 +419,18 @@ export function TournamentProvider({ children }: { children: React.ReactNode }) 
           const parsedCats = JSON.parse(storedCats);
           const updatedCats = parsedCats.map((c: any) => String(c.id) === String(categoryId) ? { ...c, assigned_tatami: null } : c);
           localStorage.setItem('ts_categories', JSON.stringify(updatedCats));
+        }
+
+        // Clear from dedicated cat-tatami map
+        try {
+          const rawMap = localStorage.getItem('ts_cat_tatami_map');
+          if (rawMap) {
+            const catTatamiMap = JSON.parse(rawMap);
+            delete catTatamiMap[String(categoryId)];
+            localStorage.setItem('ts_cat_tatami_map', JSON.stringify(catTatamiMap));
+          }
+        } catch (mapErr) {
+          console.warn('Failed to clear cat-tatami map:', mapErr);
         }
       }
     } catch (e) {
