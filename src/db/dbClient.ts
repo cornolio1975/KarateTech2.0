@@ -904,6 +904,25 @@ export const db = {
     },
     generateDraw: async (catId: string, drawType: string, hasThirdPlace: boolean): Promise<Bout[]> => {
       console.log('[dbClient.generateDraw] catId:', catId, 'drawType:', drawType, 'hasThirdPlace:', hasThirdPlace, 'isSupabase:', !!supabase);
+
+      // Resolve the category's assigned tatami from localStorage (set by Admin ring assignment)
+      let resolvedTatami: string | undefined;
+      if (typeof window !== 'undefined') {
+        try {
+          const rawCats = localStorage.getItem('ts_categories');
+          if (rawCats) {
+            const catList = JSON.parse(rawCats);
+            const matchedCat = catList.find((c: any) => String(c.id) === String(catId));
+            if (matchedCat?.assigned_tatami) {
+              resolvedTatami = matchedCat.assigned_tatami;
+              console.log('[dbClient.generateDraw] resolved tatami from localStorage:', resolvedTatami);
+            }
+          }
+        } catch (e) {
+          console.warn('[dbClient.generateDraw] failed to read ts_categories from localStorage:', e);
+        }
+      }
+
       if (supabase) {
         // Fetch active mappings from Supabase
         const { data: mappings, error: mapErr } = await supabase
@@ -926,8 +945,8 @@ export const db = {
           athletes = partData || [];
         }
 
-        console.log('[dbClient.generateDraw] Supabase active athletes count:', athletes.length);
-        const generated = mockStore.bouts.generateDraw(catId, drawType, hasThirdPlace, athletes);
+        console.log('[dbClient.generateDraw] Supabase active athletes count:', athletes.length, 'tatami:', resolvedTatami);
+        const generated = mockStore.bouts.generateDraw(catId, drawType, hasThirdPlace, athletes, resolvedTatami);
         
         // Remove the 'id' field so Supabase can generate proper UUIDs
         const generatedWithoutId = generated.map(({ id, ...rest }) => rest);
@@ -941,7 +960,7 @@ export const db = {
         mockStore.bouts.saveBouts(catId, savedBouts);
         return savedBouts;
       }
-      return mockStore.bouts.generateDraw(catId, drawType, hasThirdPlace);
+      return mockStore.bouts.generateDraw(catId, drawType, hasThirdPlace, undefined, resolvedTatami);
     },
     generateRepechage: async (catId: string): Promise<Bout[]> => {
       if (supabase) {

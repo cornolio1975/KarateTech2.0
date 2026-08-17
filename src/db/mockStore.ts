@@ -1171,7 +1171,7 @@ export const mockStore = {
       const list = getStoreData<Bout>('ts_bouts', []).filter(b => b.category_id !== catId);
       saveStoreData('ts_bouts', [...list, ...newBouts]);
     },
-    generateDraw: (catId: string, drawType: string, hasThirdPlace: boolean, passedAthletes?: Participant[]): Bout[] => {
+    generateDraw: (catId: string, drawType: string, hasThirdPlace: boolean, passedAthletes?: Participant[], passedTatami?: string): Bout[] => {
       console.log('[mockStore.generateDraw] catId:', catId, 'passedAthletes count:', passedAthletes?.length);
       let athletes = passedAthletes;
       if (!athletes) {
@@ -1192,9 +1192,13 @@ export const mockStore = {
       const generatedBouts: Bout[] = [];
       const allBouts = getStoreData<Bout>('ts_bouts', []);
 
-      const catList = getStoreData<Category>('ts_categories', SEED_CATEGORIES);
-      const matchedCat = catList.find(c => String(c.id) === String(catId));
-      const targetTatami = (matchedCat as any)?.assigned_tatami || 'Tatami 1';
+      // Use explicitly passed tatami first, then fall back to category record in localStorage
+      let targetTatami = passedTatami || 'Tatami 1';
+      if (!passedTatami) {
+        const catList = getStoreData<Category>('ts_categories', SEED_CATEGORIES);
+        const matchedCat = catList.find(c => String(c.id) === String(catId));
+        targetTatami = (matchedCat as any)?.assigned_tatami || 'Tatami 1';
+      }
 
       if (drawType === 'Round-robin' || drawType === 'round_robin') {
         let boutIndex = 1;

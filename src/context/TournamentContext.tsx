@@ -333,11 +333,20 @@ export function TournamentProvider({ children }: { children: React.ReactNode }) 
       await Promise.all(catBouts.map(b => db.bouts.update(b.id, { tatami })));
 
       if (typeof window !== 'undefined') {
+        // Update ts_bouts so schedule page reflects immediately
         const storedBouts = localStorage.getItem('ts_bouts');
         if (storedBouts) {
           const parsed = JSON.parse(storedBouts);
           const updated = parsed.map((b: any) => String(b.category_id) === String(categoryId) ? { ...b, tatami } : b);
           localStorage.setItem('ts_bouts', JSON.stringify(updated));
+        }
+
+        // *** CRITICAL: Persist assigned_tatami to ts_categories so generateDraw reads it correctly ***
+        const storedCats = localStorage.getItem('ts_categories');
+        if (storedCats) {
+          const parsedCats = JSON.parse(storedCats);
+          const updatedCats = parsedCats.map((c: any) => String(c.id) === String(categoryId) ? { ...c, assigned_tatami: tatami } : c);
+          localStorage.setItem('ts_categories', JSON.stringify(updatedCats));
         }
       }
     } catch (e) {
@@ -392,6 +401,14 @@ export function TournamentProvider({ children }: { children: React.ReactNode }) 
           const parsed = JSON.parse(storedBouts);
           const updated = parsed.map((b: any) => String(b.category_id) === String(categoryId) ? { ...b, tatami: null } : b);
           localStorage.setItem('ts_bouts', JSON.stringify(updated));
+        }
+
+        // Clear assigned_tatami from ts_categories in localStorage
+        const storedCats = localStorage.getItem('ts_categories');
+        if (storedCats) {
+          const parsedCats = JSON.parse(storedCats);
+          const updatedCats = parsedCats.map((c: any) => String(c.id) === String(categoryId) ? { ...c, assigned_tatami: null } : c);
+          localStorage.setItem('ts_categories', JSON.stringify(updatedCats));
         }
       }
     } catch (e) {
