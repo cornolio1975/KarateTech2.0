@@ -618,7 +618,18 @@ export default function AdminDashboard() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-border font-medium">
-                {categories.map(cat => {
+                {[...categories].sort((a, b) => {
+                  // Extract leading age from category name e.g. "10-11 YEARS..." → 10, "5 YEARS..." → 5
+                  const ageA = parseInt((a.name || '').match(/\d+/)?.[0] || '999', 10);
+                  const ageB = parseInt((b.name || '').match(/\d+/)?.[0] || '999', 10);
+                  if (ageA !== ageB) return ageA - ageB;
+                  // Same age: Kumite first, Kata second
+                  const isKumiteA = isKumiteCategory(a) ? 0 : 1;
+                  const isKumiteB = isKumiteCategory(b) ? 0 : 1;
+                  if (isKumiteA !== isKumiteB) return isKumiteA - isKumiteB;
+                  // Same age + discipline: alphabetical
+                  return (a.name || '').localeCompare(b.name || '');
+                }).map(cat => {
                   const assignedTatami = (cat as any).assigned_tatami || null;
                   const activeLock = locks.find(l => l.category_id === cat.id && l.is_active);
                   const isLocked = !!activeLock || (cat as any).status === 'Locked';

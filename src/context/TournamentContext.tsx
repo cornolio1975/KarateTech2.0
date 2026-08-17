@@ -320,11 +320,16 @@ export function TournamentProvider({ children }: { children: React.ReactNode }) 
     const targetPcId = tatamiNum === 1 ? 'tatami_1' : 'tatami_2';
     const targetUsername = tatamiNum === 1 ? 'tatami_1@spsportdatasolution.org' : 'tatami_2@spsportdatasolution.org';
     
-    // 1. Update Category record
-    await db.categories.update(categoryId, {
-      assigned_tatami: tatami,
-      status: 'Open'
-    } as any);
+    // 1. Update Category record (best-effort — assigned_tatami may not exist in Supabase schema)
+    try {
+      await db.categories.update(categoryId, {
+        assigned_tatami: tatami,
+        status: 'Open'
+      } as any);
+    } catch (catUpdateErr: any) {
+      // PGRST204: column doesn't exist in Supabase — safe to ignore, we use ts_cat_tatami_map instead
+      console.warn('[assignCategoryToTatami] categories.update ignored (column may not exist in DB):', catUpdateErr?.message || catUpdateErr);
+    }
 
     // 2. Cascade Tatami Ring to all existing bouts in this Category
     try {
@@ -394,10 +399,14 @@ export function TournamentProvider({ children }: { children: React.ReactNode }) 
   }, [activeTournamentId]);
 
   const releaseCategoryFromTatami = useCallback(async (categoryId: string) => {
-    // 1. Update Category record
-    await db.categories.update(categoryId, {
-      assigned_tatami: null
-    } as any);
+    // 1. Update Category record (best-effort — assigned_tatami may not exist in Supabase schema)
+    try {
+      await db.categories.update(categoryId, {
+        assigned_tatami: null
+      } as any);
+    } catch (catUpdateErr: any) {
+      console.warn('[releaseCategoryFromTatami] categories.update ignored:', catUpdateErr?.message || catUpdateErr);
+    }
 
     // 2. Cascade unassigned state to bouts
     try {
