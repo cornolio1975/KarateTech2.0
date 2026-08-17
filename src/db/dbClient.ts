@@ -15,6 +15,9 @@ export const isSupabaseConfigured = !!(supabaseUrl && supabaseAnonKey);
 export const describeError = (error: unknown): string => {
   if (error instanceof Error) return error.message;
   if (typeof error === 'string') return error;
+  if (typeof error === 'object' && error !== null && 'message' in error) {
+    return String((error as any).message);
+  }
   return JSON.stringify(error);
 };
 
@@ -131,7 +134,7 @@ export const db = {
     list: async (): Promise<Country[]> => {
       if (supabase) {
         const { data, error } = await supabase.from('countries').select('*');
-        if (error) throw error;
+        if (error) throw new Error(describeError(error));
         return data || [];
       }
       return mockStore.countries.list();
@@ -144,7 +147,7 @@ export const db = {
       if (supabase) {
         try {
           const { data, error } = await supabase.from('clubs').select('*').order('name');
-          if (error) throw error;
+          if (error) throw new Error(describeError(error));
           return data || [];
         } catch (e: unknown) {
           console.warn('Supabase clubs list error, falling back to mockStore:', describeError(e));
@@ -155,7 +158,7 @@ export const db = {
     add: async (club: Omit<Club, 'id'>): Promise<Club> => {
       if (supabase) {
         const { data, error } = await supabase.from('clubs').insert([club]).select().single();
-        if (error) throw error;
+        if (error) throw new Error(describeError(error));
         return data;
       }
       return mockStore.clubs.add(club);
@@ -163,7 +166,7 @@ export const db = {
     update: async (id: string, updates: Partial<Club>): Promise<Club> => {
       if (supabase) {
         const { data, error } = await supabase.from('clubs').update(updates).eq('id', id).select().single();
-        if (error) throw error;
+        if (error) throw new Error(describeError(error));
         return data;
       }
       return mockStore.clubs.update(id, updates);
@@ -171,7 +174,7 @@ export const db = {
     delete: async (id: string): Promise<void> => {
       if (supabase) {
         const { error } = await supabase.from('clubs').delete().eq('id', id);
-        if (error) throw error;
+        if (error) throw new Error(describeError(error));
         return;
       }
       return mockStore.clubs.delete(id);
@@ -183,7 +186,7 @@ export const db = {
     list: async (): Promise<Coach[]> => {
       if (supabase) {
         const { data, error } = await supabase.from('coaches').select('*').order('name');
-        if (error) throw error;
+        if (error) throw new Error(describeError(error));
         return data || [];
       }
       return mockStore.coaches.list();
@@ -191,7 +194,7 @@ export const db = {
     add: async (coach: Omit<Coach, 'id'>): Promise<Coach> => {
       if (supabase) {
         const { data, error } = await supabase.from('coaches').insert([coach]).select().single();
-        if (error) throw error;
+        if (error) throw new Error(describeError(error));
         return data;
       }
       return mockStore.coaches.add(coach);
@@ -204,7 +207,7 @@ export const db = {
       if (supabase) {
         try {
           const { data, error } = await supabase.from('categories').select('*').order('name');
-          if (error) throw error;
+          if (error) throw new Error(describeError(error));
           return data || [];
         } catch (e: unknown) {
           console.warn('Supabase categories list error, falling back to mockStore:', describeError(e));
@@ -215,7 +218,7 @@ export const db = {
     update: async (id: string, updates: Partial<Category>): Promise<Category> => {
       if (supabase) {
         const { data, error } = await supabase.from('categories').update(updates).eq('id', id).select().single();
-        if (error) throw error;
+        if (error) throw new Error(describeError(error));
         return data;
       }
       return mockStore.categories.update(id, updates);
@@ -223,7 +226,7 @@ export const db = {
     add: async (cat: Omit<Category, 'id'>): Promise<Category> => {
       if (supabase) {
         const { data, error } = await supabase.from('categories').insert([cat]).select().single();
-        if (error) throw error;
+        if (error) throw new Error(describeError(error));
         return data;
       }
       return mockStore.categories.add(cat);
@@ -260,14 +263,14 @@ export const db = {
           .from('participant_categories')
           .update({ category_id: mergedCat.id })
           .in('category_id', catIds);
-        if (mappingErr) throw mappingErr;
+        if (mappingErr) throw new Error(describeError(mappingErr));
 
         // Close old categories
         const { error: closeErr } = await supabase
           .from('categories')
           .update({ status: 'Closed' })
           .in('id', catIds);
-        if (closeErr) throw closeErr;
+        if (closeErr) throw new Error(describeError(closeErr));
 
         return mergedCat;
       }
@@ -298,7 +301,7 @@ export const db = {
           .select('*')
           .eq('category_id', catId);
         
-        if (mapErr) throw mapErr;
+        if (mapErr) throw new Error(describeError(mapErr));
 
         for (const m of (mappings || [])) {
           const p = participants.find(part => part.id === m.participant_id);
@@ -323,7 +326,7 @@ export const db = {
     delete: async (id: string): Promise<void> => {
       if (supabase) {
         const { error } = await supabase.from('categories').delete().eq('id', id);
-        if (error) throw error;
+        if (error) throw new Error(describeError(error));
         return;
       }
       return mockStore.categories.delete(id);
@@ -335,7 +338,7 @@ export const db = {
     list: async (): Promise<Team[]> => {
       if (supabase) {
         const { data, error } = await supabase.from('teams').select('*').order('name');
-        if (error) throw error;
+        if (error) throw new Error(describeError(error));
         return data || [];
       }
       return mockStore.teams.list();
@@ -343,7 +346,7 @@ export const db = {
     get: async (id: string): Promise<Team | undefined> => {
       if (supabase) {
         const { data, error } = await supabase.from('teams').select('*').eq('id', id).single();
-        if (error) throw error;
+        if (error) throw new Error(describeError(error));
         return data;
       }
       return mockStore.teams.get(id);
@@ -351,7 +354,7 @@ export const db = {
     add: async (team: Omit<Team, 'id' | 'score'>): Promise<Team> => {
       if (supabase) {
         const { data, error } = await supabase.from('teams').insert([team]).select().single();
-        if (error) throw error;
+        if (error) throw new Error(describeError(error));
         return data;
       }
       return mockStore.teams.add(team);
@@ -359,7 +362,7 @@ export const db = {
     update: async (id: string, updates: Partial<Team>): Promise<Team> => {
       if (supabase) {
         const { data, error } = await supabase.from('teams').update(updates).eq('id', id).select().single();
-        if (error) throw error;
+        if (error) throw new Error(describeError(error));
         return data;
       }
       return mockStore.teams.update(id, updates);
@@ -370,7 +373,7 @@ export const db = {
           .from('team_members')
           .select('participant_id')
           .eq('team_id', teamId);
-        if (error) throw error;
+        if (error) throw new Error(describeError(error));
         
         const participantIds = (data || []).map(d => d.participant_id);
         if (participantIds.length === 0) return [];
@@ -380,7 +383,7 @@ export const db = {
           .select('*')
           .in('id', participantIds)
           .is('deleted_at', null);
-        if (memError) throw memError;
+        if (memError) throw new Error(describeError(memError));
         return members || [];
       }
       return mockStore.teams.members(teamId);
@@ -399,7 +402,7 @@ export const db = {
           .insert([{ team_id: teamId, participant_id: participantId }])
           .select()
           .single();
-        if (error) throw error;
+        if (error) throw new Error(describeError(error));
         return data;
       }
       return mockStore.teams.addMember(teamId, participantId);
@@ -411,7 +414,7 @@ export const db = {
           .delete()
           .eq('team_id', teamId)
           .eq('participant_id', participantId);
-        if (error) throw error;
+        if (error) throw new Error(describeError(error));
         return;
       }
       return mockStore.teams.removeMember(teamId, participantId);
@@ -419,7 +422,7 @@ export const db = {
     delete: async (id: string): Promise<void> => {
       if (supabase) {
         const { error } = await supabase.from('teams').delete().eq('id', id);
-        if (error) throw error;
+        if (error) throw new Error(describeError(error));
         return;
       }
       // No-op for mock store (Supabase always connected in production)
@@ -432,7 +435,7 @@ export const db = {
     list: async (): Promise<ParticipantCategory[]> => {
       if (supabase) {
         const { data, error } = await supabase.from('participant_categories').select('*');
-        if (error) throw error;
+        if (error) throw new Error(describeError(error));
         return data || [];
       }
       return mockStore.participantCategories.list();
@@ -445,7 +448,7 @@ export const db = {
       if (supabase) {
         try {
           const { data, error } = await supabase.from('participants').select('*').is('deleted_at', null).order('created_at', { ascending: false });
-          if (error) throw error;
+          if (error) throw new Error(describeError(error));
           return data || [];
         } catch (e: unknown) {
           console.warn('Supabase participants list error, falling back to mockStore:', describeError(e));
@@ -456,7 +459,7 @@ export const db = {
     listDeleted: async (): Promise<Participant[]> => {
       if (supabase) {
         const { data, error } = await supabase.from('participants').select('*').not('deleted_at', 'is', null).order('created_at', { ascending: false });
-        if (error) throw error;
+        if (error) throw new Error(describeError(error));
         return data || [];
       }
       return mockStore.participants.listDeleted();
@@ -464,7 +467,7 @@ export const db = {
     get: async (id: string): Promise<Participant | undefined> => {
       if (supabase) {
         const { data, error } = await supabase.from('participants').select('*').eq('id', id).single();
-        if (error) throw error;
+        if (error) throw new Error(describeError(error));
         return data;
       }
       return mockStore.participants.get(id);
@@ -498,7 +501,7 @@ export const db = {
             await new Promise(r => setTimeout(r, 50 * (attempt + 1)));
             continue;
           }
-          throw error;
+          throw new Error(describeError(error));
         }
         if (!data) throw lastError ?? new Error('Failed to generate unique registration number');
 
@@ -523,7 +526,7 @@ export const db = {
           .select()
           .single();
         
-        if (error) throw error;
+        if (error) throw new Error(describeError(error));
         const p = data as Participant;
 
         // Auto re-assign category if criteria changed
@@ -544,7 +547,7 @@ export const db = {
           .from('participants')
           .update({ deleted_at: new Date().toISOString() })
           .eq('id', id);
-        if (error) throw error;
+        if (error) throw new Error(describeError(error));
 
         await db.activityLogs.log(id, operator, 'Soft Deleted', 'Participant soft-deleted from active list');
         await db.audit.log(operator, 'DELETE', 'participants', id, toAuditRecord(original), null);
@@ -559,7 +562,7 @@ export const db = {
           .from('participants')
           .select('id')
           .is('deleted_at', null);
-        if (listErr) throw listErr;
+        if (listErr) throw new Error(describeError(listErr));
         const ids = (all || []).map(p => p.id);
         if (ids.length === 0) return 0;
 
@@ -568,7 +571,7 @@ export const db = {
 
         // Hard delete all participants
         const { error } = await supabase.from('participants').delete().in('id', ids);
-        if (error) throw error;
+        if (error) throw new Error(describeError(error));
 
         await db.activityLogs.log(null, operator, 'Bulk Delete', `Cleared ${ids.length} participants from database`);
         return ids.length;
@@ -588,7 +591,7 @@ export const db = {
           .eq('id', id)
           .select()
           .single();
-        if (error) throw error;
+        if (error) throw new Error(describeError(error));
 
         await db.activityLogs.log(id, operator, 'Restored', 'Participant restored from bin');
         await db.audit.log(operator, 'INSERT', 'participants', id, null, toAuditRecord(data));
@@ -661,7 +664,7 @@ export const db = {
           .select('category_id')
           .eq('participant_id', participantId)
           .maybeSingle();
-        if (error) throw error;
+        if (error) throw new Error(describeError(error));
         if (!data) return undefined;
 
         const categories = await db.categories.list();
@@ -676,7 +679,7 @@ export const db = {
     list: async (): Promise<Payment[]> => {
       if (supabase) {
         const { data, error } = await supabase.from('payments').select('*');
-        if (error) throw error;
+        if (error) throw new Error(describeError(error));
         return data || [];
       }
       return mockStore.payments.list();
@@ -688,7 +691,7 @@ export const db = {
           .insert([{ participant_id: participantId, amount: pay.amount || 150, status: pay.status || 'Unpaid', payment_method: pay.payment_method }])
           .select()
           .single();
-        if (error) throw error;
+        if (error) throw new Error(describeError(error));
         return data;
       }
       return mockStore.payments.create(participantId, pay);
@@ -696,7 +699,7 @@ export const db = {
     update: async (id: string, updates: Partial<Payment>): Promise<Payment> => {
       if (supabase) {
         const { data, error } = await supabase.from('payments').update(updates).eq('id', id).select().single();
-        if (error) throw error;
+        if (error) throw new Error(describeError(error));
         return data;
       }
       return mockStore.payments.update(id, updates);
@@ -708,7 +711,7 @@ export const db = {
     get: async (participantId: string): Promise<MedicalRecord | undefined> => {
       if (supabase) {
         const { data, error } = await supabase.from('medical_records').select('*').eq('participant_id', participantId).maybeSingle();
-        if (error) throw error;
+        if (error) throw new Error(describeError(error));
         return data || undefined;
       }
       return mockStore.medical.get(participantId);
@@ -720,7 +723,7 @@ export const db = {
           .insert([{ participant_id: participantId, conditions: med.conditions || 'None', allergies: med.allergies || 'None', blood_type: med.blood_type || 'O+', has_clearance: med.has_clearance }])
           .select()
           .single();
-        if (error) throw error;
+        if (error) throw new Error(describeError(error));
         return data;
       }
       return mockStore.medical.create(participantId, med);
@@ -728,7 +731,7 @@ export const db = {
     update: async (id: string, updates: Partial<MedicalRecord>): Promise<MedicalRecord> => {
       if (supabase) {
         const { data, error } = await supabase.from('medical_records').update(updates).eq('id', id).select().single();
-        if (error) throw error;
+        if (error) throw new Error(describeError(error));
         return data;
       }
       return mockStore.medical.update(id, updates);
@@ -740,7 +743,7 @@ export const db = {
     list: async (participantId: string): Promise<Document[]> => {
       if (supabase) {
         const { data, error } = await supabase.from('documents').select('*').eq('participant_id', participantId);
-        if (error) throw error;
+        if (error) throw new Error(describeError(error));
         return data || [];
       }
       return mockStore.documents.list(participantId);
@@ -752,7 +755,7 @@ export const db = {
           .insert([{ participant_id: participantId, name, doc_type: docType, file_url: fileUrl }])
           .select()
           .single();
-        if (error) throw error;
+        if (error) throw new Error(describeError(error));
         return data;
       }
       return mockStore.documents.upload(participantId, name, docType, fileUrl);
@@ -760,7 +763,7 @@ export const db = {
     delete: async (id: string): Promise<void> => {
       if (supabase) {
         const { error } = await supabase.from('documents').delete().eq('id', id);
-        if (error) throw error;
+        if (error) throw new Error(describeError(error));
         return;
       }
       return mockStore.documents.delete(id);
@@ -778,7 +781,7 @@ export const db = {
           .select('*')
           .eq('participant_id', participantId)
           .order('created_at', { ascending: false });
-        if (error) throw error;
+        if (error) throw new Error(describeError(error));
         return data || [];
       }
       return mockStore.activityLogs.list(participantId);
@@ -792,7 +795,7 @@ export const db = {
           .insert([{ participant_id: validParticipantId, operator_name: operatorName, action, details }])
           .select()
           .single();
-        if (error) throw error;
+        if (error) throw new Error(describeError(error));
         return data;
       }
       return mockStore.activityLogs.log(participantId, operatorName, action, details);
@@ -807,7 +810,7 @@ export const db = {
           .from('audit_logs')
           .select('*')
           .order('created_at', { ascending: false });
-        if (error) throw error;
+        if (error) throw new Error(describeError(error));
         return data || [];
       }
       return mockStore.audit.list();
@@ -826,7 +829,7 @@ export const db = {
           }])
           .select()
           .single();
-        if (error) throw error;
+        if (error) throw new Error(describeError(error));
         return data;
       }
       return mockStore.audit.log(operator, action, tableName, recordId, oldValues, newValues);
@@ -839,7 +842,7 @@ export const db = {
       if (supabase) {
         try {
           const { data, error } = await supabase.from('bouts').select('*');
-          if (error) throw error;
+          if (error) throw new Error(describeError(error));
           return data || [];
         } catch (e: unknown) {
           console.warn('Supabase bouts list error, falling back to mockStore:', describeError(e));
@@ -850,7 +853,7 @@ export const db = {
     listForCategory: async (catId: string): Promise<Bout[]> => {
       if (supabase) {
         const { data, error } = await supabase.from('bouts').select('*').eq('category_id', catId).order('bout_no');
-        if (error) throw error;
+        if (error) throw new Error(describeError(error));
         return data || [];
       }
       return mockStore.bouts.listForCategory(catId);
@@ -858,7 +861,7 @@ export const db = {
     clearDraw: async (catId: string): Promise<void> => {
       if (supabase) {
         const { error } = await supabase.from('bouts').delete().eq('category_id', catId);
-        if (error) throw error;
+        if (error) throw new Error(describeError(error));
         return;
       }
       return mockStore.bouts.clearDraw(catId);
@@ -943,7 +946,7 @@ export const db = {
           .from('participant_categories')
           .select('participant_id')
           .eq('category_id', catId);
-        if (mapErr) throw mapErr;
+        if (mapErr) throw new Error(describeError(mapErr));
 
         console.log('[dbClient.generateDraw] Supabase mappings fetched count:', mappings?.length || 0);
         const participantIds = (mappings || []).map(m => m.participant_id);
@@ -967,7 +970,7 @@ export const db = {
 
         await supabase.from('bouts').delete().eq('category_id', catId);
         const { data, error } = await supabase.from('bouts').insert(generatedWithoutId).select();
-        if (error) throw error;
+        if (error) throw new Error(describeError(error));
 
         const savedBouts = data || [];
         // Sync local storage / mockStore cache
@@ -983,7 +986,7 @@ export const db = {
           await supabase.from('bouts').delete().eq('category_id', catId).eq('round_no', 98);
           const generatedWithoutId = generated.map(({ id, ...rest }) => rest);
           const { data, error } = await supabase.from('bouts').insert(generatedWithoutId).select();
-          if (error) throw error;
+          if (error) throw new Error(describeError(error));
           const saved = data || [];
           const { data: allDbBouts } = await supabase.from('bouts').select('*');
           if (allDbBouts) {
@@ -1085,7 +1088,7 @@ export const db = {
             }
           }
 
-          if (error) throw error;
+          if (error) throw new Error(describeError(error));
           return data;
         } catch (e: unknown) {
           console.warn('Supabase bouts table update result error, falling back to mockStore:', describeError(e));
@@ -1211,7 +1214,7 @@ export const db = {
             status: 'Scheduled'
           }).eq('id', boutId).select().single();
 
-          if (error) throw error;
+          if (error) throw new Error(describeError(error));
           return data;
         } catch (e: unknown) {
           console.warn('Supabase bouts table reset error, falling back to mockStore:', describeError(e));
@@ -1236,7 +1239,7 @@ export const db = {
     list: async (): Promise<Official[]> => {
       if (supabase) {
         const { data, error } = await supabase.from('officials').select('*');
-        if (error) throw error;
+        if (error) throw new Error(describeError(error));
         return data || [];
       }
       return mockStore.officials.list();
@@ -1244,7 +1247,7 @@ export const db = {
     add: async (off: Omit<Official, 'id'>): Promise<Official> => {
       if (supabase) {
         const { data, error } = await supabase.from('officials').insert([off]).select().single();
-        if (error) throw error;
+        if (error) throw new Error(describeError(error));
         return data;
       }
       return mockStore.officials.add(off);
@@ -1252,7 +1255,7 @@ export const db = {
     update: async (id: string, updates: Partial<Official>): Promise<Official> => {
       if (supabase) {
         const { data, error } = await supabase.from('officials').update(updates).eq('id', id).select().single();
-        if (error) throw error;
+        if (error) throw new Error(describeError(error));
         return data;
       }
       return mockStore.officials.update(id, updates);
@@ -1260,7 +1263,7 @@ export const db = {
     delete: async (id: string): Promise<void> => {
       if (supabase) {
         const { error } = await supabase.from('officials').delete().eq('id', id);
-        if (error) throw error;
+        if (error) throw new Error(describeError(error));
         return;
       }
       return mockStore.officials.delete(id);
@@ -1276,7 +1279,7 @@ export const db = {
             .from('tournaments')
             .select('id, name, organizer, status, date, date_iso, venue, city, featured, deleted_at, settings, registration_close, registration_close_iso, discipline, medals_gold, medals_silver, medals_bronze, total_participants, total_clubs');
 
-          if (error) throw error;
+          if (error) throw new Error(describeError(error));
           return data || [];
         } catch (e: unknown) {
           console.warn('Supabase tournaments table list error, falling back to mockStore:', describeError(e));
@@ -1288,7 +1291,7 @@ export const db = {
       if (supabase) {
         try {
           const { data, error } = await supabase.from('tournaments').insert([tour]).select().single();
-          if (error) throw error;
+          if (error) throw new Error(describeError(error));
           return data;
         } catch (e: unknown) {
           console.warn('Supabase tournaments table add error, falling back to mockStore:', describeError(e));
@@ -1300,7 +1303,7 @@ export const db = {
       if (supabase) {
         try {
           const { data, error } = await supabase.from('tournaments').update(updates).eq('id', id).select().single();
-          if (error) throw error;
+          if (error) throw new Error(describeError(error));
           return data;
         } catch (e: unknown) {
           console.warn('Supabase tournaments table update error, falling back to mockStore:', describeError(e));
@@ -1312,7 +1315,7 @@ export const db = {
       if (supabase) {
         try {
           const { error } = await supabase.from('tournaments').delete().eq('id', id);
-          if (error) throw error;
+          if (error) throw new Error(describeError(error));
           return;
         } catch (e: unknown) {
           console.warn('Supabase tournaments table delete error, falling back to mockStore:', describeError(e));

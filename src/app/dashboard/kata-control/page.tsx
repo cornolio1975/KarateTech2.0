@@ -27,7 +27,6 @@ export const KataControlPanelContent = React.forwardRef<ScoreboardRef, { boutId?
   const searchParams = useSearchParams();
   const router = useRouter();
   const boutId = propBoutId || searchParams.get('boutId');
-  const urlBoutId = searchParams.get('boutId');
   const catId = searchParams.get('catId');
   const { tournamentName, acquireLock, releaseLock, activeTournamentId } = useTournament();
   
@@ -216,7 +215,7 @@ export const KataControlPanelContent = React.forwardRef<ScoreboardRef, { boutId?
       });
 
       if (bList.length > 0) {
-        const targetBout = urlBoutId ? bList.find(b => b.id === urlBoutId) : null;
+        const targetBout = boutId ? bList.find(b => b.id === boutId) : null;
         const activeBout = targetBout || kataOnlyBouts.find(b => b.status === 'Running') || kataOnlyBouts[0] || bList[0];
         if (activeBout) {
           selectBout(activeBout);
@@ -246,13 +245,13 @@ export const KataControlPanelContent = React.forwardRef<ScoreboardRef, { boutId?
   }, []);
 
   useEffect(() => {
-    if (urlBoutId && bouts.length > 0) {
-      const targetBout = bouts.find(b => b.id === urlBoutId);
+    if (boutId && bouts.length > 0) {
+      const targetBout = bouts.find(b => b.id === boutId);
       if (targetBout && targetBout.id !== selectedBoutId) {
         selectBout(targetBout);
       }
     }
-  }, [urlBoutId, bouts]);
+  }, [boutId, bouts, selectedBoutId]);
 
   const selectBout = (bout: Bout) => {
     setCurrentBout(bout);

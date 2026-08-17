@@ -8,7 +8,7 @@ import {
   Search, SlidersHorizontal, Download, Upload, MoreHorizontal, 
   Plus, Bell, Moon, Sun, ChevronDown, CheckCircle, AlertTriangle, Menu, Home, Globe, ExternalLink, Tv
 } from 'lucide-react';
-import { db } from '@/db/dbClient';
+import { db, describeError } from '@/db/dbClient';
 
 interface TopBarProps {
   onImportClick?: () => void;
@@ -68,7 +68,7 @@ export default function TopBar({ onImportClick, onMenuToggle }: TopBarProps) {
         alert(`Sending print request for ID Cards / Certificates for ${selectedIds.length} participant(s).`);
       }
     } catch (e: any) {
-      alert(`Bulk operation failed: ${e.message}`);
+      alert(`Bulk operation failed: ${describeError(e)}`);
     }
     setIsBulkOpen(false);
   };

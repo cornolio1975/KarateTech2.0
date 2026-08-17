@@ -1,5 +1,6 @@
 import { createClient } from '@/utils/supabase/client';
 import { TournamentPC, CategoryLock } from '@/db/types';
+import { describeError } from '@/db/dbClient';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
@@ -30,12 +31,22 @@ export async function registerPC(pcIdentifier: string, pcName: string, tournamen
     .select()
     .single();
 
-  if (error) throw error;
+  if (error) throw new Error(describeError(error));
   return data as TournamentPC;
+}
+
+const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+async function resolvePcId(pcIdentifierOrId: string): Promise<string> {
+  if (!supabase) return pcIdentifierOrId;
+  if (uuidRegex.test(pcIdentifierOrId)) return pcIdentifierOrId;
+  const { data } = await supabase.from('tournament_pcs').select('id').eq('pc_identifier', pcIdentifierOrId).maybeSingle();
+  return data?.id || pcIdentifierOrId;
 }
 
 export async function heartbeat(pcId: string): Promise<void> {
   if (!supabase) return;
+  const actualPcId = await resolvePcId(pcId);
   await supabase
     .from('tournament_pcs')
     .update({ 
@@ -43,7 +54,7 @@ export async function heartbeat(pcId: string): Promise<void> {
       status: 'online',
       updated_at: new Date().toISOString()
     })
-    .eq('id', pcId);
+    .eq('id', actualPcId);
 }
 
 export async function overrideLock(tournamentId: string, categoryId: string, operatorUsername: string): Promise<void> {
@@ -58,18 +69,20 @@ export async function overrideLock(tournamentId: string, categoryId: string, ope
     .eq('tournament_id', tournamentId)
     .eq('category_id', categoryId)
     .eq('is_active', true);
-  if (error) throw error;
+  if (error) throw new Error(describeError(error));
 }
 
 export async function acquireLockAction(tournamentId: string, categoryId: string, pcId: string, tatami?: string, username?: string): Promise<{ success: boolean; lock?: CategoryLock }> {
   if (!supabase) return { success: true };
   
+  const actualPcId = await resolvePcId(pcId);
+
   const { data, error } = await supabase
     .from('category_locks')
     .insert([{
       tournament_id: tournamentId,
       category_id: categoryId,
-      pc_id: pcId,
+      pc_id: actualPcId,
       tatami: tatami || null,
       username: username || null,
       is_active: true
@@ -88,18 +101,18 @@ export async function acquireLockAction(tournamentId: string, categoryId: string
         .eq('is_active', true)
         .maybeSingle();
         
-      if (existing && existing.pc_id === pcId) {
+      if (existing && existing.pc_id === actualPcId) {
         return { success: true };
       }
       return { success: false };
     }
-    throw error;
+    throw new Error(describeError(error));
   }
 
   await supabase
     .from('tournament_pcs')
     .update({ current_category_id: categoryId, updated_at: new Date().toISOString() })
-    .eq('id', pcId);
+    .eq('id', actualPcId);
 
   return { success: true, lock: data };
 }
@@ -118,17 +131,19 @@ export async function releaseLockAction(tournamentId: string, categoryId: string
     .eq('is_active', true);
   
   if (pcId) {
-    query = query.eq('pc_id', pcId);
+    const actualPcId = await resolvePcId(pcId);
+    query = query.eq('pc_id', actualPcId);
   }
 
   const { error } = await query;
-  if (error) throw error;
+  if (error) throw new Error(describeError(error));
 
   if (pcId) {
+    const actualPcId = await resolvePcId(pcId);
     await supabase
       .from('tournament_pcs')
       .update({ current_category_id: null, updated_at: new Date().toISOString() })
-      .eq('id', pcId);
+      .eq('id', actualPcId);
   }
 }
 
@@ -143,7 +158,7 @@ export async function getActiveLocks(tournamentId: string): Promise<CategoryLock
     .eq('tournament_id', tournamentId)
     .eq('is_active', true);
   
-  if (error) throw error;
+  if (error) throw new Error(describeError(error));
   return data || [];
 }
 
@@ -157,6 +172,6 @@ export async function getPcs(tournamentId?: string): Promise<TournamentPC[]> {
   }
   
   const { data, error } = await query;
-  if (error) throw error;
+  if (error) throw new Error(describeError(error));
   return data || [];
 }

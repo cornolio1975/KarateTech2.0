@@ -207,19 +207,28 @@ export default function AdminDashboard() {
     const pc = pcs.find(p => p.tatami === `Tatami ${tNum}` || p.pc_identifier === `tatami_${tNum}`);
     
     let lastSeen = 0;
-    if (tele?.lastHeartbeat) {
-      lastSeen = new Date(tele.lastHeartbeat).getTime();
-    } else if (localTele?.lastHeartbeat) {
-      lastSeen = new Date(localTele.lastHeartbeat).getTime();
-    } else if (pc) {
+    let latestStatus = 'disconnected';
+    let mostRecentData: any = null;
+
+    const candidates = [];
+    if (tele?.lastHeartbeat) candidates.push({ time: new Date(tele.lastHeartbeat).getTime(), status: tele.status, data: tele });
+    if (localTele?.lastHeartbeat) candidates.push({ time: new Date(localTele.lastHeartbeat).getTime(), status: localTele.status, data: localTele });
+    if (pc) {
       const rawDate = pc.last_heartbeat || pc.updated_at;
       const dateStr = (rawDate.endsWith('Z') || rawDate.includes('+')) ? rawDate : rawDate + 'Z';
-      lastSeen = new Date(dateStr).getTime();
+      candidates.push({ time: new Date(dateStr).getTime(), status: pc.status, data: { isDbPc: true, categoryId: pc.current_category_id } });
+    }
+
+    if (candidates.length > 0) {
+      const mostRecent = candidates.reduce((a, b) => a.time > b.time ? a : b);
+      lastSeen = mostRecent.time;
+      latestStatus = mostRecent.status;
+      mostRecentData = mostRecent.data;
     }
 
     const secondsAgo = lastSeen > 0 ? Math.max(0, Math.floor((currentTime - lastSeen) / 1000)) : 999;
-    const isOnline = tele?.status !== 'disconnected' && secondsAgo <= 30;
-    const isTakenOver = takeoverTatami === tNum || tele?.status === 'taken_over' || tele?.isAdminControlled;
+    const isOnline = latestStatus !== 'disconnected' && secondsAgo <= 30;
+    const isTakenOver = takeoverTatami === tNum || latestStatus === 'taken_over' || tele?.isAdminControlled;
 
     let timeAgoStr = '';
     if (lastSeen === 0 || secondsAgo > 300) timeAgoStr = 'Offline';
@@ -230,14 +239,24 @@ export default function AdminDashboard() {
     // Find active category for this tatami
     const assignedCat = categories.find(c => (c as any).assigned_tatami === `Tatami ${tNum}`);
     const activeLock = locks.find(l => l.tatami === `Tatami ${tNum}` && l.is_active);
-    const lockedCat = activeLock ? categories.find(c => c.id === activeLock.category_id) : null;
-    const activeCategoryName = tele?.currentCategoryName || localTele?.currentCategoryName || assignedCat?.name || lockedCat?.name || 'No active category assigned';
+    
+    let lockedCat = activeLock ? categories.find(c => c.id === activeLock.category_id) : null;
+    if (!lockedCat && mostRecentData?.isDbPc && mostRecentData.categoryId) {
+      lockedCat = categories.find(c => c.id === mostRecentData.categoryId);
+    }
+    
+    const telemetryCatName = mostRecentData?.isDbPc ? null : mostRecentData?.currentCategoryName;
+    const activeCategoryName = telemetryCatName || lockedCat?.name || assignedCat?.name || 'No active category assigned';
 
     // Find active bout for this tatami
     const activeBout = bouts.find(b => b.tatami === `Tatami ${tNum}` && b.status === 'Running') ||
                        bouts.find(b => (b.category_id === assignedCat?.id || b.category_id === lockedCat?.id) && b.status === 'Running');
-    const matchCode = tele?.currentMatchCode || localTele?.currentMatchCode || (activeBout ? `R${activeBout.round_no}B${activeBout.bout_no}` : 'Waiting for Match');
-    const screenState = tele?.currentScreenState || localTele?.currentScreenState || (activeBout ? 'Kumite Scoreboard (Live)' : 'Operator Console 2.0');
+    
+    const telemetryMatchCode = mostRecentData?.isDbPc ? null : mostRecentData?.currentMatchCode;
+    const matchCode = telemetryMatchCode || (activeBout ? `R${activeBout.round_no}B${activeBout.bout_no}` : 'Waiting for Match');
+    
+    const telemetryScreenState = mostRecentData?.isDbPc ? null : mostRecentData?.currentScreenState;
+    const screenState = telemetryScreenState || (activeBout ? 'Kumite Scoreboard (Live)' : 'Operator Console 2.0');
 
     return {
       tNum,
