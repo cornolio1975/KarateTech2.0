@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { db } from '@/db/dbClient';
 import { Bout, Category, Participant, isKataCategory, isKumiteCategory } from '@/db/types';
-import { CalendarDays, Save, Sparkles, Clock, RefreshCw, Layers, X, Search, CheckCircle2, AlertCircle } from 'lucide-react';
+import { CalendarDays, Save, Sparkles, Clock, RefreshCw, Layers, X, Search, CheckCircle2, AlertCircle, Trash2, RotateCcw } from 'lucide-react';
 import { useTournament } from '@/context/TournamentContext';
 
 export default function SchedulePage() {
@@ -121,6 +121,52 @@ export default function SchedulePage() {
     } catch (err: any) {
       console.error('Error saving schedule:', err);
       alert('Error saving schedule: ' + (err?.message || 'Database error'));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleResetAllSchedules = async () => {
+    if (!confirm('Are you sure you want to reset all schedules? All match times and tatami assignments will be cleared.')) return;
+    try {
+      setLoading(true);
+      await (db.bouts as any).resetAllSchedules();
+      await loadData();
+      if (typeof window !== 'undefined') {
+        const channel = new BroadcastChannel('kt-schedule-sync');
+        channel.postMessage({ type: 'SCHEDULE_RESET' });
+        channel.close();
+      }
+      setWizardMessage({
+        type: 'success',
+        text: 'All match schedules and tatami assignments have been reset successfully!'
+      });
+      setTimeout(() => setWizardMessage(null), 5000);
+    } catch (e: any) {
+      alert('Error resetting schedules: ' + (e?.message || 'Database error'));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDeleteAllMatches = async () => {
+    if (!confirm('Are you sure you want to DELETE ALL matches and bracket draws? This cannot be undone and will give you a clean slate.')) return;
+    try {
+      setLoading(true);
+      await (db.bouts as any).clearAllBouts();
+      await loadData();
+      if (typeof window !== 'undefined') {
+        const channel = new BroadcastChannel('kt-schedule-sync');
+        channel.postMessage({ type: 'ALL_BOUTS_DELETED' });
+        channel.close();
+      }
+      setWizardMessage({
+        type: 'success',
+        text: 'All match records deleted successfully. Ready to start fresh!'
+      });
+      setTimeout(() => setWizardMessage(null), 5000);
+    } catch (e: any) {
+      alert('Error deleting matches: ' + (e?.message || 'Database error'));
     } finally {
       setLoading(false);
     }
@@ -307,19 +353,45 @@ export default function SchedulePage() {
     <div className="p-6 space-y-6 text-foreground w-full min-h-[calc(100vh-64px)] flex flex-col overflow-y-auto">
       
       {/* Title */}
-      <div className="flex items-center justify-between shrink-0">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 shrink-0">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Match Scheduler</h1>
           <p className="text-sm text-muted-foreground">Assign tatami rings, configure timing orders, and bulk schedule category bouts.</p>
         </div>
-        <button
-          onClick={loadData}
-          disabled={loading}
-          className="p-2 hover:bg-secondary border border-border text-muted-foreground hover:text-foreground rounded-lg transition-colors cursor-pointer flex items-center gap-1.5 text-xs font-semibold"
-        >
-          <RefreshCw className={`h-3.5 w-3.5 ${loading ? 'animate-spin' : ''}`} />
-          <span>Refresh</span>
-        </button>
+        <div className="flex items-center gap-2 flex-wrap">
+          {canModify && (
+            <>
+              <button
+                onClick={handleResetAllSchedules}
+                disabled={loading || bouts.length === 0}
+                className="px-2.5 py-1.5 bg-secondary hover:bg-yellow-500/15 text-muted-foreground hover:text-yellow-400 border border-border rounded-lg transition-colors cursor-pointer flex items-center gap-1 text-xs font-semibold disabled:opacity-50"
+                title="Reset all match times and tatami assignments"
+              >
+                <RotateCcw className="h-3.5 w-3.5" />
+                <span>Reset Schedules</span>
+              </button>
+
+              <button
+                onClick={handleDeleteAllMatches}
+                disabled={loading || bouts.length === 0}
+                className="px-2.5 py-1.5 bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/30 rounded-lg transition-colors cursor-pointer flex items-center gap-1 text-xs font-semibold disabled:opacity-50"
+                title="Delete all match and bracket records"
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+                <span>Delete All Matches</span>
+              </button>
+            </>
+          )}
+
+          <button
+            onClick={loadData}
+            disabled={loading}
+            className="px-2.5 py-1.5 hover:bg-secondary border border-border text-muted-foreground hover:text-foreground rounded-lg transition-colors cursor-pointer flex items-center gap-1 text-xs font-semibold"
+          >
+            <RefreshCw className={`h-3.5 w-3.5 ${loading ? 'animate-spin' : ''}`} />
+            <span>Refresh</span>
+          </button>
+        </div>
       </div>
 
       <div className={`grid grid-cols-1 ${canModify ? 'lg:grid-cols-3' : 'lg:grid-cols-1'} gap-6 min-h-0 flex-1`}>

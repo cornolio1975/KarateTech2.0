@@ -863,6 +863,45 @@ export const db = {
       }
       return mockStore.bouts.clearDraw(catId);
     },
+    clearAllBouts: async (): Promise<void> => {
+      if (supabase) {
+        try {
+          const { data } = await supabase.from('bouts').select('id');
+          if (data && data.length > 0) {
+            const ids = data.map(b => b.id);
+            await supabase.from('bouts').delete().in('id', ids);
+          }
+        } catch (e) {
+          console.warn('Supabase clearAllBouts error:', e);
+        }
+      }
+      mockStore.bouts.clearAllBouts();
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('ts_bouts', JSON.stringify([]));
+      }
+    },
+    resetAllSchedules: async (): Promise<void> => {
+      if (supabase) {
+        try {
+          const { data } = await supabase.from('bouts').select('id');
+          if (data && data.length > 0) {
+            const ids = data.map(b => b.id);
+            await supabase.from('bouts').update({ tatami: null, scheduled_time: null }).in('id', ids);
+          }
+        } catch (e) {
+          console.warn('Supabase resetAllSchedules error:', e);
+        }
+      }
+      mockStore.bouts.resetAllSchedules();
+      if (typeof window !== 'undefined') {
+        const stored = localStorage.getItem('ts_bouts');
+        if (stored) {
+          const list = JSON.parse(stored);
+          const updated = list.map((b: any) => ({ ...b, tatami: null, scheduled_time: null }));
+          localStorage.setItem('ts_bouts', JSON.stringify(updated));
+        }
+      }
+    },
     generateDraw: async (catId: string, drawType: string, hasThirdPlace: boolean): Promise<Bout[]> => {
       console.log('[dbClient.generateDraw] catId:', catId, 'drawType:', drawType, 'hasThirdPlace:', hasThirdPlace, 'isSupabase:', !!supabase);
       if (supabase) {

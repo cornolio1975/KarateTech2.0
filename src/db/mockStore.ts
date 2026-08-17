@@ -1155,6 +1155,18 @@ export const mockStore = {
     clearAllDraws: (): void => {
       saveStoreData('ts_bouts', []);
     },
+    clearAllBouts: (): void => {
+      saveStoreData('ts_bouts', []);
+    },
+    resetAllSchedules: (): void => {
+      const list = getStoreData<Bout>('ts_bouts', []);
+      const updated = list.map(b => ({
+        ...b,
+        tatami: undefined,
+        scheduled_time: undefined
+      }));
+      saveStoreData('ts_bouts', updated);
+    },
     saveBouts: (catId: string, newBouts: Bout[]): void => {
       const list = getStoreData<Bout>('ts_bouts', []).filter(b => b.category_id !== catId);
       saveStoreData('ts_bouts', [...list, ...newBouts]);
