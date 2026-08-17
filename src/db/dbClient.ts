@@ -12,7 +12,7 @@ const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env
 
 export const isSupabaseConfigured = !!(supabaseUrl && supabaseAnonKey);
 
-const describeError = (error: unknown): string => {
+export const describeError = (error: unknown): string => {
   if (error instanceof Error) return error.message;
   if (typeof error === 'string') return error;
   return JSON.stringify(error);

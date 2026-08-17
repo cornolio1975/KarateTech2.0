@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { useTournament } from '@/context/TournamentContext';
-import { db } from '@/db/dbClient';
+import { db, describeError } from '@/db/dbClient';
 import { Participant, Club, Country, Category, Coach, isKataCategory, isKumiteCategory } from '@/db/types';
 import AddParticipantModal from '@/components/AddParticipantModal';
 import EditParticipantDrawer from '@/components/EditParticipantDrawer';
@@ -178,7 +178,7 @@ export default function ParticipantsPage() {
         triggerRefresh();
         loadData();
       } catch (err: any) {
-        alert(err.message);
+        alert(describeError(err));
       } finally {
         setLoading(false);
       }
@@ -196,7 +196,7 @@ export default function ParticipantsPage() {
         alert('All matching participants status set to pending.');
         triggerRefresh();
       } catch (err: any) {
-        alert(err.message);
+        alert(describeError(err));
       }
     }
   };

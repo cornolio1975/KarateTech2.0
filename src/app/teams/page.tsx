@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useTournament } from '@/context/TournamentContext';
-import { db } from '@/db/dbClient';
+import { db, describeError } from '@/db/dbClient';
 import { Team, Participant, Club, Coach } from '@/db/types';
 import { 
   Plus, UsersRound, Trophy, User, Trash2, X, Check, AlertTriangle, ShieldCheck, RefreshCw, Edit, Upload 
@@ -161,7 +161,7 @@ export default function TeamsPage() {
       setTeamName('');
       triggerRefresh();
     } catch (err: any) {
-      alert(err.message);
+      alert(describeError(err));
     } finally {
       setLoading(false);
     }
@@ -179,7 +179,7 @@ export default function TeamsPage() {
       setSelectedPartId('');
       triggerRefresh();
     } catch (err: any) {
-      alert(err.message);
+      alert(describeError(err));
     } finally {
       setLoading(false);
     }
@@ -193,7 +193,7 @@ export default function TeamsPage() {
         alert('Member removed from team.');
         triggerRefresh();
       } catch (err: any) {
-        alert(err.message);
+        alert(describeError(err));
       } finally {
         setLoading(false);
       }
@@ -207,7 +207,7 @@ export default function TeamsPage() {
       alert('Team captain updated.');
       triggerRefresh();
     } catch (err: any) {
-      alert(err.message);
+      alert(describeError(err));
     } finally {
       setLoading(false);
     }
@@ -244,7 +244,7 @@ export default function TeamsPage() {
       setEditingTeamId(null);
       triggerRefresh();
     } catch (err: any) {
-      alert(err.message);
+      alert(describeError(err));
     } finally {
       setLoading(false);
     }
@@ -260,7 +260,7 @@ export default function TeamsPage() {
       alert('Team deleted successfully.');
       triggerRefresh();
     } catch (err: any) {
-      alert(err.message);
+      alert(describeError(err));
     } finally {
       setLoading(false);
     }

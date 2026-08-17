@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { useTournament } from '@/context/TournamentContext';
-import { db, basePath } from '@/db/dbClient';
+import { db, basePath, describeError } from '@/db/dbClient';
 import { Participant, Category, Bout, Club, isKataCategory, isKumiteCategory } from '@/db/types';
 import { 
   GitPullRequest, Check, Trophy, Trash2, Edit2, Play, 
@@ -162,7 +162,7 @@ export default function DrawsPage() {
       const updatedBouts = await db.bouts.list();
       setBouts(updatedBouts);
     } catch (err: any) {
-      alert(err.message);
+      alert(describeError(err));
     } finally {
       setLoading(false);
     }
@@ -188,7 +188,7 @@ export default function DrawsPage() {
       setBouts(updatedBouts);
       alert('WKF Repechage brackets generated successfully!');
     } catch (err: any) {
-      alert(err.message);
+      alert(describeError(err));
     } finally {
       setLoading(false);
     }
@@ -218,7 +218,7 @@ export default function DrawsPage() {
         alert('No new brackets generated. Please ensure participants are registered and confirmed in categories.');
       }
     } catch (err: any) {
-      alert(err.message || 'Error generating brackets.');
+      alert(err?.message || describeError(err));
     } finally {
       setLoading(false);
     }
@@ -319,7 +319,7 @@ export default function DrawsPage() {
       const updatedBouts = await db.bouts.list();
       setBouts(updatedBouts);
     } catch (err: any) {
-      alert(err.message);
+      alert(describeError(err));
     } finally {
       setLoading(false);
     }
@@ -380,7 +380,7 @@ export default function DrawsPage() {
       const updatedBouts = await db.bouts.list();
       setBouts(updatedBouts);
     } catch (err: any) {
-      alert(err.message || 'Failed to clear all brackets.');
+      alert(err?.message || describeError(err));
     } finally {
       setLoading(false);
     }
@@ -411,7 +411,7 @@ export default function DrawsPage() {
       setBouts(updatedBouts);
       setSelectedBoutToResolve(null);
     } catch (err: any) {
-      alert(err.message);
+      alert(describeError(err));
     } finally {
       setLoading(false);
     }

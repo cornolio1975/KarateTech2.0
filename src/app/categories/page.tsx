@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { useTournament } from '@/context/TournamentContext';
 import { db } from '@/db/dbClient';
 import { Category, Participant, Club, Bout, isKumiteCategory, isKataCategory } from '@/db/types';
-import { basePath } from '@/db/dbClient';
+import { basePath, describeError } from '@/db/dbClient';
 import { 
   Plus, Tags, Merge, Split, Move, X, Check, AlertCircle, RefreshCw, Trash2, Edit2, Monitor, ChevronRight, Upload, Search, Filter, Download, Users, UserPlus, Sparkles, Settings2, Save, Lock, Unlock
 } from 'lucide-react';
@@ -167,7 +167,7 @@ export default function CategoriesPage() {
         alert("This category is currently locked by another Tatami/PC.");
       }
     } catch (err: any) {
-      alert("Error acquiring lock: " + err.message);
+      alert("Error acquiring lock: " + describeError(err));
     } finally {
       setLockingCatId(null);
     }
@@ -259,7 +259,7 @@ export default function CategoriesPage() {
       setMergedName('');
       triggerRefresh();
     } catch (err: any) {
-      alert(err.message);
+      alert(describeError(err));
     } finally {
       setLoading(false);
     }
@@ -280,7 +280,7 @@ export default function CategoriesPage() {
       setSelectedSplitId('');
       triggerRefresh();
     } catch (err: any) {
-      alert(err.message);
+      alert(describeError(err));
     } finally {
       setLoading(false);
     }
@@ -299,7 +299,7 @@ export default function CategoriesPage() {
       setMoveTargetCatId('');
       triggerRefresh();
     } catch (err: any) {
-      alert(err.message);
+      alert(describeError(err));
     } finally {
       setLoading(false);
     }
@@ -316,7 +316,7 @@ export default function CategoriesPage() {
       setEditCat(null);
       triggerRefresh();
     } catch (err: any) {
-      alert(err.message || 'Failed to update category.');
+      alert(err?.message || describeError(err));
     } finally {
       setLoading(false);
     }
@@ -347,7 +347,7 @@ export default function CategoriesPage() {
       });
       triggerRefresh();
     } catch (err: any) {
-      alert(err.message);
+      alert(describeError(err));
     } finally {
       setLoading(false);
     }
@@ -363,7 +363,7 @@ export default function CategoriesPage() {
       alert('Category deleted successfully.');
       triggerRefresh();
     } catch (err: any) {
-      alert(err.message);
+      alert(describeError(err));
     } finally {
       setLoading(false);
     }
@@ -385,7 +385,7 @@ export default function CategoriesPage() {
       alert('All categories deleted successfully.');
       triggerRefresh();
     } catch (err: any) {
-      alert(err.message || 'Failed to delete categories.');
+      alert(err?.message || describeError(err));
     } finally {
       setLoading(false);
     }
@@ -518,7 +518,7 @@ export default function CategoriesPage() {
         await loadData();
         triggerRefresh();
       } catch (err: any) {
-        alert(err.message || 'Failed to assign participants.');
+        alert(err?.message || describeError(err));
       } finally {
         setLoading(false);
       }
@@ -1985,7 +1985,7 @@ export default function CategoriesPage() {
             await db.participants.removeCategoryMapping(participantId, manageCat.id);
             await loadData();
           } catch (e: any) {
-            alert(e.message || 'Failed to remove participant.');
+            alert(e?.message || describeError(e));
           }
         };
 
@@ -1999,7 +1999,7 @@ export default function CategoriesPage() {
             setManageSelected([]);
             await loadData();
           } catch (e: any) {
-            alert(e.message || 'Failed to remove participants.');
+            alert(e?.message || describeError(e));
           }
         };
 
@@ -2011,7 +2011,7 @@ export default function CategoriesPage() {
             setEditParticipantForm({});
             await loadData();
           } catch (e: any) {
-            alert(e.message || 'Failed to update participant.');
+            alert(e?.message || describeError(e));
           }
         };
 
