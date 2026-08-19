@@ -212,6 +212,7 @@ export function TournamentProvider({ children }: { children: React.ReactNode }) 
   const [activeLocks, setActiveLocks] = useState<CategoryLock[]>([]);
   const [activeTournamentId, setActiveTournamentId] = useState<string | null>(null);
   const [takeoverTatami, setTakeoverTatamiState] = useState<1 | 2 | null>(null);
+  const [isLockedOutByAdmin, setIsLockedOutByAdmin] = useState(false);
 
   const setTakeoverTatami = useCallback((tatami: 1 | 2 | null) => {
     setTakeoverTatamiState(tatami);
@@ -540,6 +541,9 @@ export function TournamentProvider({ children }: { children: React.ReactNode }) 
 
   const takeoverTatamiPC = useCallback(async (tatamiIdNum: 1 | 2) => {
     setTakeoverTatami(tatamiIdNum);
+    if (activeTournamentId) {
+      db.pcControl.setAdminControlled(activeTournamentId, `Tatami ${tatamiIdNum}`, true).catch(console.error);
+    }
     setTatamiTelemetry(prev => ({
       ...prev,
       [tatamiIdNum]: {
@@ -562,6 +566,9 @@ export function TournamentProvider({ children }: { children: React.ReactNode }) 
 
   const releaseTatamiTakeover = useCallback(async (tatamiIdNum: 1 | 2) => {
     setTakeoverTatami(null);
+    if (activeTournamentId) {
+      db.pcControl.setAdminControlled(activeTournamentId, `Tatami ${tatamiIdNum}`, false).catch(console.error);
+    }
     setTatamiTelemetry(prev => ({
       ...prev,
       [tatamiIdNum]: {
@@ -901,7 +908,11 @@ export function TournamentProvider({ children }: { children: React.ReactNode }) 
       });
 
       if (supabase && pcId) {
-        db.pcControl.heartbeat(pcId).catch(console.error);
+        db.pcControl.heartbeat(pcId).then(res => {
+          if (res && typeof res.is_admin_controlled === 'boolean') {
+            setIsLockedOutByAdmin(res.is_admin_controlled);
+          }
+        }).catch(console.error);
       }
     }, 3000);
 
@@ -1137,6 +1148,7 @@ export function TournamentProvider({ children }: { children: React.ReactNode }) 
         setTakeoverTatami,
         tatamiTelemetry,
         updateTatamiTelemetry,
+        isLockedOutByAdmin,
         assignCategoryToTatami,
         releaseCategoryFromTatami,
         lockCategoryByAdmin,

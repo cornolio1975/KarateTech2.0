@@ -1458,8 +1458,12 @@ export const db = {
       return await pcActions.registerPC(pcIdentifier, pcName, tournamentId, tatami, userId, username);
     },
 
-    heartbeat: async (pcId: string): Promise<void> => {
+    heartbeat: async (pcId: string): Promise<{ is_admin_controlled: boolean } | void> => {
       return await pcActions.heartbeat(pcId);
+    },
+
+    setAdminControlled: async (tournamentId: string, tatami: string, isControlled: boolean): Promise<void> => {
+      return await pcActions.setAdminControlled(tournamentId, tatami, isControlled);
     },
 
     overrideLock: async (tournamentId: string, categoryId: string, operatorUsername: string): Promise<void> => {

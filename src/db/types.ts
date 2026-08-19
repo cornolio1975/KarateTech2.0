@@ -66,6 +66,7 @@ export interface Participant {
   full_name: string;
   gender: 'Male' | 'Female';
   dob: string; // YYYY-MM-DD
+  age?: number;
   nationality_code?: string;
   passport_ic: string;
   email?: string;
@@ -242,6 +243,7 @@ export interface Participant {
   full_name: string;
   gender: 'Male' | 'Female';
   dob: string; // YYYY-MM-DD
+  age?: number;
   nationality_code?: string;
   passport_ic: string;
   email?: string;

@@ -24,6 +24,7 @@ interface ParsedRow {
   medical_status: 'Cleared' | 'Review Needed';
   isKumite?: boolean;
   isKata?: boolean;
+  age?: number;
 }
 
 export default function ImportModal({ isOpen, onClose }: ImportModalProps) {
@@ -43,10 +44,10 @@ export default function ImportModal({ isOpen, onClose }: ImportModalProps) {
   if (!isOpen) return null;
 
   // Raw mock CSV sample to seed pasting - Tab-separated to match user's custom template
-  const sampleCSV = "First Name\tLast Name\tGender\tDOB\tWeight / kg\tSize / cm\tPassport/IC\tClub\tEMail\tPhone\tPayment\tMedical\tKumite\tKata\n" +
-    "Aainesh\tAainesh\tm\t2012-05-01\t46\t0\t\tSenshi Goju-Ryu\t\t60121523691\tPaid\tCleared\tYes\tNo\n" +
-    "AKILESH\tVAMATHEVAN\tm\t2008-09-06\t86\t0\t\tSenshi Goju-Ryu\t\t6011-3334445\tPaid\tCleared\tYes\tYes\n" +
-    "AKILESH ALAGAN\tVAMATHEVAN\tm\t2008-09-06\t86\t0\t80906101709\tSenshi Goju-Ryu\t\t6018-7776655\tPaid\tCleared\tNo\tYes";
+  const sampleCSV = "First Name\tLast Name\tGender\tDOB\tAge\tWeight / kg\tSize / cm\tPassport/IC\tClub\tEMail\tPhone\tPayment\tMedical\tKumite\tKata\n" +
+    "Aainesh\tAainesh\tm\t2012-05-01\t12\t46\t0\t\tSenshi Goju-Ryu\t\t60121523691\tPaid\tCleared\tYes\tNo\n" +
+    "AKILESH\tVAMATHEVAN\tm\t2008-09-06\t16\t86\t0\t\tSenshi Goju-Ryu\t\t6011-3334445\tPaid\tCleared\tYes\tYes\n" +
+    "AKILESH ALAGAN\tVAMATHEVAN\tm\t2008-09-06\t16\t86\t0\t80906101709\tSenshi Goju-Ryu\t\t6018-7776655\tPaid\tCleared\tNo\tYes";
 
   const downloadCSVTemplate = () => {
     const link = document.createElement("a");
@@ -158,6 +159,9 @@ export default function ImportModal({ isOpen, onClose }: ImportModalProps) {
         return lower === 'yes' || lower === 'y' || lower === 'true' || lower === '1';
       };
       
+      const headerLine = lines[0] ? lines[0].toLowerCase() : '';
+      const hasAgeCol = headerLine.includes('age');
+
       // Skip header line
       for (let i = 1; i < lines.length; i++) {
         const line = lines[i].trim();
@@ -171,6 +175,7 @@ export default function ImportModal({ isOpen, onClose }: ImportModalProps) {
         let fullName = '';
         let gender: 'Male' | 'Female' = 'Male';
         let dob = '2005-01-01';
+        let age: number | undefined = undefined;
         let weight = 0;
         let height = 0;
         let passport_ic = '';
@@ -183,27 +188,34 @@ export default function ImportModal({ isOpen, onClose }: ImportModalProps) {
         let isKata = false;
 
         if (cols.length >= 12) {
-          // 12+ columns: First Name, Last Name, Gender, DOB, Weight / kg, Size / cm, Passport/IC, Club, EMail, Phone, Payment, Medical, (Kumite), (Kata)
+          // 12+ columns: First Name, Last Name, Gender, DOB, [Age], Weight / kg, Size / cm, Passport/IC, Club, EMail, Phone, Payment, Medical, (Kumite), (Kata)
           fullName = buildFullName(cols[0]?.trim() || '', cols[1]?.trim() || '');
           const rawGen = cols[2]?.trim().toLowerCase();
           gender = (rawGen === 'f' || rawGen === 'female') ? 'Female' : 'Male';
           dob = cols[3]?.trim() || '2005-01-01';
-          weight = parseFloat(cols[4]?.trim()) || 0;
-          height = parseFloat(cols[5]?.trim()) || 0;
-          passport_ic = cols[6]?.trim() || '';
-          club_name = cols[7]?.trim() || 'Senshi Goju-Ryu';
-          email = cols[8]?.trim() || '';
-          phone = cols[9]?.trim() || '';
           
-          const payStr = cols[10]?.trim().toLowerCase();
+          let offset = 0;
+          if (hasAgeCol) {
+            age = parseInt(cols[4]?.trim() || '0', 10);
+            offset = 1;
+          }
+
+          weight = parseFloat(cols[4 + offset]?.trim()) || 0;
+          height = parseFloat(cols[5 + offset]?.trim()) || 0;
+          passport_ic = cols[6 + offset]?.trim() || '';
+          club_name = cols[7 + offset]?.trim() || 'Senshi Goju-Ryu';
+          email = cols[8 + offset]?.trim() || '';
+          phone = cols[9 + offset]?.trim() || '';
+          
+          const payStr = cols[10 + offset]?.trim().toLowerCase();
           payment_status = payStr === 'paid' ? 'Paid' : payStr === 'pending' ? 'Pending' : 'Unpaid';
           
-          const medStr = cols[11]?.trim().toLowerCase();
+          const medStr = cols[11 + offset]?.trim().toLowerCase();
           medical_status = medStr === 'cleared' ? 'Cleared' : 'Review Needed';
 
-          if (cols.length >= 14) {
-            isKumite = parseBoolean(cols[12]);
-            isKata = parseBoolean(cols[13]);
+          if (cols.length >= 14 + offset) {
+            isKumite = parseBoolean(cols[12 + offset]);
+            isKata = parseBoolean(cols[13 + offset]);
           }
         } else {
           // Comma layout or standard (11+ columns: Full Name, Gender, DOB, Weight, Height, Passport/IC, Club, Email, Phone, Payment, Medical, (Kumite), (Kata))
@@ -236,6 +248,7 @@ export default function ImportModal({ isOpen, onClose }: ImportModalProps) {
           full_name: fullName,
           gender,
           dob,
+          age,
           weight,
           height,
           passport_ic,
@@ -301,6 +314,7 @@ export default function ImportModal({ isOpen, onClose }: ImportModalProps) {
           full_name: row.full_name,
           gender: row.gender,
           dob: row.dob,
+          age: row.age,
           weight: row.weight,
           height: row.height,
           passport_ic: row.passport_ic || '',
@@ -466,39 +480,57 @@ export default function ImportModal({ isOpen, onClose }: ImportModalProps) {
               {/* Data Preview Table */}
               <div className="flex-1 border border-border rounded-lg overflow-hidden flex flex-col bg-card">
                 <div className="overflow-x-auto overflow-y-auto max-h-[300px]">
-                  <table className="w-full text-left border-collapse text-xs">
+                  <table className="w-full min-w-max text-left border-collapse text-xs">
                     <thead className="bg-secondary/40 sticky top-0 border-b border-border">
                       <tr>
-                        <th className="p-3 font-semibold text-muted-foreground">Full Name</th>
-                        <th className="p-3 font-semibold text-muted-foreground">Gender</th>
-                        <th className="p-3 font-semibold text-muted-foreground">DOB</th>
-                        <th className="p-3 font-semibold text-muted-foreground">Weight</th>
-                        <th className="p-3 font-semibold text-muted-foreground">Height</th>
-                        <th className="p-3 font-semibold text-muted-foreground">Passport/IC</th>
-                        <th className="p-3 font-semibold text-muted-foreground">Club</th>
-                        <th className="p-3 font-semibold text-muted-foreground">Payment</th>
+                        <th className="p-3 font-semibold text-muted-foreground whitespace-nowrap">Full Name</th>
+                        <th className="p-3 font-semibold text-muted-foreground whitespace-nowrap">Gender</th>
+                        <th className="p-3 font-semibold text-muted-foreground whitespace-nowrap">DOB</th>
+                        <th className="p-3 font-semibold text-muted-foreground whitespace-nowrap">Age</th>
+                        <th className="p-3 font-semibold text-muted-foreground whitespace-nowrap">Weight</th>
+                        <th className="p-3 font-semibold text-muted-foreground whitespace-nowrap">Height</th>
+                        <th className="p-3 font-semibold text-muted-foreground whitespace-nowrap">Passport/IC</th>
+                        <th className="p-3 font-semibold text-muted-foreground whitespace-nowrap">Club</th>
+                        <th className="p-3 font-semibold text-muted-foreground whitespace-nowrap">Payment</th>
+                        <th className="p-3 font-semibold text-muted-foreground whitespace-nowrap">Medical</th>
+                        <th className="p-3 font-semibold text-muted-foreground whitespace-nowrap">Kumite</th>
+                        <th className="p-3 font-semibold text-muted-foreground whitespace-nowrap">Kata</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-border">
                       {previewRows.map((row, idx) => (
                         <tr key={idx} className="hover:bg-secondary/20">
-                          <td className="p-3 font-medium">{row.full_name}</td>
-                          <td className="p-3">{row.gender}</td>
-                          <td className="p-3 font-mono">{row.dob}</td>
-                          <td className="p-3 font-mono">{row.weight} kg</td>
-                          <td className="p-3 font-mono">{row.height} cm</td>
-                          <td className="p-3 font-mono">
+                          <td className="p-3 font-medium whitespace-nowrap">{row.full_name}</td>
+                          <td className="p-3 whitespace-nowrap">{row.gender}</td>
+                          <td className="p-3 font-mono whitespace-nowrap">{row.dob}</td>
+                          <td className="p-3 font-mono whitespace-nowrap">{row.age ?? '-'}</td>
+                          <td className="p-3 font-mono whitespace-nowrap">{row.weight} kg</td>
+                          <td className="p-3 font-mono whitespace-nowrap">{row.height} cm</td>
+                          <td className="p-3 font-mono whitespace-nowrap">
                             {row.passport_ic ? row.passport_ic : (
                               <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-700 dark:bg-amber-950/30 dark:text-amber-400">IC Pending</span>
                             )}
                           </td>
-                          <td className="p-3">{row.club_name}</td>
-                          <td className="p-3">
+                          <td className="p-3 whitespace-nowrap">{row.club_name}</td>
+                          <td className="p-3 whitespace-nowrap">
                             <span className={`px-2 py-0.5 rounded-full text-[10px] font-medium ${
                               row.payment_status === 'Paid' ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/20 dark:text-emerald-400' : 'bg-amber-100 text-amber-800 dark:bg-amber-950/20 dark:text-amber-400'
                             }`}>
                               {row.payment_status}
                             </span>
+                          </td>
+                          <td className="p-3 whitespace-nowrap">
+                            <span className={`px-2 py-0.5 rounded-full text-[10px] font-medium ${
+                              row.medical_status === 'Cleared' ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/20 dark:text-emerald-400' : 'bg-amber-100 text-amber-800 dark:bg-amber-950/20 dark:text-amber-400'
+                            }`}>
+                              {row.medical_status}
+                            </span>
+                          </td>
+                          <td className="p-3 whitespace-nowrap">
+                            {row.isKumite ? <span className="text-emerald-500 font-bold">Y</span> : <span className="text-muted-foreground">N</span>}
+                          </td>
+                          <td className="p-3 whitespace-nowrap">
+                            {row.isKata ? <span className="text-emerald-500 font-bold">Y</span> : <span className="text-muted-foreground">N</span>}
                           </td>
                         </tr>
                       ))}

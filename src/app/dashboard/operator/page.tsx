@@ -57,7 +57,8 @@ export default function OperatorConsolePage() {
     tatamiId, 
     takeoverTatami, 
     userRole, 
-    updateTatamiTelemetry 
+    updateTatamiTelemetry,
+    isLockedOutByAdmin
   } = useTournament();
 
   const [mounted, setMounted] = useState(false);
@@ -790,7 +791,21 @@ export default function OperatorConsolePage() {
   if (!mounted) return null;
 
   return (
-    <div className="h-[100dvh] w-full bg-[#090b0f] text-white flex flex-col overflow-hidden select-none" style={{ fontFamily: 'system-ui, sans-serif' }}>
+    <div className="h-[100dvh] w-full bg-[#090b0f] text-white flex flex-col overflow-hidden select-none relative" style={{ fontFamily: 'system-ui, sans-serif' }}>
+      
+      {/* ADMIN TAKEOVER OVERLAY */}
+      {isLockedOutByAdmin && (
+        <div className="absolute inset-0 z-[9999] bg-black/80 backdrop-blur-sm flex flex-col items-center justify-center pointer-events-auto">
+          <div className="bg-red-900/90 border border-red-500 rounded-2xl p-8 max-w-lg text-center shadow-2xl shadow-red-900/50">
+            <Lock className="w-20 h-20 text-red-400 mx-auto mb-4 animate-pulse" />
+            <h2 className="text-3xl font-black text-white tracking-widest mb-2">TATAMI TAKEN OVER</h2>
+            <p className="text-red-200 font-medium text-lg">
+              The Tournament Director has taken remote control of this Tatami. 
+              Local controls are temporarily disabled to prevent conflicts.
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* TOP BAR */}
       <header className="flex items-center justify-between px-3 py-1.5 bg-[#0c0f14] border-b border-white/10 shrink-0 z-20">

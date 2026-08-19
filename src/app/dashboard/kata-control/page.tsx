@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { db, basePath } from '@/db/dbClient';
 import { Bout, Participant, Category, Club, isKataCategory } from '@/db/types';
-import { Zap, Play, Check, ShieldAlert, Award, ArrowRight, RefreshCw, Calendar, MapPin, Tv, Trophy, Sparkles, CheckCircle2, ChevronRight, FileText, Flag, Save, RotateCcw, Square, Maximize2, Minimize2 } from 'lucide-react';
+import { Zap, Play, Check, ShieldAlert, Award, ArrowRight, RefreshCw, Calendar, MapPin, Tv, Trophy, Sparkles, CheckCircle2, ChevronRight, FileText, Flag, Save, RotateCcw, Square, Maximize2, Minimize2, Lock } from 'lucide-react';
 import { useTournament } from '@/context/TournamentContext';
 import KataResultBookModal from '@/components/KataResultBookModal';
 
@@ -28,7 +28,7 @@ export const KataControlPanelContent = React.forwardRef<ScoreboardRef, { boutId?
   const router = useRouter();
   const boutId = propBoutId || searchParams.get('boutId');
   const catId = searchParams.get('catId');
-  const { tournamentName, acquireLock, releaseLock, activeTournamentId } = useTournament();
+  const { tournamentName, acquireLock, releaseLock, activeTournamentId, isLockedOutByAdmin } = useTournament();
   
   const spectatorWindowRef = React.useRef<Window | null>(null);
   const broadcastChannelRef = React.useRef<BroadcastChannel | null>(null);
@@ -719,8 +719,22 @@ export const KataControlPanelContent = React.forwardRef<ScoreboardRef, { boutId?
   });
 
   return (
-    <div className={`text-white ${onClose ? 'h-[100dvh] w-full flex flex-col p-3 bg-[#0a0c10] overflow-hidden relative justify-between' : 'min-h-screen bg-[#07070a] p-4 lg:p-6 pb-6 flex flex-col justify-between'}`}>
+    <div className={`text-white ${onClose ? 'h-[100dvh] w-full flex flex-col p-3 bg-[#0a0c10] overflow-hidden relative justify-between' : 'min-h-screen bg-[#07070a] p-4 lg:p-6 pb-6 flex flex-col justify-between relative'}`}>
       
+      {/* ADMIN TAKEOVER OVERLAY */}
+      {isLockedOutByAdmin && (
+        <div className="absolute inset-0 z-[9999] bg-black/80 backdrop-blur-sm flex flex-col items-center justify-center pointer-events-auto">
+          <div className="bg-red-900/90 border border-red-500 rounded-2xl p-8 max-w-lg text-center shadow-2xl shadow-red-900/50">
+            <Lock className="w-20 h-20 text-red-400 mx-auto mb-4 animate-pulse" />
+            <h2 className="text-3xl font-black text-white tracking-widest mb-2">TATAMI TAKEN OVER</h2>
+            <p className="text-red-200 font-medium text-lg">
+              The Tournament Director has taken remote control of this Tatami. 
+              Local controls are temporarily disabled to prevent conflicts.
+            </p>
+          </div>
+        </div>
+      )}
+
       {/* Top Banner */}
       {!onClose && (
         <div className="max-w-[1800px] w-full mx-auto mb-4 shrink-0">

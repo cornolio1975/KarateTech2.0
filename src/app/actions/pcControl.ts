@@ -44,17 +44,31 @@ async function resolvePcId(pcIdentifierOrId: string): Promise<string> {
   return data?.id || pcIdentifierOrId;
 }
 
-export async function heartbeat(pcId: string): Promise<void> {
+export async function heartbeat(pcId: string): Promise<{ is_admin_controlled: boolean } | void> {
   if (!supabase) return;
   const actualPcId = await resolvePcId(pcId);
-  await supabase
+  const { data } = await supabase
     .from('tournament_pcs')
     .update({ 
       last_heartbeat: new Date().toISOString(),
       status: 'online',
       updated_at: new Date().toISOString()
     })
-    .eq('id', actualPcId);
+    .eq('id', actualPcId)
+    .select('is_admin_controlled')
+    .single();
+
+  return { is_admin_controlled: data?.is_admin_controlled || false };
+}
+
+export async function setAdminControlled(tournamentId: string, tatami: string, isControlled: boolean): Promise<void> {
+  if (!supabase) return;
+  const { error } = await supabase
+    .from('tournament_pcs')
+    .update({ is_admin_controlled: isControlled, updated_at: new Date().toISOString() })
+    .eq('tournament_id', tournamentId)
+    .eq('tatami', tatami);
+  if (error) throw new Error(describeError(error));
 }
 
 export async function overrideLock(tournamentId: string, categoryId: string, operatorUsername: string): Promise<void> {
