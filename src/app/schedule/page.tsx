@@ -212,7 +212,17 @@ export default function SchedulePage() {
 
     // Sort bouts chronologically: earlier rounds first, then by bout number
     const targetBouts = [...rawTargetBouts].sort((a, b) => {
-      if (String(a.category_id) !== String(b.category_id)) return String(a.category_id).localeCompare(String(b.category_id));
+      if (String(a.category_id) !== String(b.category_id)) {
+        const catA = categories.find(c => String(c.id) === String(a.category_id));
+        const catB = categories.find(c => String(c.id) === String(b.category_id));
+        const ageA = catA?.min_age ?? 999;
+        const ageB = catB?.min_age ?? 999;
+        if (ageA !== ageB) return ageA - ageB;
+        
+        const nameA = catA?.name || String(a.category_id);
+        const nameB = catB?.name || String(b.category_id);
+        return nameA.localeCompare(nameB);
+      }
       if (a.round_no !== b.round_no) return a.round_no - b.round_no;
       return a.bout_no - b.bout_no;
     });
@@ -355,11 +365,23 @@ export default function SchedulePage() {
 
       return true;
     }).sort((a, b) => {
-      // Sort by scheduled time if available, then by category and bout number
+      // Sort by scheduled time if available
       if (a.scheduled_time && b.scheduled_time && a.scheduled_time !== b.scheduled_time) {
         return a.scheduled_time.localeCompare(b.scheduled_time);
       }
-      if (String(a.category_id) !== String(b.category_id)) return String(a.category_id).localeCompare(String(b.category_id));
+      
+      // If no time, or same time, sort by Category Age (low to high)
+      if (String(a.category_id) !== String(b.category_id)) {
+        const catA = categories.find(c => String(c.id) === String(a.category_id));
+        const catB = categories.find(c => String(c.id) === String(b.category_id));
+        const ageA = catA?.min_age ?? 999;
+        const ageB = catB?.min_age ?? 999;
+        if (ageA !== ageB) return ageA - ageB;
+        
+        const nameA = catA?.name || String(a.category_id);
+        const nameB = catB?.name || String(b.category_id);
+        return nameA.localeCompare(nameB);
+      }
       if (a.round_no !== b.round_no) return a.round_no - b.round_no;
       return a.bout_no - b.bout_no;
     });

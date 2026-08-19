@@ -106,17 +106,45 @@ export async function acquireLockAction(tournamentId: string, categoryId: string
 
   if (error) {
     if (error.code === '23505') { // Unique constraint violation
-      // Check if WE already own it
+      // Check if WE already own it or if the lock is stale
       const { data: existing } = await supabase
         .from('category_locks')
-        .select('pc_id')
+        .select('id, pc_id')
         .eq('tournament_id', tournamentId)
         .eq('category_id', categoryId)
         .eq('is_active', true)
         .maybeSingle();
         
-      if (existing && existing.pc_id === actualPcId) {
-        return { success: true };
+      if (existing) {
+        if (existing.pc_id === actualPcId) {
+          return { success: true };
+        }
+
+        // Check if the current owner's heartbeat is older than 60 seconds
+        if (existing.pc_id !== 'admin') {
+          const { data: pcInfo } = await supabase
+            .from('tournament_pcs')
+            .select('last_heartbeat')
+            .eq('id', existing.pc_id)
+            .maybeSingle();
+
+          if (pcInfo && pcInfo.last_heartbeat) {
+            const lastHeartbeatTime = new Date(pcInfo.last_heartbeat).getTime();
+            const now = new Date().getTime();
+            const diffSeconds = (now - lastHeartbeatTime) / 1000;
+
+            if (diffSeconds > 60) {
+              // Stale lock detected -> break it
+              await supabase
+                .from('category_locks')
+                .update({ is_active: false, released_at: new Date().toISOString() })
+                .eq('id', existing.id);
+              
+              // Retry acquisition
+              return acquireLockAction(tournamentId, categoryId, pcId, tatami, username);
+            }
+          }
+        }
       }
       return { success: false };
     }

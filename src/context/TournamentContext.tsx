@@ -321,6 +321,11 @@ export function TournamentProvider({ children }: { children: React.ReactNode }) 
     const targetPcId = tatamiNum === 1 ? 'tatami_1' : 'tatami_2';
     const targetUsername = tatamiNum === 1 ? 'tatami_1@spsportdatasolution.org' : 'tatami_2@spsportdatasolution.org';
     
+    // 0. Force break any existing lock so dbClient allows our updates
+    if (activeTournamentId) {
+      await db.pcControl.overrideLock(activeTournamentId, categoryId, 'admin');
+    }
+
     // 1. Update Category record (best-effort — assigned_tatami may not exist in Supabase schema)
     try {
       await db.categories.update(categoryId, {

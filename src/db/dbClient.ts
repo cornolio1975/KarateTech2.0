@@ -32,6 +32,29 @@ export const supabase = isSupabaseConfigured ? createClient() : null;
 const isDev = process.env.NODE_ENV === 'development';
 export const basePath = isDev ? '' : (process.env.NEXT_PUBLIC_BASE_PATH ?? '');
 
+async function verifyCategoryLock(categoryId: string): Promise<void> {
+  if (!supabase) return;
+  if (typeof window === 'undefined') return;
+
+  // Admin bypass
+  if (window.location.pathname.includes('/admin')) return;
+  const adminTakeover = localStorage.getItem('kt_admin_tatami_takeover');
+  if (adminTakeover) return;
+
+  const myTatami = `Tatami ${localStorage.getItem('kt_tatami_id') || 1}`;
+
+  const { data: lock } = await supabase
+    .from('category_locks')
+    .select('tatami')
+    .eq('category_id', categoryId)
+    .eq('is_active', true)
+    .maybeSingle();
+
+  if (lock && lock.tatami !== myTatami) {
+    throw new Error(`CATEGORY_ALREADY_LOCKED: Category is locked to ${lock.tatami}. You are on ${myTatami}.`);
+  }
+}
+
 // Global DB client interface
 import { localStore } from './localStore';
 import { TournamentDatabase } from './types';
@@ -217,6 +240,7 @@ export const db = {
     },
     update: async (id: string, updates: Partial<Category>): Promise<Category> => {
       if (supabase) {
+        await verifyCategoryLock(id);
         const { data, error } = await supabase.from('categories').update(updates).eq('id', id).select().single();
         if (error) throw new Error(describeError(error));
         return data;
@@ -1099,6 +1123,11 @@ export const db = {
     updateBoutState: async (id: string, updates: Partial<Bout>): Promise<Bout> => {
       if (supabase) {
         try {
+          const { data: currentBout } = await supabase.from('bouts').select('category_id').eq('id', id).single();
+          if (currentBout) {
+            await verifyCategoryLock(currentBout.category_id);
+          }
+
           let updatedBout: Bout | null = null;
           const { data, error } = await supabase.from('bouts').update(updates).eq('id', id).select().single();
           
@@ -1163,6 +1192,10 @@ export const db = {
     resetBoutResult: async (boutId: string, matchDuration: number): Promise<Bout> => {
       if (supabase) {
         try {
+          const { data: currentBout } = await supabase.from('bouts').select('category_id').eq('id', boutId).single();
+          if (currentBout) {
+            await verifyCategoryLock(currentBout.category_id);
+          }
           mockStore.bouts.resetBoutResult(boutId, matchDuration);
         } catch (e) {
           console.warn('Local mockStore reset skipped:', e);

@@ -28,7 +28,7 @@ export const KataControlPanelContent = React.forwardRef<ScoreboardRef, { boutId?
   const router = useRouter();
   const boutId = propBoutId || searchParams.get('boutId');
   const catId = searchParams.get('catId');
-  const { tournamentName, acquireLock, releaseLock, activeTournamentId, isLockedOutByAdmin } = useTournament();
+  const { tournamentName, acquireLock, releaseLock, activeTournamentId, isLockedOutByAdmin, activeLocks, tatamiId } = useTournament();
   
   const spectatorWindowRef = React.useRef<Window | null>(null);
   const broadcastChannelRef = React.useRef<BroadcastChannel | null>(null);
@@ -211,7 +211,14 @@ export const KataControlPanelContent = React.forwardRef<ScoreboardRef, { boutId?
       // Filter for Kata bouts only when auto-selecting default bout
       const kataOnlyBouts = bList.filter(b => {
         const cat = catList.find(c => c.id === b.category_id);
-        return isKataCategory(cat);
+        if (!isKataCategory(cat)) return false;
+        
+        // Don't auto-load bouts that are locked by other tatamis
+        const myTatami = `Tatami ${tatamiId || 1}`;
+        const lock = activeLocks.find(l => l.category_id === b.category_id && l.is_active);
+        if (lock && lock.tatami !== myTatami) return false;
+        
+        return true;
       });
 
       if (bList.length > 0) {
@@ -253,10 +260,31 @@ export const KataControlPanelContent = React.forwardRef<ScoreboardRef, { boutId?
     }
   }, [boutId, bouts, selectedBoutId]);
 
-  const selectBout = (bout: Bout) => {
+  const selectBout = async (bout: Bout) => {
+    // --- ADMIN LOCK CHECK ---
+    const myTatami = `Tatami ${tatamiId || 1}`;
+    const lock = activeLocks.find(l => l.category_id === bout.category_id && l.is_active);
+    if (lock && lock.tatami !== myTatami) {
+      if (typeof window !== 'undefined') {
+        alert(`CATEGORY ALREADY IN USE\nThis category is currently being managed by ${lock.tatami?.toUpperCase()}. Please select another category.`);
+      }
+      return;
+    }
+
+    const lockResult = await acquireLock(bout.category_id);
+    if (!lockResult.success) {
+      if (typeof window !== 'undefined') {
+        alert(`CATEGORY ALREADY IN USE\nThis category is currently being managed by another Tatami. Please select another category.`);
+      }
+      return;
+    }
+
     setCurrentBout(bout);
     setSelectedBoutId(bout.id);
     setSelectedCatId(bout.category_id);
+    if (bout.winner_id) setIsWinnerRevealed(true);
+    else setIsWinnerRevealed(false);
+    setSelectedWinnerId(bout.winner_id || null);
 
     setKataA(bout.kata_a || 'Suparinpei');
     setKataB(bout.kata_b || 'Anan Dai');
@@ -841,11 +869,11 @@ export const KataControlPanelContent = React.forwardRef<ScoreboardRef, { boutId?
             {/* Digital Countdown Timer & Controls */}
             <div className="flex items-center gap-3">
               <div className="flex flex-col items-end">
-                <div className={`flex items-baseline justify-end font-mono text-5xl sm:text-6xl lg:text-7xl font-black leading-none select-none tracking-tight ${
+                <div className={`flex items-baseline justify-end font-mono text-6xl sm:text-7xl lg:text-[90px] font-black leading-none select-none tracking-tight ${
                   timeLeft <= 150 && timeLeft > 0 ? 'text-red-500 animate-pulse drop-shadow-[0_0_25px_rgba(239,68,68,0.95)]' : 'text-white drop-shadow-[0_0_20px_rgba(255,255,255,0.5)]'
                 }`}>
                   <span>{formatMainTime(timeLeft)}</span>
-                  <span className={`text-3xl sm:text-4xl ml-1 ${timeLeft <= 150 && timeLeft > 0 ? 'text-red-500/70' : 'text-white/60'}`}>
+                  <span className={`text-4xl sm:text-5xl ml-1 ${timeLeft <= 150 && timeLeft > 0 ? 'text-red-500/70' : 'text-white/60'}`}>
                     {formatDecsTime(timeLeft)}
                   </span>
                 </div>
@@ -857,33 +885,42 @@ export const KataControlPanelContent = React.forwardRef<ScoreboardRef, { boutId?
                 </div>
               </div>
 
-              <div className="flex items-center gap-2 pl-3 border-l border-white/10">
-                {isTimerRunning ? (
+              <div className="flex flex-col gap-2 pl-3 border-l border-white/10">
+                <div className="flex items-center gap-2">
+                  {isTimerRunning ? (
+                    <button
+                      onClick={() => { setIsTimerRunning(false); if (onLogEvent) onLogEvent('TIMER', 'Match Timer Stopped'); }}
+                      className="p-2.5 sm:p-3 bg-red-600 hover:bg-red-500 text-white rounded-xl font-black transition shadow-md shadow-red-950/40 cursor-pointer"
+                      title="Stop Timer"
+                    >
+                      <Square className="h-5 w-5 fill-white" />
+                    </button>
+                  ) : (
+                    <button
+                      onClick={() => { setIsTimerRunning(true); if (onLogEvent) onLogEvent('TIMER', 'Match Timer Started'); }}
+                      disabled={timeLeft === 0}
+                      className="p-2.5 sm:p-3 bg-green-600 hover:bg-green-500 text-white disabled:opacity-40 rounded-xl font-black transition shadow-md shadow-green-950/40 cursor-pointer"
+                      title="Start Timer"
+                    >
+                      <Play className="h-5 w-5 fill-white" />
+                    </button>
+                  )}
                   <button
-                    onClick={() => { setIsTimerRunning(false); if (onLogEvent) onLogEvent('TIMER', 'Match Timer Stopped'); }}
-                    className="p-2.5 sm:p-3 bg-red-600 hover:bg-red-500 text-white rounded-xl font-black transition shadow-md shadow-red-950/40 cursor-pointer"
-                    title="Stop Timer"
+                    onClick={() => { setTimeLeft(0); if (onLogEvent) onLogEvent('TIMER', 'Match Timer Reset'); }}
+                    disabled={isTimerRunning}
+                    className="p-2.5 sm:p-3 bg-white/5 hover:bg-white/10 text-white disabled:opacity-30 rounded-xl font-black transition border border-white/10 cursor-pointer"
+                    title="Reset Timer"
                   >
-                    <Square className="h-5 w-5 fill-white" />
+                    <RotateCcw className="h-5 w-5" />
                   </button>
-                ) : (
-                  <button
-                    onClick={() => { setIsTimerRunning(true); if (onLogEvent) onLogEvent('TIMER', 'Match Timer Started'); }}
-                    disabled={timeLeft === 0}
-                    className="p-2.5 sm:p-3 bg-green-600 hover:bg-green-500 text-white disabled:opacity-40 rounded-xl font-black transition shadow-md shadow-green-950/40 cursor-pointer"
-                    title="Start Timer"
-                  >
-                    <Play className="h-5 w-5 fill-white" />
-                  </button>
-                )}
-                <button
-                  onClick={() => { setTimeLeft(0); if (onLogEvent) onLogEvent('TIMER', 'Match Timer Reset'); }}
-                  disabled={isTimerRunning}
-                  className="p-2.5 sm:p-3 bg-white/5 hover:bg-white/10 text-white disabled:opacity-30 rounded-xl font-black transition border border-white/10 cursor-pointer"
-                  title="Reset Timer"
-                >
-                  <RotateCcw className="h-5 w-5" />
-                </button>
+                </div>
+                <div className="flex items-center gap-1 mt-0.5">
+                  <button onClick={() => setTimerPreset(180)} className="px-1.5 py-0.5 bg-white/10 hover:bg-white/20 rounded-md text-[10px] font-black text-white transition cursor-pointer shadow-sm">3m</button>
+                  <button onClick={() => setTimerPreset(120)} className="px-1.5 py-0.5 bg-white/10 hover:bg-white/20 rounded-md text-[10px] font-black text-white transition cursor-pointer shadow-sm">2m</button>
+                  <button onClick={() => setTimerPreset(60)} className="px-1.5 py-0.5 bg-white/10 hover:bg-white/20 rounded-md text-[10px] font-black text-white transition cursor-pointer shadow-sm">1m</button>
+                  <button onClick={() => setTimerPreset(30)} className="px-1.5 py-0.5 bg-white/10 hover:bg-white/20 rounded-md text-[10px] font-black text-white transition cursor-pointer shadow-sm">30s</button>
+                  <button onClick={() => setTimerPreset(15)} className="px-1.5 py-0.5 bg-white/10 hover:bg-white/20 rounded-md text-[10px] font-black text-white transition cursor-pointer shadow-sm">15s</button>
+                </div>
               </div>
             </div>
           </div>
@@ -903,10 +940,10 @@ export const KataControlPanelContent = React.forwardRef<ScoreboardRef, { boutId?
                   </span>
                 </div>
 
-                <h3 className="text-3xl sm:text-4xl lg:text-[42px] font-black text-white tracking-tight leading-none mb-1 truncate" title={participantA?.full_name || 'AKA Athlete'}>
+                <h3 className="text-4xl sm:text-5xl lg:text-[54px] font-black text-white tracking-tight leading-none mb-1 truncate" title={participantA?.full_name || 'AKA Athlete'}>
                   {participantA?.full_name || 'AKA Athlete'}
                 </h3>
-                <p className="text-base sm:text-lg font-bold text-red-200 mb-2.5 truncate" title={clubA?.name || 'Independent Dojo'}>
+                <p className="text-lg sm:text-xl font-bold text-red-200 mb-2.5 truncate" title={clubA?.name || 'Independent Dojo'}>
                   {clubA?.name || 'Independent Dojo'}
                 </p>
 
@@ -928,7 +965,7 @@ export const KataControlPanelContent = React.forwardRef<ScoreboardRef, { boutId?
               {/* Vertical Score Bottom Readout */}
               <div className="pt-2 border-t-2 border-red-500/30 flex flex-col items-center justify-center bg-red-950/40 rounded-xl p-2.5">
                 <span className="text-xs uppercase font-black tracking-widest text-red-300 mb-0.5">TOTAL SCORE</span>
-                <div className="text-7xl sm:text-8xl lg:text-[90px] font-mono font-black text-red-400 tabular-nums leading-none drop-shadow-[0_0_30px_rgba(239,68,68,0.95)]">
+                <div className="text-8xl sm:text-9xl lg:text-[120px] font-mono font-black text-red-400 tabular-nums leading-none drop-shadow-[0_0_30px_rgba(239,68,68,0.95)]">
                   {scoringMethod === 'Flags' ? (
                     <div className="flex items-center gap-2 flex-wrap justify-center py-1">
                       {Array.from({ length: totalScoreA }).map((_, i) => (
@@ -955,10 +992,10 @@ export const KataControlPanelContent = React.forwardRef<ScoreboardRef, { boutId?
                   </span>
                 </div>
 
-                <h3 className="text-3xl sm:text-4xl lg:text-[42px] font-black text-white tracking-tight leading-none mb-1 truncate" title={participantB?.full_name || 'AO Athlete'}>
+                <h3 className="text-4xl sm:text-5xl lg:text-[54px] font-black text-white tracking-tight leading-none mb-1 truncate" title={participantB?.full_name || 'AO Athlete'}>
                   {participantB?.full_name || 'AO Athlete'}
                 </h3>
-                <p className="text-base sm:text-lg font-bold text-blue-200 mb-2.5 truncate" title={clubB?.name || 'Independent Dojo'}>
+                <p className="text-lg sm:text-xl font-bold text-blue-200 mb-2.5 truncate" title={clubB?.name || 'Independent Dojo'}>
                   {clubB?.name || 'Independent Dojo'}
                 </p>
 
@@ -980,7 +1017,7 @@ export const KataControlPanelContent = React.forwardRef<ScoreboardRef, { boutId?
               {/* Vertical Score Bottom Readout */}
               <div className="pt-2 border-t-2 border-blue-500/30 flex flex-col items-center justify-center bg-blue-950/40 rounded-xl p-2.5">
                 <span className="text-xs uppercase font-black tracking-widest text-blue-300 mb-0.5">TOTAL SCORE</span>
-                <div className="text-7xl sm:text-8xl lg:text-[90px] font-mono font-black text-blue-400 tabular-nums leading-none drop-shadow-[0_0_30px_rgba(59,130,246,0.95)]">
+                <div className="text-8xl sm:text-9xl lg:text-[120px] font-mono font-black text-blue-400 tabular-nums leading-none drop-shadow-[0_0_30px_rgba(59,130,246,0.95)]">
                   {scoringMethod === 'Flags' ? (
                     <div className="flex items-center gap-2 flex-wrap justify-center py-1">
                       {Array.from({ length: totalScoreB }).map((_, i) => (

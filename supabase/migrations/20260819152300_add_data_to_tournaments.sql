@@ -1,0 +1,3 @@
+ALTER TABLE public.tournaments
+  ADD COLUMN IF NOT EXISTS data JSONB,
+  ADD COLUMN IF NOT EXISTS last_modified TIMESTAMPTZ;

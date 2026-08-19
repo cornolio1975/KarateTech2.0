@@ -413,6 +413,11 @@ export default function CategoriesPage() {
     }
     return true;
   }).sort((a, b) => {
+    // 1. Sort by Age (low to high)
+    if (a.min_age !== b.min_age) return a.min_age - b.min_age;
+    if (a.max_age !== b.max_age) return a.max_age - b.max_age;
+    
+    // 2. Sort by Gender
     if (a.gender !== b.gender) {
       const order = { 'Male': 1, 'Female': 2, 'Mixed': 3 };
       const gA = order[a.gender as keyof typeof order] || 99;
@@ -420,10 +425,12 @@ export default function CategoriesPage() {
       if (gA !== gB) return gA - gB;
       return a.gender.localeCompare(b.gender);
     }
-    if (a.min_age !== b.min_age) return a.min_age - b.min_age;
-    if (a.max_age !== b.max_age) return a.max_age - b.max_age;
+    
+    // 3. Sort by Weight
     if (a.min_weight !== b.min_weight) return a.min_weight - b.min_weight;
     if (a.max_weight !== b.max_weight) return a.max_weight - b.max_weight;
+    
+    // 4. Fallback to name
     return a.name.localeCompare(b.name);
   });
 
@@ -454,11 +461,7 @@ export default function CategoriesPage() {
     }
 
     const today = new Date();
-    let age = today.getFullYear() - birthDate.getFullYear();
-    const m = today.getMonth() - birthDate.getMonth();
-    if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) {
-      age--;
-    }
+    const age = today.getFullYear() - birthDate.getFullYear();
     return Math.max(0, age);
   };
 
@@ -1502,7 +1505,7 @@ export default function CategoriesPage() {
                   <input
                     type="number"
                     required
-                    value={newCat.min_age}
+                    value={Number.isNaN(newCat.min_age) ? '' : newCat.min_age}
                     onChange={(e) => setNewCat({ ...newCat, min_age: parseInt(e.target.value) })}
                     className="w-full px-3 py-2 bg-secondary border border-border rounded-lg text-xs focus:outline-none text-foreground"
                   />
@@ -1512,7 +1515,7 @@ export default function CategoriesPage() {
                   <input
                     type="number"
                     required
-                    value={newCat.max_age}
+                    value={Number.isNaN(newCat.max_age) ? '' : newCat.max_age}
                     onChange={(e) => setNewCat({ ...newCat, max_age: parseInt(e.target.value) })}
                     className="w-full px-3 py-2 bg-secondary border border-border rounded-lg text-xs focus:outline-none text-foreground"
                   />
@@ -1526,7 +1529,7 @@ export default function CategoriesPage() {
                     type="number"
                     step="0.01"
                     required
-                    value={newCat.min_weight}
+                    value={Number.isNaN(newCat.min_weight) ? '' : newCat.min_weight}
                     onChange={(e) => setNewCat({ ...newCat, min_weight: parseFloat(e.target.value) })}
                     className="w-full px-3 py-2 bg-secondary border border-border rounded-lg text-xs focus:outline-none text-foreground"
                   />
@@ -1537,7 +1540,7 @@ export default function CategoriesPage() {
                     type="number"
                     step="0.01"
                     required
-                    value={newCat.max_weight}
+                    value={Number.isNaN(newCat.max_weight) ? '' : newCat.max_weight}
                     onChange={(e) => setNewCat({ ...newCat, max_weight: parseFloat(e.target.value) })}
                     className="w-full px-3 py-2 bg-secondary border border-border rounded-lg text-xs focus:outline-none text-foreground"
                   />
@@ -1550,7 +1553,7 @@ export default function CategoriesPage() {
                   <input
                     type="number"
                     required
-                    value={newCat.capacity}
+                    value={Number.isNaN(newCat.capacity) ? '' : newCat.capacity}
                     onChange={(e) => setNewCat({ ...newCat, capacity: parseInt(e.target.value) })}
                     className="w-full px-3 py-2 bg-secondary border border-border rounded-lg text-xs focus:outline-none text-foreground"
                   />
@@ -1640,7 +1643,7 @@ export default function CategoriesPage() {
                   <input
                     type="number"
                     required
-                    value={editCat.min_age}
+                    value={Number.isNaN(editCat.min_age) ? '' : editCat.min_age}
                     onChange={(e) => setEditCat({ ...editCat, min_age: parseInt(e.target.value) })}
                     className="w-full px-3 py-2 bg-secondary border border-border rounded-lg text-xs focus:outline-none text-foreground"
                   />
@@ -1650,7 +1653,7 @@ export default function CategoriesPage() {
                   <input
                     type="number"
                     required
-                    value={editCat.max_age}
+                    value={Number.isNaN(editCat.max_age) ? '' : editCat.max_age}
                     onChange={(e) => setEditCat({ ...editCat, max_age: parseInt(e.target.value) })}
                     className="w-full px-3 py-2 bg-secondary border border-border rounded-lg text-xs focus:outline-none text-foreground"
                   />
@@ -1664,7 +1667,7 @@ export default function CategoriesPage() {
                     type="number"
                     step="0.01"
                     required
-                    value={editCat.min_weight}
+                    value={Number.isNaN(editCat.min_weight) ? '' : editCat.min_weight}
                     onChange={(e) => setEditCat({ ...editCat, min_weight: parseFloat(e.target.value) })}
                     className="w-full px-3 py-2 bg-secondary border border-border rounded-lg text-xs focus:outline-none text-foreground"
                   />
@@ -1675,7 +1678,7 @@ export default function CategoriesPage() {
                     type="number"
                     step="0.01"
                     required
-                    value={editCat.max_weight}
+                    value={Number.isNaN(editCat.max_weight) ? '' : editCat.max_weight}
                     onChange={(e) => setEditCat({ ...editCat, max_weight: parseFloat(e.target.value) })}
                     className="w-full px-3 py-2 bg-secondary border border-border rounded-lg text-xs focus:outline-none text-foreground"
                   />
@@ -1688,7 +1691,7 @@ export default function CategoriesPage() {
                   <input
                     type="number"
                     required
-                    value={editCat.capacity}
+                    value={Number.isNaN(editCat.capacity) ? '' : editCat.capacity}
                     onChange={(e) => setEditCat({ ...editCat, capacity: parseInt(e.target.value) })}
                     className="w-full px-3 py-2 bg-secondary border border-border rounded-lg text-xs focus:outline-none text-foreground"
                   />

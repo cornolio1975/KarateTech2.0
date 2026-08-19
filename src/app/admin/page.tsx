@@ -649,8 +649,8 @@ export default function AdminDashboard() {
                   // Same age + discipline: alphabetical
                   return (a.name || '').localeCompare(b.name || '');
                 }).map(cat => {
-                  const assignedTatami = (cat as any).assigned_tatami || null;
                   const activeLock = locks.find(l => l.category_id === cat.id && l.is_active);
+                  const assignedTatami = activeLock ? activeLock.tatami : ((cat as any).assigned_tatami || null);
                   const isLocked = !!activeLock || (cat as any).status === 'Locked';
                   const isKumite = isKumiteCategory(cat);
 
@@ -715,7 +715,7 @@ export default function AdminDashboard() {
                           >
                             Tatami 2
                           </button>
-                          {assignedTatami && (
+                          {assignedTatami && !isLocked && (
                             <button
                               onClick={async () => { await releaseCategoryFromTatami(cat.id); refreshCategoriesFromMap(); }}
                               className="px-2.5 py-1 bg-yellow-500/10 hover:bg-yellow-500/20 text-yellow-400 border border-yellow-500/30 rounded-lg text-[11px] font-bold transition cursor-pointer"

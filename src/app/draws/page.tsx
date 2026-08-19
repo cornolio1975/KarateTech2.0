@@ -199,14 +199,16 @@ export default function DrawsPage() {
     try {
       setLoading(true);
       let generatedCount = 0;
-      for (const cat of categories) {
+      for (const cat of displayCategories) {
         const catBouts = bouts.filter(b => b.category_id === cat.id);
-        if (catBouts.length === 0) {
+        const count = getCategoryCountInfo(cat.id).confirmed;
+        if (catBouts.length === 0 && count > 0) {
           try {
             await db.bouts.generateDraw(cat.id, cat.format || 'knockout', false);
             generatedCount++;
-          } catch (e) {
-            // Category might have 0 participants
+          } catch (e: any) {
+            console.error('Failed to generate for category:', cat.id, e);
+            // Optionally, we can safely ignore the error since we already pre-checked count
           }
         }
       }
@@ -687,6 +689,29 @@ export default function DrawsPage() {
 
           {/* Action buttons — visible in header */}
           <div className="flex items-center gap-2 flex-wrap no-print shrink-0">
+            {/* Discipline Filter Right Panel */}
+            <select 
+              value={disciplineFilter}
+              onChange={e => {
+                const val = e.target.value as 'ALL' | 'KUMITE' | 'KATA';
+                setDisciplineFilter(val);
+                setActiveCategoryTab(val);
+                const filtered = categories.filter(c => {
+                  if (val === 'KUMITE') return isKumiteCategory(c);
+                  if (val === 'KATA') return isKataCategory(c);
+                  return true;
+                });
+                if (filtered.length > 0 && (!selectedCatId || !filtered.find(c => c.id === selectedCatId))) {
+                  setSelectedCatId(filtered[0].id);
+                }
+              }}
+              className="px-3 py-2 bg-secondary border border-border rounded-lg text-xs font-bold text-foreground focus:outline-none focus:ring-2 focus:ring-primary cursor-pointer"
+            >
+              <option value="ALL">All Disciplines</option>
+              <option value="KUMITE">Kumite Only</option>
+              <option value="KATA">Kata Only</option>
+            </select>
+
             {canModify && (
               <button
                 onClick={handleGenerateAllDraws}
@@ -735,7 +760,7 @@ export default function DrawsPage() {
                       onChange={e => setSelectedCatId(e.target.value)}
                       className="px-3 py-2 bg-secondary border border-border rounded-lg text-xs font-bold text-foreground focus:outline-none focus:ring-2 focus:ring-primary cursor-pointer max-w-xs sm:max-w-md truncate"
                     >
-                      {categories.map(c => {
+                      {displayCategories.map(c => {
                         const count = getCategoryCountInfo(c.id).confirmed;
                         const discIcon = isKataCategory(c) ? '🏆 [KATA] ' : '🥋 [KUMITE] ';
                         return (

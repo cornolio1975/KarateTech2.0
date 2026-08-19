@@ -24,7 +24,7 @@ export const KumiteScoreboardControl = React.forwardRef<ScoreboardRef, { boutId?
   const searchParams = useSearchParams();
   const boutId = propBoutId || searchParams.get('boutId');
   const catId = searchParams.get('catId'); // passed from categories page
-  const { tournamentName, acquireLock, releaseLock, activeTournamentId } = useTournament();
+  const { tournamentName, acquireLock, releaseLock, activeTournamentId, activeLocks, tatamiId } = useTournament();
 
   const [isPlaylistModalOpen, setIsPlaylistModalOpen] = useState(false);
 
@@ -321,6 +321,28 @@ export const KumiteScoreboardControl = React.forwardRef<ScoreboardRef, { boutId?
       ]);
       const currentBout = bList.find(b => b.id === boutId);
       if (currentBout) {
+        // --- ADMIN LOCK CHECK ---
+        const myTatami = `Tatami ${tatamiId || 1}`;
+        const lock = activeLocks.find(l => l.category_id === currentBout.category_id && l.is_active);
+        
+        if (lock && lock.tatami !== myTatami) {
+          if (typeof window !== 'undefined') {
+            alert(`CATEGORY ALREADY IN USE\nThis category is currently being managed by ${lock.tatami?.toUpperCase()}. Please select another category.`);
+          }
+          setLoading(false);
+          return;
+        }
+    
+        // Attempt to formally acquire lock from backend
+        const lockResult = await acquireLock(currentBout.category_id);
+        if (!lockResult.success) {
+          if (typeof window !== 'undefined') {
+            alert(`CATEGORY ALREADY IN USE\nThis category is currently being managed by another Tatami. Please select another category.`);
+          }
+          setLoading(false);
+          return;
+        }
+
         setBout(currentBout);
 
         const compAka = pList.find(p => p.id === currentBout.participant_a_id) || null;

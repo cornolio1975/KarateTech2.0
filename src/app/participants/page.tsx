@@ -69,8 +69,8 @@ export default function ParticipantsPage() {
   const [pageSize, setPageSize] = useState(50); // Matches KT default "50"
 
   // Sorting
-  const [sortField, setSortField] = useState<keyof Participant>('full_name');
-  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
+  const [sortField, setSortField] = useState<keyof Participant>('dob');
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
 
   useEffect(() => {
     setMounted(true);
@@ -117,14 +117,10 @@ export default function ParticipantsPage() {
 
   // Helper age calculation
   const getAge = (dobString: string) => {
+    if (!dobString) return 0;
     const dob = new Date(dobString);
     const today = new Date();
-    let age = today.getFullYear() - dob.getFullYear();
-    const m = today.getMonth() - dob.getMonth();
-    if (m < 0 || (m === 0 && today.getDate() < dob.getDate())) {
-      age--;
-    }
-    return age;
+    return today.getFullYear() - dob.getFullYear();
   };
 
   // Helper: split full_name into first/last (Malaysian: last word = last name)
@@ -288,6 +284,11 @@ export default function ParticipantsPage() {
     if (disciplineFilter === 'KATA') return isKataCategory(c);
     return true;
   }).sort((a, b) => {
+    // 1. Sort by Age (low to high)
+    if (a.min_age !== b.min_age) return a.min_age - b.min_age;
+    if (a.max_age !== b.max_age) return a.max_age - b.max_age;
+    
+    // 2. Sort by Gender
     if (a.gender !== b.gender) {
       const order = { 'Male': 1, 'Female': 2, 'Mixed': 3 };
       const gA = order[a.gender as keyof typeof order] || 99;
@@ -295,10 +296,12 @@ export default function ParticipantsPage() {
       if (gA !== gB) return gA - gB;
       return a.gender.localeCompare(b.gender);
     }
-    if (a.min_age !== b.min_age) return a.min_age - b.min_age;
-    if (a.max_age !== b.max_age) return a.max_age - b.max_age;
+    
+    // 3. Sort by Weight
     if (a.min_weight !== b.min_weight) return a.min_weight - b.min_weight;
     if (a.max_weight !== b.max_weight) return a.max_weight - b.max_weight;
+    
+    // 4. Fallback to name
     return a.name.localeCompare(b.name);
   });
 
@@ -656,7 +659,9 @@ export default function ParticipantsPage() {
                   <th className="p-3 w-20 font-bold text-muted-foreground text-center">Kata</th>
                   <th className="p-3 w-32 font-bold text-muted-foreground">Category Assigned</th>
                   <th className="p-3 w-28 font-bold text-muted-foreground">Date of Birth</th>
-                  <th className="p-3 w-16 font-bold text-muted-foreground">Age</th>
+                  <th className="p-3 w-16 font-bold text-muted-foreground cursor-pointer select-none" onClick={() => handleSort('dob')}>
+                    <div className="flex items-center gap-1">Age <ArrowUpDown className="h-3 w-3" /></div>
+                  </th>
                   <th className="p-3 w-20 font-bold text-muted-foreground">Weight</th>
                   <th className="p-3 w-36 font-bold text-muted-foreground">School / Club</th>
                   {canModify && <th className="p-3 w-24 font-bold text-muted-foreground text-center">Actions</th>}

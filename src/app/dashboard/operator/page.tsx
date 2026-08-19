@@ -41,11 +41,7 @@ function calculateAge(dobString?: string) {
   if (!dobString) return null;
   const birthDate = new Date(dobString);
   const today = new Date();
-  let age = today.getFullYear() - birthDate.getFullYear();
-  const m = today.getMonth() - birthDate.getMonth();
-  if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) {
-    age--;
-  }
+  const age = today.getFullYear() - birthDate.getFullYear();
   return isNaN(age) ? null : age;
 }
 
@@ -58,7 +54,9 @@ export default function OperatorConsolePage() {
     takeoverTatami, 
     userRole, 
     updateTatamiTelemetry,
-    isLockedOutByAdmin
+    isLockedOutByAdmin,
+    activeLocks,
+    acquireLock
   } = useTournament();
 
   const [mounted, setMounted] = useState(false);
@@ -189,9 +187,32 @@ export default function OperatorConsolePage() {
     }
   }, [activeBout, setBouts, setActiveBout]);
 
-  const loadBout = useCallback((bout: Bout, pList?: Participant[], catList?: Category[], shouldBroadcastDisplay: boolean = true) => {
-    const pArr = pList || participants;
+  const loadBout = useCallback(async (bout: Bout, pList?: Participant[], catList?: Category[], shouldBroadcastDisplay: boolean = true) => {
     const cArr = catList || categories;
+
+    // --- ADMIN LOCK CHECK ---
+    // Prevent loading if category is locked to another Tatami
+    const myTatami = `Tatami ${takeoverTatami || tatamiId || 1}`;
+    const lock = activeLocks.find(l => l.category_id === bout.category_id && l.is_active);
+    
+    if (lock && lock.tatami !== myTatami) {
+      addLog('SYSTEM', `Blocked attempt to load category locked to ${lock.tatami}`);
+      if (typeof window !== 'undefined') {
+        alert(`CATEGORY ALREADY IN USE\nThis category is currently being managed by ${lock.tatami?.toUpperCase()}. Please select another category.`);
+      }
+      return;
+    }
+
+    // Attempt to formally acquire lock from backend
+    const lockResult = await acquireLock(bout.category_id);
+    if (!lockResult.success) {
+      if (typeof window !== 'undefined') {
+        alert(`CATEGORY ALREADY IN USE\nThis category is currently being managed by another Tatami. Please select another category.`);
+      }
+      return;
+    }
+
+    const pArr = pList || participants;
     setActiveBout(bout);
     setLiveScoreAka(bout.score_a);
     setLiveScoreAo(bout.score_b);
@@ -247,7 +268,7 @@ export default function OperatorConsolePage() {
     });
 
     addLog('SYSTEM', `Match R${bout.round_no}B${bout.bout_no} loaded to Current Match`);
-  }, [participants, categories, addLog, takeoverTatami, tatamiId, updateTatamiTelemetry]);
+  }, [participants, categories, addLog, takeoverTatami, tatamiId, updateTatamiTelemetry, activeLocks]);
 
   const loadData = useCallback(async () => {
     try {
@@ -264,7 +285,12 @@ export default function OperatorConsolePage() {
       setCategories(catList);
       setClubs(clList);
       setCoaches(coList);
-      const running = bList.find(b => b.status === 'Running');
+      const running = bList.find(b => {
+        if (b.status !== 'Running') return false;
+        const myTatami = `Tatami ${takeoverTatami || tatamiId || 1}`;
+        const lock = activeLocks.find(l => l.category_id === b.category_id && l.is_active);
+        return !(lock && lock.tatami !== myTatami);
+      });
       if (running) loadBout(running, pList, catList, false);
       addLog('SYSTEM', 'Data refreshed');
     } catch {
@@ -273,7 +299,7 @@ export default function OperatorConsolePage() {
     } finally {
       setLoading(false);
     }
-  }, [loadBout, addLog]);
+  }, [loadBout, addLog, activeLocks, takeoverTatami, tatamiId]);
 
   useEffect(() => {
     const onOnline = () => { setIsOnline(true); setDbStatus('CONNECTED'); addLog('SYSTEM', 'Cloud connected'); };
@@ -1762,10 +1788,14 @@ export default function OperatorConsolePage() {
                   const completedBouts = catBoutsList.filter(b => b.status === 'Completed').length;
                   const isExpanded = expandedCatId === cat.id;
 
+                  const myTatami = `Tatami ${takeoverTatami || tatamiId || 1}`;
+                  const lock = activeLocks.find(l => l.category_id === cat.id && l.is_active);
+                  const isLockedByOther = lock && lock.tatami !== myTatami;
+
                   return (
                     <div
                       key={cat.id}
-                      className="bg-white/5 hover:bg-white/[0.07] border border-white/10 rounded-xl overflow-hidden transition"
+                      className={`bg-white/5 hover:bg-white/[0.07] border border-white/10 rounded-xl overflow-hidden transition ${isLockedByOther ? 'opacity-60' : ''}`}
                     >
                       {/* Main Category Row */}
                       <div className="p-3.5 flex items-center justify-between gap-3">
@@ -1788,31 +1818,40 @@ export default function OperatorConsolePage() {
 
                         {/* Action Buttons */}
                         <div className="flex items-center gap-2 shrink-0">
-                          {catBoutsList.length > 0 && (
-                            <button
-                              onClick={() => setExpandedCatId(isExpanded ? null : cat.id)}
-                              className={`px-2.5 py-1.5 rounded-lg text-[10px] font-bold transition flex items-center gap-1 cursor-pointer border ${
-                                isExpanded
-                                  ? 'bg-yellow-500/20 text-yellow-400 border-yellow-500/40'
-                                  : 'bg-white/5 text-white/60 border-white/10 hover:bg-white/10 hover:text-white'
-                              }`}
-                            >
-                              <span>{catBoutsList.length} Bouts</span>
-                              {isExpanded ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
-                            </button>
-                          )}
+                          {isLockedByOther ? (
+                            <div className="flex items-center gap-1.5 px-3 py-1.5 bg-red-950/40 border border-red-500/20 rounded-lg shadow-sm">
+                              <Lock className="w-3.5 h-3.5 text-red-400" />
+                              <span className="text-[10px] font-black uppercase text-red-400 tracking-wider">LOCKED TO {lock?.tatami?.toUpperCase()}</span>
+                            </div>
+                          ) : (
+                            <>
+                              {catBoutsList.length > 0 && (
+                                <button
+                                  onClick={() => setExpandedCatId(isExpanded ? null : cat.id)}
+                                  className={`px-2.5 py-1.5 rounded-lg text-[10px] font-bold transition flex items-center gap-1 cursor-pointer border ${
+                                    isExpanded
+                                      ? 'bg-yellow-500/20 text-yellow-400 border-yellow-500/40'
+                                      : 'bg-white/5 text-white/60 border-white/10 hover:bg-white/10 hover:text-white'
+                                  }`}
+                                >
+                                  <span>{catBoutsList.length} Bouts</span>
+                                  {isExpanded ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
+                                </button>
+                              )}
 
-                          <button
-                            onClick={() => {
-                              setSelectedCatId(cat.id);
-                              setBracketTab('MATCH LIST');
-                              setIsLoadMatchModalOpen(false);
-                              addLog('SYSTEM', `Category loaded: ${cat.name}`);
-                            }}
-                            className="px-3 py-1.5 bg-yellow-500 hover:bg-yellow-400 text-black font-black rounded-lg text-[10px] uppercase tracking-wider transition cursor-pointer shadow-md"
-                          >
-                            SELECT CATEGORY
-                          </button>
+                              <button
+                                onClick={() => {
+                                  setSelectedCatId(cat.id);
+                                  setBracketTab('MATCH LIST');
+                                  setIsLoadMatchModalOpen(false);
+                                  addLog('SYSTEM', `Category loaded: ${cat.name}`);
+                                }}
+                                className="px-3 py-1.5 bg-yellow-500 hover:bg-yellow-400 text-black font-black rounded-lg text-[10px] uppercase tracking-wider transition cursor-pointer shadow-md"
+                              >
+                                SELECT CATEGORY
+                              </button>
+                            </>
+                          )}
                         </div>
                       </div>
 
