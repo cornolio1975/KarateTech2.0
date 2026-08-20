@@ -10,16 +10,21 @@ import { useTournament } from '@/context/TournamentContext';
 import KataResultBookModal from '@/components/KataResultBookModal';
 
 const OFFICIAL_WKF_KATAS = [
-  'Anan', 'Anan Dai', 'Annanko', 'Aoyanagi', 'Bassai Dai', 'Bassai Sho',
-  'Chatanyara Kushanku', 'Chinte', 'Chinto', 'Enpi', 'Fukygata', 'Gankaku',
-  'Garoryu', 'Gojushiho', 'Gojushiho Dai', 'Gojushiho Sho', 'Hakucho', 'Hangetsu',
-  'Haufa', 'Heiku', 'Ishimine Bassai', 'Itosu Rohai', 'Jiin', 'Jion', 'Jitte',
-  'Jyuroku', 'Kanchin', 'Kanku Dai', 'Kanku Sho', 'Kanshu', 'Kururunfa', 'Kusanku',
-  'Matsumura Bassai', 'Matsumura Rohai', 'Meikyo', 'Nipaipo', 'Niseishi', 'Ohan',
-  'Ohan Dai', 'Paiku', 'Papuren', 'Passai', 'Rohai', 'Saifa', 'Sanchin', 'Sanseiru',
-  'Seienchin', 'Seipai', 'Seiryu', 'Seishan', 'Shinpa', 'Shinsei', 'Shisochin',
-  'Sochin', 'Suparinpei', 'Unshu', 'Unsu', 'Useishi', 'Wankan', 'Wanshu'
-].sort();
+  'Anan', 'Anan Dai', 'Ananko', 'Aoyagi', 'Bassai', 'Bassai Dai', 'Bassai Sho', 'Chatanyara Kushanku',
+  'Chibana No Kushanku', 'Chinte', 'Chinto', 'Enpi', 'Fukyugata Ichi', 'Fukyugata Ni', 'Gankaku', 'Garyu',
+  'Gekisai (Geksai) 1', 'Gekisai (Geksai) 2', 'Gojushiho', 'Gojushiho Dai', 'Gojushiho Sho', 'Hakusho',
+  'Hangetsu', 'Haufa (Haffa)', 'Heian Shodan', 'Heian Nidan', 'Heian Sandan', 'Heian Yondan', 'Heian Godan',
+  'Heiku', 'Ishimine Bassai', 'Itosu Rohai Shodan', 'Itosu Rohai Nidan', 'Itosu Rohai Sandan', 'Jiin',
+  'Jion', 'Jitte', 'Juroku', 'Kanchin', 'Kanku Dai', 'Kanku Sho', 'Kanshu', 'Kishimoto No Kushanku',
+  'Kousoukun', 'Kousoukun Dai', 'Kousoukun Sho', 'Kururunfa', 'Kushanku', 'Kyan No Chinto', 'Kyan No Wanshu',
+  'Matsukaze', 'Matsumura Bassai', 'Matsumura Rohai', 'Meikyo', 'Myojo', 'Naifanchin Shodan', 'Naifanchin Nidan',
+  'Naifanchin Sandan', 'Naihanchi', 'Nijushiho', 'Nipaipo', 'Niseishi', 'Ohan', 'Ohan Dai', 'Oyadomari No Passai',
+  'Pachu', 'Paiku', 'Papuren', 'Passai', 'Pinan Shodan', 'Pinan Nidan', 'Pinan Sandan', 'Pinan Yondan',
+  'Pinan Godan', 'Rohai', 'Saifa', 'Sanchin', 'Sansai', 'Sanseiru', 'Sanseru', 'Seichin', 'Seienchin (Seiyunchin)',
+  'Seipai', 'Seiryu', 'Seishan', 'Seisan (Sesan)', 'Shiho Kousoukun', 'Shinpa', 'Shinsei', 'Shisochin',
+  'Sochin', 'Suparinpei', 'Tekki Shodan', 'Tekki Nidan', 'Tekki Sandan', 'Tensho', 'Tomari Bassai', 'Unshu',
+  'Unsu', 'Usheishi', 'Wankan', 'Wanshu'
+];
 
 import { ScoreboardRef } from '../control/page';
 
@@ -28,7 +33,7 @@ export const KataControlPanelContent = React.forwardRef<ScoreboardRef, { boutId?
   const router = useRouter();
   const boutId = propBoutId || searchParams.get('boutId');
   const catId = searchParams.get('catId');
-  const { tournamentName, acquireLock, releaseLock, activeTournamentId, isLockedOutByAdmin, activeLocks, tatamiId } = useTournament();
+  const { tournamentName, acquireLock, releaseLock, activeTournamentId, activeLocks, tatamiId } = useTournament();
   
   const spectatorWindowRef = React.useRef<Window | null>(null);
   const broadcastChannelRef = React.useRef<BroadcastChannel | null>(null);
@@ -751,20 +756,6 @@ export const KataControlPanelContent = React.forwardRef<ScoreboardRef, { boutId?
   return (
     <div className={`text-white ${onClose ? 'h-[100dvh] w-full flex flex-col p-3 bg-[#0a0c10] overflow-hidden relative justify-between' : 'min-h-screen bg-[#07070a] p-4 lg:p-6 pb-6 flex flex-col justify-between relative'}`}>
       
-      {/* ADMIN TAKEOVER OVERLAY */}
-      {isLockedOutByAdmin && (
-        <div className="absolute inset-0 z-[9999] bg-black/80 backdrop-blur-sm flex flex-col items-center justify-center pointer-events-auto">
-          <div className="bg-red-900/90 border border-red-500 rounded-2xl p-8 max-w-lg text-center shadow-2xl shadow-red-900/50">
-            <Lock className="w-20 h-20 text-red-400 mx-auto mb-4 animate-pulse" />
-            <h2 className="text-3xl font-black text-white tracking-widest mb-2">TATAMI TAKEN OVER</h2>
-            <p className="text-red-200 font-medium text-lg">
-              The Tournament Director has taken remote control of this Tatami. 
-              Local controls are temporarily disabled to prevent conflicts.
-            </p>
-          </div>
-        </div>
-      )}
-
       {/* Top Banner */}
       {!onClose && (
         <div className="max-w-[1800px] w-full mx-auto mb-4 shrink-0">
@@ -952,15 +943,36 @@ export const KataControlPanelContent = React.forwardRef<ScoreboardRef, { boutId?
                 {/* Declared Kata Selector */}
                 <div className="mb-2">
                   <label className="block text-xs font-black uppercase tracking-wider text-red-300 mb-1">Declared Kata</label>
-                  <select
-                    value={kataA}
-                    onChange={e => setKataA(e.target.value)}
-                    className="w-full bg-[#181015] border-2 border-red-500/40 rounded-xl px-3.5 py-2 text-base font-black text-white focus:outline-none focus:border-red-400 transition cursor-pointer shadow-inner"
-                  >
-                    {OFFICIAL_WKF_KATAS.map(k => (
-                      <option key={k} value={k}>{k}</option>
-                    ))}
-                  </select>
+                  <div className="flex gap-2">
+                    <input
+                      type="number"
+                      min="1"
+                      max={OFFICIAL_WKF_KATAS.length}
+                      placeholder="#"
+                      value={kataA ? (OFFICIAL_WKF_KATAS.indexOf(kataA) !== -1 ? OFFICIAL_WKF_KATAS.indexOf(kataA) + 1 : '') : ''}
+                      onChange={(e) => {
+                        if (e.target.value === '') {
+                          setKataA('');
+                          return;
+                        }
+                        const no = parseInt(e.target.value);
+                        if (!isNaN(no) && no >= 1 && no <= OFFICIAL_WKF_KATAS.length) {
+                          setKataA(OFFICIAL_WKF_KATAS[no - 1]);
+                        }
+                      }}
+                      className="w-20 sm:w-24 lg:w-28 bg-[#181015] border-2 border-red-500/40 rounded-xl px-2 py-3 sm:py-4 text-xl sm:text-2xl lg:text-3xl font-black text-white text-center focus:outline-none focus:border-red-400 transition"
+                    />
+                    <select
+                      value={kataA}
+                      onChange={e => setKataA(e.target.value)}
+                      className="flex-1 min-w-0 bg-[#181015] border-2 border-red-500/40 rounded-xl px-3.5 py-3 sm:py-4 text-xl sm:text-2xl lg:text-3xl font-black text-white focus:outline-none focus:border-red-400 transition cursor-pointer shadow-inner"
+                    >
+                      <option value="">Select Kata...</option>
+                      {OFFICIAL_WKF_KATAS.map((k, i) => (
+                        <option key={k} value={k}>{i + 1}. {k}</option>
+                      ))}
+                    </select>
+                  </div>
                 </div>
               </div>
 
@@ -1004,15 +1016,36 @@ export const KataControlPanelContent = React.forwardRef<ScoreboardRef, { boutId?
                 {/* Declared Kata Selector */}
                 <div className="mb-2">
                   <label className="block text-xs font-black uppercase tracking-wider text-blue-300 mb-1">Declared Kata</label>
-                  <select
-                    value={kataB}
-                    onChange={e => setKataB(e.target.value)}
-                    className="w-full bg-[#101420] border-2 border-blue-500/40 rounded-xl px-3.5 py-2 text-base font-black text-white focus:outline-none focus:border-blue-400 transition cursor-pointer shadow-inner"
-                  >
-                    {OFFICIAL_WKF_KATAS.map(k => (
-                      <option key={k} value={k}>{k}</option>
-                    ))}
-                  </select>
+                  <div className="flex gap-2">
+                    <input
+                      type="number"
+                      min="1"
+                      max={OFFICIAL_WKF_KATAS.length}
+                      placeholder="#"
+                      value={kataB ? (OFFICIAL_WKF_KATAS.indexOf(kataB) !== -1 ? OFFICIAL_WKF_KATAS.indexOf(kataB) + 1 : '') : ''}
+                      onChange={(e) => {
+                        if (e.target.value === '') {
+                          setKataB('');
+                          return;
+                        }
+                        const no = parseInt(e.target.value);
+                        if (!isNaN(no) && no >= 1 && no <= OFFICIAL_WKF_KATAS.length) {
+                          setKataB(OFFICIAL_WKF_KATAS[no - 1]);
+                        }
+                      }}
+                      className="w-20 sm:w-24 lg:w-28 bg-[#101420] border-2 border-blue-500/40 rounded-xl px-2 py-3 sm:py-4 text-xl sm:text-2xl lg:text-3xl font-black text-white text-center focus:outline-none focus:border-blue-400 transition"
+                    />
+                    <select
+                      value={kataB}
+                      onChange={e => setKataB(e.target.value)}
+                      className="flex-1 min-w-0 bg-[#101420] border-2 border-blue-500/40 rounded-xl px-3.5 py-3 sm:py-4 text-xl sm:text-2xl lg:text-3xl font-black text-white focus:outline-none focus:border-blue-400 transition cursor-pointer shadow-inner"
+                    >
+                      <option value="">Select Kata...</option>
+                      {OFFICIAL_WKF_KATAS.map((k, i) => (
+                        <option key={k} value={k}>{i + 1}. {k}</option>
+                      ))}
+                    </select>
+                  </div>
                 </div>
               </div>
 

@@ -625,12 +625,15 @@ export function TournamentProvider({ children }: { children: React.ReactNode }) 
 
   const acquireLock = useCallback(async (categoryId: string): Promise<{ success: boolean }> => {
     if (!supabase || !pcId || !activeTournamentId) return { success: false };
+    
+    const effectiveTatami = takeoverTatami || tatamiId || (userEmail === 'tatami_2@spsportdatasolution.org' ? 2 : userEmail === 'tatami_1@spsportdatasolution.org' ? 1 : 1);
+    
     const result = await db.pcControl.acquireLock(
       activeTournamentId,
       categoryId,
       pcId,
-      tatamiId?.toString(),
-      userEmail
+      `Tatami ${effectiveTatami}`,
+      userEmail || undefined
     );
     if (result.success) await refreshLocks();
     return result;
@@ -860,7 +863,7 @@ export function TournamentProvider({ children }: { children: React.ReactNode }) 
     
     refreshLocks();
 
-    const locksChannel = supabase.channel('public:category_locks')
+    const locksChannel = supabase.channel(`public:category_locks-${activeTournamentId}`)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'category_locks' }, () => {
         refreshLocks();
       })
@@ -871,7 +874,7 @@ export function TournamentProvider({ children }: { children: React.ReactNode }) 
         supabase.removeChannel(locksChannel);
       }
     };
-  }, []);
+  }, [activeTournamentId, refreshLocks]);
 
   // Auto-track screen updates when navigation occurs
   useEffect(() => {
@@ -901,7 +904,7 @@ export function TournamentProvider({ children }: { children: React.ReactNode }) 
     });
 
     if (supabase && pcId) {
-      db.pcControl.registerPC(pcId, `Tatami ${effectiveTatami}`, activeTournamentId || undefined, effectiveTatami.toString(), undefined, userEmail).catch(console.error);
+      db.pcControl.registerPC(pcId, `Tatami ${effectiveTatami}`, activeTournamentId || undefined, `Tatami ${effectiveTatami}`, undefined, userEmail).catch(console.error);
     }
 
     const interval = setInterval(() => {

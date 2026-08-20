@@ -638,10 +638,8 @@ export default function AdminDashboard() {
               </thead>
               <tbody className="divide-y divide-border font-medium">
                 {[...categories].sort((a, b) => {
-                  // Extract leading age from category name e.g. "10-11 YEARS..." → 10, "5 YEARS..." → 5
-                  const ageA = parseInt((a.name || '').match(/\d+/)?.[0] || '999', 10);
-                  const ageB = parseInt((b.name || '').match(/\d+/)?.[0] || '999', 10);
-                  if (ageA !== ageB) return ageA - ageB;
+                  if (a.min_age !== b.min_age) return a.min_age - b.min_age;
+                  if (a.max_age !== b.max_age) return a.max_age - b.max_age;
                   // Same age: Kumite first, Kata second
                   const isKumiteA = isKumiteCategory(a) ? 0 : 1;
                   const isKumiteB = isKumiteCategory(b) ? 0 : 1;

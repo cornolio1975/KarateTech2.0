@@ -196,9 +196,9 @@ export default function OperatorConsolePage() {
     const lock = activeLocks.find(l => l.category_id === bout.category_id && l.is_active);
     
     if (lock && lock.tatami !== myTatami) {
-      addLog('SYSTEM', `Blocked attempt to load category locked to ${lock.tatami}`);
+      addLog('SYSTEM', `Blocked attempt to load category locked to ${lock.tatami || 'another device'}`);
       if (typeof window !== 'undefined') {
-        alert(`CATEGORY ALREADY IN USE\nThis category is currently being managed by ${lock.tatami?.toUpperCase()}. Please select another category.`);
+        alert(`CATEGORY ALREADY IN USE\nThis category is currently being managed by ${lock.tatami ? lock.tatami.toUpperCase() : 'ANOTHER ADMIN'}. Please select another category.`);
       }
       return;
     }

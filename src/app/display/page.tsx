@@ -8,6 +8,23 @@ import { ShieldAlert, Zap, Award, Trophy, Volume2, Maximize2, Minimize2, Play, P
 import { useTournament } from '@/context/TournamentContext';
 import { localStore } from '@/db/localStore';
 
+const OFFICIAL_WKF_KATAS = [
+  'Anan', 'Anan Dai', 'Ananko', 'Aoyagi', 'Bassai', 'Bassai Dai', 'Bassai Sho', 'Chatanyara Kushanku',
+  'Chibana No Kushanku', 'Chinte', 'Chinto', 'Enpi', 'Fukyugata Ichi', 'Fukyugata Ni', 'Gankaku', 'Garyu',
+  'Gekisai (Geksai) 1', 'Gekisai (Geksai) 2', 'Gojushiho', 'Gojushiho Dai', 'Gojushiho Sho', 'Hakusho',
+  'Hangetsu', 'Haufa (Haffa)', 'Heian Shodan', 'Heian Nidan', 'Heian Sandan', 'Heian Yondan', 'Heian Godan',
+  'Heiku', 'Ishimine Bassai', 'Itosu Rohai Shodan', 'Itosu Rohai Nidan', 'Itosu Rohai Sandan', 'Jiin',
+  'Jion', 'Jitte', 'Juroku', 'Kanchin', 'Kanku Dai', 'Kanku Sho', 'Kanshu', 'Kishimoto No Kushanku',
+  'Kousoukun', 'Kousoukun Dai', 'Kousoukun Sho', 'Kururunfa', 'Kushanku', 'Kyan No Chinto', 'Kyan No Wanshu',
+  'Matsukaze', 'Matsumura Bassai', 'Matsumura Rohai', 'Meikyo', 'Myojo', 'Naifanchin Shodan', 'Naifanchin Nidan',
+  'Naifanchin Sandan', 'Naihanchi', 'Nijushiho', 'Nipaipo', 'Niseishi', 'Ohan', 'Ohan Dai', 'Oyadomari No Passai',
+  'Pachu', 'Paiku', 'Papuren', 'Passai', 'Pinan Shodan', 'Pinan Nidan', 'Pinan Sandan', 'Pinan Yondan',
+  'Pinan Godan', 'Rohai', 'Saifa', 'Sanchin', 'Sansai', 'Sanseiru', 'Sanseru', 'Seichin', 'Seienchin (Seiyunchin)',
+  'Seipai', 'Seiryu', 'Seishan', 'Seisan (Sesan)', 'Shiho Kousoukun', 'Shinpa', 'Shinsei', 'Shisochin',
+  'Sochin', 'Suparinpei', 'Tekki Shodan', 'Tekki Nidan', 'Tekki Sandan', 'Tensho', 'Tomari Bassai', 'Unshu',
+  'Unsu', 'Usheishi', 'Wankan', 'Wanshu'
+];
+
 interface SponsorTickerItem {
   id: string;
   name: string;
@@ -1361,6 +1378,11 @@ function SpectatorDisplayContent() {
                 <h1 className="text-[70px] tracking-tighter mb-2 md:mb-4 text-center leading-tight drop-shadow-lg max-w-full break-words text-balance px-2 md:px-6 shrink min-h-0 overflow-hidden">
                   {winnerSide === 'aka' ? akaName : aoName}
                 </h1>
+                {isKata && (winnerSide === 'aka' ? kataA : kataB) && (
+                  <h3 className={`text-3xl md:text-5xl font-black tracking-wide mb-4 md:mb-8 drop-shadow-md shrink-0 bg-black/40 px-8 py-3 rounded-2xl border-2 ${winnerSide === 'aka' ? 'border-red-500/40 text-red-100' : 'border-blue-500/40 text-blue-100'}`}>
+                    KATA: {OFFICIAL_WKF_KATAS.indexOf(winnerSide === 'aka' ? kataA : kataB) !== -1 ? OFFICIAL_WKF_KATAS.indexOf(winnerSide === 'aka' ? kataA : kataB) + 1 + '. ' : ''}{winnerSide === 'aka' ? kataA : kataB}
+                  </h3>
+                )}
                 <h3 className="text-xl md:text-4xl text-white/90 tracking-widest mb-4 md:mb-6 drop-shadow-md shrink-0">
                   WINNER
                 </h3>
@@ -1416,8 +1438,8 @@ function SpectatorDisplayContent() {
                         AKA
                       </span>
                       {kataA && (
-                        <span className="text-xs font-extrabold uppercase tracking-wider text-red-300 bg-black/60 px-3.5 py-1.5 rounded-xl border border-red-500/30 font-mono">
-                          KATA: {kataA}
+                        <span className="text-base lg:text-xl font-black uppercase tracking-wider text-red-300 bg-black/60 px-4 py-2 rounded-xl border border-red-500/30 font-mono">
+                          KATA: {OFFICIAL_WKF_KATAS.indexOf(kataA) !== -1 ? OFFICIAL_WKF_KATAS.indexOf(kataA) + 1 + '. ' : ''}{kataA}
                         </span>
                       )}
                     </div>
@@ -1547,8 +1569,8 @@ function SpectatorDisplayContent() {
                         AO
                       </span>
                       {kataB && (
-                        <span className="text-xs font-extrabold uppercase tracking-wider text-blue-300 bg-black/60 px-3.5 py-1.5 rounded-xl border border-blue-500/30 font-mono">
-                          KATA: {kataB}
+                        <span className="text-base lg:text-xl font-black uppercase tracking-wider text-blue-300 bg-black/60 px-4 py-2 rounded-xl border border-blue-500/30 font-mono">
+                          KATA: {OFFICIAL_WKF_KATAS.indexOf(kataB) !== -1 ? OFFICIAL_WKF_KATAS.indexOf(kataB) + 1 + '. ' : ''}{kataB}
                         </span>
                       )}
                     </div>
