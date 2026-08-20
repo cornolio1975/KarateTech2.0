@@ -383,7 +383,8 @@ export const KataControlPanelContent = React.forwardRef<ScoreboardRef, { boutId?
       winMethod: isWinnerRevealed ? (selectedWinnerId === participantA?.id ? 'AKA WIN' : selectedWinnerId === participantB?.id ? 'AO WIN' : 'TIE') : '',
       penaltyH,
       timeLeft,
-      timerActive: isTimerRunning
+      timerActive: isTimerRunning,
+      resultConfirmed: currentBout?.status === 'Completed'
     });
   }, [currentBout, participantA, participantB, clubA, clubB, totalScoreA, totalScoreB, kataA, kataB, judgeScoresA, judgeScoresB, scoringMethod, isWinnerRevealed, selectedWinnerId, penaltyH, timeLeft, isTimerRunning]);
 
@@ -608,7 +609,8 @@ export const KataControlPanelContent = React.forwardRef<ScoreboardRef, { boutId?
           scoringMethod,
           winner: winnerSide,
           winMethod: winMtd || (winnerSide === 'aka' ? 'AKA WIN' : winnerSide === 'ao' ? 'AO WIN' : 'TIE'),
-          penaltyH
+          penaltyH,
+          resultConfirmed: true
         });
       }
       

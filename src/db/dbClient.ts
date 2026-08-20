@@ -229,7 +229,7 @@ export const db = {
     list: async (): Promise<Category[]> => {
       if (supabase) {
         try {
-          const { data, error } = await supabase.from('categories').select('*').order('name');
+          const { data, error } = await supabase.from('categories').select('*').order('min_age', { ascending: true }).order('name');
           if (error) throw new Error(describeError(error));
           return data || [];
         } catch (e: unknown) {
@@ -1150,8 +1150,8 @@ export const db = {
           }
 
           if (updatedBout) {
-            if (updatedBout.status === 'Completed' && updatedBout.winner_id) {
-              const winnerId = updatedBout.winner_id;
+            if ((updatedBout.status === 'Completed' && updatedBout.winner_id) || updates.winner_id === null) {
+              const winnerId = updates.winner_id === null ? null : updatedBout.winner_id;
               const { data: dbBouts, error: boutsErr } = await supabase.from('bouts').select('*');
               if (!boutsErr && dbBouts) {
                 const bout = dbBouts.find(b => b.id === id);

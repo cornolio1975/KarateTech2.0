@@ -887,9 +887,9 @@ export default function OperatorConsolePage() {
           </button>
           <React.Suspense fallback={<div className="flex h-full items-center justify-center p-20">Loading Controls...</div>}>
             {boutIsKata ? (
-              <KataControlPanelContent ref={scoreboardRef} boutId={activeBout.id} onClose={() => setIsControlPanelOpen(false)} onLogEvent={addLog} />
+              <KataControlPanelContent ref={scoreboardRef} boutId={activeBout.id} onClose={() => { setIsControlPanelOpen(false); setActiveBout(null); }} onLogEvent={addLog} />
             ) : (
-              <KumiteScoreboardControl ref={scoreboardRef} boutId={activeBout.id} onClose={() => setIsControlPanelOpen(false)} onLogEvent={addLog} />
+              <KumiteScoreboardControl ref={scoreboardRef} boutId={activeBout.id} onClose={() => { setIsControlPanelOpen(false); setActiveBout(null); }} onLogEvent={addLog} />
             )}
           </React.Suspense>
         </div>
@@ -897,9 +897,9 @@ export default function OperatorConsolePage() {
         <div className="shrink-0 w-full border-b border-white/10 bg-[#07070a] relative overflow-y-auto" style={{ zoom: 0.45, maxHeight: 'calc(100dvh - 30px)' }}>
           <React.Suspense fallback={<div className="flex h-full items-center justify-center p-10">Loading Live Scoreboard...</div>}>
             {boutIsKata ? (
-              <KataControlPanelContent ref={scoreboardRef} boutId={activeBout.id} onLogEvent={addLog} />
+              <KataControlPanelContent ref={scoreboardRef} boutId={activeBout.id} onClose={() => setActiveBout(null)} onLogEvent={addLog} />
             ) : (
-              <KumiteScoreboardControl ref={scoreboardRef} boutId={activeBout.id} onLogEvent={addLog} />
+              <KumiteScoreboardControl ref={scoreboardRef} boutId={activeBout.id} onClose={() => setActiveBout(null)} onLogEvent={addLog} />
             )}
           </React.Suspense>
         </div>
