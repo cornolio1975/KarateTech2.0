@@ -1378,6 +1378,9 @@ function SpectatorDisplayContent() {
                 <h1 className="text-[70px] tracking-tighter mb-2 md:mb-4 text-center leading-tight drop-shadow-lg max-w-full break-words text-balance px-2 md:px-6 shrink min-h-0 overflow-hidden">
                   {winnerSide === 'aka' ? akaName : aoName}
                 </h1>
+                <h2 className="text-2xl md:text-3xl text-white/80 font-bold uppercase tracking-widest mb-4 drop-shadow-sm text-center px-4">
+                  {winnerSide === 'aka' ? akaClub : aoClub}
+                </h2>
                 {isKata && (winnerSide === 'aka' ? kataA : kataB) && (
                   <h3 className={`text-3xl md:text-5xl font-black tracking-wide mb-4 md:mb-8 drop-shadow-md shrink-0 bg-black/40 px-8 py-3 rounded-2xl border-2 ${winnerSide === 'aka' ? 'border-red-500/40 text-red-100' : 'border-blue-500/40 text-blue-100'}`}>
                     KATA: {OFFICIAL_WKF_KATAS.indexOf(winnerSide === 'aka' ? kataA : kataB) !== -1 ? OFFICIAL_WKF_KATAS.indexOf(winnerSide === 'aka' ? kataA : kataB) + 1 + '. ' : ''}{winnerSide === 'aka' ? kataA : kataB}
@@ -1740,6 +1743,9 @@ function SpectatorDisplayContent() {
              <h1 className="text-[70px] tracking-tighter mb-2 md:mb-4 text-center leading-tight drop-shadow-lg max-w-full break-words text-balance px-2 md:px-6 shrink min-h-0 overflow-hidden">
                {winnerSide === 'aka' ? akaName : aoName}
              </h1>
+             <h2 className="text-2xl md:text-3xl text-white/80 font-bold uppercase tracking-widest mb-4 drop-shadow-sm text-center px-4">
+               {winnerSide === 'aka' ? akaClub : aoClub}
+             </h2>
              <h3 className="text-xl md:text-4xl text-white/90 tracking-widest mb-4 md:mb-6 drop-shadow-md shrink-0">
                WINNER
              </h3>

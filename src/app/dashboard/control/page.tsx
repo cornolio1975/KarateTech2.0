@@ -2202,21 +2202,23 @@ export const KumiteScoreboardControl = React.forwardRef<ScoreboardRef, { boutId?
                 <div className="grid grid-cols-2 gap-3">
                   <button
                     onClick={() => { setWinnerSide('aka'); setWinnerConfirmed(true); setResultConfirmed(true); resultConfirmedRef.current = true; }}
-                    className={`py-3 rounded-xl border text-xs font-black transition cursor-pointer ${winnerSide === 'aka'
+                    className={`py-3 rounded-xl border text-xs font-black transition cursor-pointer flex flex-col items-center justify-center ${winnerSide === 'aka'
                         ? 'bg-red-600 text-white border-red-500 shadow-lg shadow-red-950/20'
                         : 'bg-transparent text-white/50 border-white/10 hover:border-white/20'
                       }`}
                   >
-                    AKA ({competitorAka?.full_name?.split(' ')[0] || 'Red'})
+                    <span>AKA ({competitorAka?.full_name?.split(' ')[0] || 'Red'})</span>
+                    <span className="text-[9px] font-bold text-red-300/80 mt-1 uppercase tracking-widest">{competitorAka?.club_id ? 'Senshi Karate Academy' : 'Senshi Club'}</span>
                   </button>
                   <button
                     onClick={() => { setWinnerSide('ao'); setWinnerConfirmed(true); setResultConfirmed(true); resultConfirmedRef.current = true; }}
-                    className={`py-3 rounded-xl border text-xs font-black transition cursor-pointer ${winnerSide === 'ao'
+                    className={`py-3 rounded-xl border text-xs font-black transition cursor-pointer flex flex-col items-center justify-center ${winnerSide === 'ao'
                         ? 'bg-blue-600 text-white border-blue-500 shadow-lg shadow-blue-950/20'
                         : 'bg-transparent text-white/50 border-white/10 hover:border-white/20'
                       }`}
                   >
-                    AO ({competitorAo?.full_name?.split(' ')[0] || 'Blue'})
+                    <span>AO ({competitorAo?.full_name?.split(' ')[0] || 'Blue'})</span>
+                    <span className="text-[9px] font-bold text-blue-300/80 mt-1 uppercase tracking-widest">{competitorAo?.club_id ? 'Goju-Ryu Karate Club' : 'Goju-Ryu Club'}</span>
                   </button>
                 </div>
               </div>

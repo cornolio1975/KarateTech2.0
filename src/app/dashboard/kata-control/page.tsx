@@ -1361,12 +1361,18 @@ export const KataControlPanelContent = React.forwardRef<ScoreboardRef, { boutId?
                 <span className="text-xs font-black uppercase tracking-widest text-yellow-400">
                   DECISION / WINNER DETERMINATION
                 </span>
-                <h3 className="text-2xl sm:text-3xl lg:text-4xl font-black text-white leading-tight">
+                <h3 className="text-2xl sm:text-3xl lg:text-4xl font-black text-white leading-tight flex flex-col">
                   {isWinnerRevealed || currentBout?.status === 'Completed' ? (
                     selectedWinnerId === participantA?.id ? (
-                      <span className="text-red-400 drop-shadow-[0_0_15px_rgba(239,68,68,0.6)]">{participantA?.full_name} (AKA WINNER)</span>
+                      <>
+                        <span className="text-red-400 drop-shadow-[0_0_15px_rgba(239,68,68,0.6)]">{participantA?.full_name} (AKA WINNER)</span>
+                        <span className="text-sm text-red-300/80 font-bold uppercase tracking-widest">{clubA?.name || ''}</span>
+                      </>
                     ) : selectedWinnerId === participantB?.id ? (
-                      <span className="text-blue-400 drop-shadow-[0_0_15px_rgba(59,130,246,0.6)]">{participantB?.full_name} (AO WINNER)</span>
+                      <>
+                        <span className="text-blue-400 drop-shadow-[0_0_15px_rgba(59,130,246,0.6)]">{participantB?.full_name} (AO WINNER)</span>
+                        <span className="text-sm text-blue-300/80 font-bold uppercase tracking-widest">{clubB?.name || ''}</span>
+                      </>
                     ) : (
                       'Tied Score'
                     )
