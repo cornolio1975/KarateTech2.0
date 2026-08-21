@@ -212,7 +212,6 @@ export function TournamentProvider({ children }: { children: React.ReactNode }) 
   const [activeLocks, setActiveLocks] = useState<CategoryLock[]>([]);
   const [activeTournamentId, setActiveTournamentId] = useState<string | null>(null);
   const [takeoverTatami, setTakeoverTatamiState] = useState<1 | 2 | null>(null);
-  const [isLockedOutByAdmin, setIsLockedOutByAdmin] = useState(false);
 
   const setTakeoverTatami = useCallback((tatami: 1 | 2 | null) => {
     setTakeoverTatamiState(tatami);
@@ -915,11 +914,8 @@ export function TournamentProvider({ children }: { children: React.ReactNode }) 
         status: 'online'
       });
 
-      if (supabase && pcId) {
+      if (pcId) {
         db.pcControl.heartbeat(pcId).then(res => {
-          if (res && typeof res.is_admin_controlled === 'boolean') {
-            setIsLockedOutByAdmin(res.is_admin_controlled);
-          }
         }).catch(console.error);
       }
     }, 3000);
@@ -1156,7 +1152,6 @@ export function TournamentProvider({ children }: { children: React.ReactNode }) 
         setTakeoverTatami,
         tatamiTelemetry,
         updateTatamiTelemetry,
-        isLockedOutByAdmin,
         assignCategoryToTatami,
         releaseCategoryFromTatami,
         lockCategoryByAdmin,

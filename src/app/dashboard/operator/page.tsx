@@ -53,11 +53,10 @@ export default function OperatorConsolePage() {
     tatamiId, 
     takeoverTatami, 
     userRole, 
-    updateTatamiTelemetry,
-    isLockedOutByAdmin,
-    activeLocks,
-    acquireLock
+    updateTatamiTelemetry
   } = useTournament();
+
+  const isLockedOutByAdmin = userRole !== 'Admin' && takeoverTatami === tatamiId;
 
   const [mounted, setMounted] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -189,30 +188,8 @@ export default function OperatorConsolePage() {
 
   const loadBout = useCallback(async (bout: Bout, pList?: Participant[], catList?: Category[], shouldBroadcastDisplay: boolean = true) => {
     const cArr = catList || categories;
-
-    // --- ADMIN LOCK CHECK ---
-    // Prevent loading if category is locked to another Tatami
-    const myTatami = `Tatami ${takeoverTatami || tatamiId || 1}`;
-    const lock = activeLocks.find(l => l.category_id === bout.category_id && l.is_active);
-    
-    if (lock && lock.tatami !== myTatami) {
-      addLog('SYSTEM', `Blocked attempt to load category locked to ${lock.tatami || 'another device'}`);
-      if (typeof window !== 'undefined') {
-        alert(`CATEGORY ALREADY IN USE\nThis category is currently being managed by ${lock.tatami ? lock.tatami.toUpperCase() : 'ANOTHER ADMIN'}. Please select another category.`);
-      }
-      return;
-    }
-
-    // Attempt to formally acquire lock from backend
-    const lockResult = await acquireLock(bout.category_id);
-    if (!lockResult.success) {
-      if (typeof window !== 'undefined') {
-        alert(`CATEGORY ALREADY IN USE\nThis category is currently being managed by another Tatami. Please select another category.`);
-      }
-      return;
-    }
-
     const pArr = pList || participants;
+    const boutCat = cArr.find(c => c.id === bout.category_id);
     setActiveBout(bout);
     setLiveScoreAka(bout.score_a);
     setLiveScoreAo(bout.score_b);
@@ -263,12 +240,12 @@ export default function OperatorConsolePage() {
       currentMatchId: bout.id,
       currentMatchCode: `R${bout.round_no}B${bout.bout_no}`,
       currentBoutNo: bout.bout_no,
-      currentScreenState: 'Kumite Live Scoreboard',
-      status: 'online'
+      currentScreenState: shouldBroadcastDisplay ? (isKumiteCategory(boutCat) ? 'Kumite Scoreboard' : 'Kata Scoreboard') : 'Operator Console 2.0',
+      isAdminControlled: takeoverTatami === tatamiId
     });
 
     addLog('SYSTEM', `Match R${bout.round_no}B${bout.bout_no} loaded to Current Match`);
-  }, [participants, categories, addLog, takeoverTatami, tatamiId, updateTatamiTelemetry, activeLocks]);
+  }, [participants, categories, takeoverTatami, tatamiId, updateTatamiTelemetry]);
 
   const loadData = useCallback(async () => {
     try {
@@ -288,8 +265,7 @@ export default function OperatorConsolePage() {
       const running = bList.find(b => {
         if (b.status !== 'Running') return false;
         const myTatami = `Tatami ${takeoverTatami || tatamiId || 1}`;
-        const lock = activeLocks.find(l => l.category_id === b.category_id && l.is_active);
-        return !(lock && lock.tatami !== myTatami);
+        return b.tatami === myTatami;
       });
       if (running) loadBout(running, pList, catList, false);
       addLog('SYSTEM', 'Data refreshed');
@@ -299,7 +275,7 @@ export default function OperatorConsolePage() {
     } finally {
       setLoading(false);
     }
-  }, [loadBout, addLog, activeLocks, takeoverTatami, tatamiId]);
+  }, [loadBout, addLog, takeoverTatami, tatamiId]);
 
   useEffect(() => {
     const onOnline = () => { setIsOnline(true); setDbStatus('CONNECTED'); addLog('SYSTEM', 'Cloud connected'); };
@@ -1789,8 +1765,7 @@ export default function OperatorConsolePage() {
                   const isExpanded = expandedCatId === cat.id;
 
                   const myTatami = `Tatami ${takeoverTatami || tatamiId || 1}`;
-                  const lock = activeLocks.find(l => l.category_id === cat.id && l.is_active);
-                  const isLockedByOther = lock && lock.tatami !== myTatami;
+                  const isLockedByOther = false;
 
                   return (
                     <div
@@ -1821,7 +1796,7 @@ export default function OperatorConsolePage() {
                           {isLockedByOther ? (
                             <div className="flex items-center gap-1.5 px-3 py-1.5 bg-red-950/40 border border-red-500/20 rounded-lg shadow-sm">
                               <Lock className="w-3.5 h-3.5 text-red-400" />
-                              <span className="text-[10px] font-black uppercase text-red-400 tracking-wider">LOCKED TO {lock?.tatami?.toUpperCase()}</span>
+                              <span className="text-[10px] font-black uppercase text-red-400 tracking-wider">LOCKED</span>
                             </div>
                           ) : (
                             <>

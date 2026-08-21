@@ -11,7 +11,7 @@ const assetPrefixOverride = rawAssetPrefix
 
 const nextConfig: NextConfig = {
   allowedDevOrigins: ['192.168.56.1'],
-  output: 'export',
+  output: process.env.BUILD_TARGET === 'electron' ? 'standalone' : 'export',
   trailingSlash: true,
   basePath: basePath,
   assetPrefix: assetPrefixOverride ?? (basePath ? `${basePath}/` : undefined),

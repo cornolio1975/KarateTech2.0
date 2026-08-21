@@ -120,26 +120,34 @@ function PrintPreviewContent() {
       </div>
 
       {/* Pages Container - Push down below toolbar */}
-      <div className="pt-16 print:pt-0 flex flex-col gap-10 print:gap-0 print:block">
+      <div className="pt-16 print:pt-0 print:block">
         {selectedCatIds.map((catId, index) => (
-          <div 
-            key={catId} 
-            className="mx-auto shadow-2xl print:shadow-none print:border-none print:max-w-none print:!w-full max-w-[95vw] border border-slate-200 bg-white overflow-hidden"
-            style={{ 
-              pageBreakAfter: index < selectedCatIds.length - 1 ? 'always' : 'auto',
-            }}
-          >
-            <PrintBracketView 
-              bouts={bouts}
-              participants={participants}
-              clubs={clubs}
-              categories={categories}
-              selectedCatId={catId}
-              orientation={orientation}
-              fitMode={fitMode}
-              marginSize={marginSize}
-            />
-          </div>
+          <React.Fragment key={catId}>
+            <div 
+              className="mx-auto shadow-2xl print:shadow-none print:border-none print:max-w-none print:!w-full max-w-[95vw] border border-slate-200 bg-white print:block print:overflow-visible"
+            >
+              <PrintBracketView 
+                bouts={bouts}
+                participants={participants}
+                clubs={clubs}
+                categories={categories}
+                selectedCatId={catId}
+                orientation={orientation}
+                fitMode={fitMode}
+                marginSize={marginSize}
+              />
+            </div>
+            
+            {/* The Page Break (Only in Print) */}
+            {index < selectedCatIds.length - 1 && (
+              <div className="hidden print:block" style={{ pageBreakAfter: 'always', breakAfter: 'page', height: '1px' }} />
+            )}
+            
+            {/* Spacing for Screen View (Hidden in Print) */}
+            {index < selectedCatIds.length - 1 && (
+              <div className="h-10 print:hidden" />
+            )}
+          </React.Fragment>
         ))}
       </div>
     </div>

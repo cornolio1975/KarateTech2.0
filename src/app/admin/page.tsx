@@ -31,6 +31,9 @@ export default function AdminDashboard() {
   const [syncingCloud, setSyncingCloud] = useState(false);
   const [cloudSyncMessage, setCloudSyncMessage] = useState<string | null>(null);
   const [currentTime, setCurrentTime] = useState(Date.now());
+  const [pendingSyncs, setPendingSyncs] = useState<number>(0);
+  const [syncQueueEvents, setSyncQueueEvents] = useState<any[]>([]);
+  const [isDesktopEnv, setIsDesktopEnv] = useState<boolean>(false);
 
   const { 
     userRole, 
@@ -124,7 +127,47 @@ export default function AdminDashboard() {
   useEffect(() => {
     setMounted(true);
     loadData();
+    setIsDesktopEnv(typeof window !== 'undefined' && ((window as any).isElectron || process.env.NEXT_PUBLIC_BUILD_TARGET === 'electron'));
   }, [loadData]);
+
+  // Periodic Sync Queue fetch
+  useEffect(() => {
+    if (!isDesktopEnv) return;
+    const fetchSyncQueue = async () => {
+      try {
+        const res = await fetch('/api/db/sync_queue');
+        if (res.ok) {
+          const { data } = await res.json();
+          setPendingSyncs(data.filter((e: any) => e.status === 'pending').length);
+          setSyncQueueEvents(data);
+        }
+      } catch (e) {}
+    };
+    fetchSyncQueue();
+    const interval = setInterval(fetchSyncQueue, 5000);
+    return () => clearInterval(interval);
+  }, [isDesktopEnv]);
+
+  const handleRetrySyncEvent = async (id: string) => {
+    try {
+      await fetch(`/api/db/sync_queue?id=${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: 'pending', retry_count: 0 })
+      });
+    } catch (e) {
+      alert('Error retrying event');
+    }
+  };
+
+  const handleDeleteSyncEvent = async (id: string) => {
+    if (!window.confirm("Delete this sync event? Data might not be synced to cloud.")) return;
+    try {
+      await fetch(`/api/db/sync_queue?id=${id}`, { method: 'DELETE' });
+    } catch (e) {
+      alert('Error deleting event');
+    }
+  };
 
   // Real-time synchronization subscription
   useEffect(() => {
@@ -353,7 +396,7 @@ export default function AdminDashboard() {
           { id: 'TATAMI_MANAGER', label: 'Tatami Manager & Takeover', icon: Laptop, badge: `${tatami1Info.isOnline ? 1 : 0 + (tatami2Info.isOnline ? 1 : 0)}/2 Online` },
           { id: 'CATEGORIES_LOCK', label: 'Category Assignment & Locks', icon: Lock, badge: `${locks.length} Locked` },
           { id: 'MATCH_MONITOR', label: 'Live Match Lock & Monitor', icon: Radio, badge: `${bouts.filter(b => b.status === 'Running').length} Live` },
-          { id: 'SERVER_SYNC', label: 'Local Server & Cloud Sync', icon: Server },
+          { id: 'SERVER_SYNC', label: 'Local Server & Cloud Sync', icon: Server, badge: `${pendingSyncs} Pending` },
           { id: 'ATHLETES', label: 'Athlete Telemetry Stats', icon: Users, badge: `${total}` },
         ].map(tab => {
           const Icon = tab.icon;
@@ -849,7 +892,9 @@ export default function AdminDashboard() {
               </div>
               <div className="flex items-center justify-between p-3 rounded-xl bg-secondary/40 border border-border">
                 <span className="font-bold text-muted-foreground">Offline Queue</span>
-                <span className="font-black text-foreground">0 Pending Commits</span>
+                <span className={`font-black ${pendingSyncs > 0 ? 'text-amber-500 animate-pulse' : 'text-foreground'}`}>
+                  {pendingSyncs} Pending Commit{pendingSyncs !== 1 ? 's' : ''}
+                </span>
               </div>
               <div className="flex items-center justify-between p-3 rounded-xl bg-secondary/40 border border-border">
                 <span className="font-bold text-muted-foreground">Broadcast Synchronization</span>
@@ -864,6 +909,39 @@ export default function AdminDashboard() {
                 <span>{syncingCloud ? 'Synchronizing with Cloud...' : 'Trigger Full Cloud Push & Pull'}</span>
               </button>
             </div>
+
+            {/* Sync Queue List */}
+            {syncQueueEvents.length > 0 && (
+              <div className="mt-6 border-t border-border pt-4">
+                <h3 className="text-sm font-bold text-foreground mb-3">Sync Queue ({syncQueueEvents.length})</h3>
+                <div className="space-y-2 max-h-[300px] overflow-y-auto pr-2">
+                  {syncQueueEvents.slice().reverse().map((evt) => (
+                    <div key={evt.id} className="p-3 bg-secondary/30 border border-border rounded-xl text-xs flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                      <div>
+                        <div className="font-bold text-foreground">{evt.operation} <span className="text-indigo-400">{evt.entity_type}</span></div>
+                        <div className="text-muted-foreground text-[10px] mt-0.5">{new Date(evt.timestamp).toLocaleString()}</div>
+                        {evt.status === 'failed' && <div className="text-red-400 text-[10px] mt-1 font-semibold">{evt.error_message || 'Sync failed'} (Retries: {evt.retry_count})</div>}
+                      </div>
+                      <div className="flex items-center gap-2 shrink-0">
+                        <span className={`px-2 py-0.5 rounded text-[10px] font-black uppercase ${
+                          evt.status === 'pending' ? 'bg-amber-500/10 text-amber-500' :
+                          evt.status === 'failed' ? 'bg-red-500/10 text-red-500' :
+                          'bg-emerald-500/10 text-emerald-500'
+                        }`}>
+                          {evt.status}
+                        </span>
+                        {evt.status === 'failed' && (
+                          <div className="flex gap-1 ml-2">
+                            <button onClick={() => handleRetrySyncEvent(evt.id)} className="px-2 py-1 bg-indigo-600 hover:bg-indigo-500 text-white rounded text-[10px] font-bold cursor-pointer">Retry</button>
+                            <button onClick={() => handleDeleteSyncEvent(evt.id)} className="px-2 py-1 bg-red-600 hover:bg-red-500 text-white rounded text-[10px] font-bold cursor-pointer">Drop</button>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}

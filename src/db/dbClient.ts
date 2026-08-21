@@ -5,6 +5,9 @@ import {
   TeamMember, ParticipantCategory, Payment, MedicalRecord, Document, ActivityLog, AuditLog, Bout, Official, Tournament, DisplayPlaylist, DisplayPlaylistSlide, TournamentPC, CategoryLock
 } from './types';
 import * as pcActions from '@/app/actions/pcControl';
+import { desktopOverrides } from './desktopClient';
+
+export const isDesktop = typeof window !== 'undefined' ? !!(window as any).isElectron : process.env.BUILD_TARGET === 'electron';
 
 // Read Supabase credentials
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
@@ -149,7 +152,7 @@ const persistTournamentPlaylists = async (playlists: DisplayPlaylist[]): Promise
   await localStore.saveTournament(updatedDb);
 };
 
-export const db = {
+export const dbOriginal = {
   isSupabase: (): boolean => !!supabase,
 
   // 1. Countries
@@ -1508,6 +1511,23 @@ export const db = {
     }
   }
 };
+
+export const db = isDesktop ? new Proxy(dbOriginal, {
+  get(target, prop, receiver) {
+    if (prop in desktopOverrides) {
+      // For any nested object like 'participants', 'clubs' we return a proxy that combines original with overrides
+      return new Proxy(Reflect.get(target, prop, receiver), {
+        get(nestedTarget, nestedProp, nestedReceiver) {
+          if (desktopOverrides[prop as keyof typeof desktopOverrides][nestedProp]) {
+            return desktopOverrides[prop as keyof typeof desktopOverrides][nestedProp];
+          }
+          return Reflect.get(nestedTarget, nestedProp, nestedReceiver);
+        }
+      });
+    }
+    return Reflect.get(target, prop, receiver);
+  }
+}) as typeof dbOriginal : dbOriginal;
 
 const DEFAULT_PLAYLISTS: DisplayPlaylist[] = [
   {
