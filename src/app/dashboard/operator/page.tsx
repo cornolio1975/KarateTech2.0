@@ -358,6 +358,7 @@ export default function OperatorConsolePage() {
             if (extraTimerBroadcastRef.current) {
               broadcastExtraTimer(0, false, true);
             }
+            addLog('TIMER', 'Extra Timer: Time expired (00:00)');
             return 0;
           }
           const next = prev - 1;
@@ -379,7 +380,7 @@ export default function OperatorConsolePage() {
         extraTimerRef.current = null;
       }
     };
-  }, [extraRunning]);
+  }, [extraRunning, addLog]);
 
   useEffect(() => { setMounted(true); loadData(); }, []);
 
@@ -1609,6 +1610,7 @@ export default function OperatorConsolePage() {
                     setExtraTime(t); 
                     setExtraRunning(false); 
                     broadcastExtraTimer(t, false, extraTimerBroadcast);
+                    addLog('TIMER', `Extra Timer: Preset set to ${formatTimer(t)}`);
                   }}
                     className={`text-[6.5px] font-black rounded py-0.5 transition cursor-pointer border ${extraTime === t && !extraRunning ? 'bg-yellow-500/20 border-yellow-500/50 text-yellow-400' : 'bg-white/5 border-white/10 text-white/40 hover:bg-white/10 hover:text-white'}`}>
                     {formatTimer(t)}
@@ -1620,6 +1622,7 @@ export default function OperatorConsolePage() {
                   const nextRunning = !extraRunning;
                   setExtraRunning(nextRunning);
                   broadcastExtraTimer(extraTime, nextRunning, extraTimerBroadcast);
+                  addLog('TIMER', nextRunning ? `Extra Timer: Started (${formatTimer(extraTime)})` : `Extra Timer: Paused at ${formatTimer(extraTime)}`);
                 }}
                   className={`flex-1 flex items-center justify-center gap-1 py-1 rounded text-[7px] font-black transition cursor-pointer ${extraRunning ? 'bg-orange-500 text-white' : 'bg-green-600 text-white'}`}>
                   {extraRunning ? <><Pause className="h-2 w-2" /> PAUSE</> : <><Play className="h-2 w-2" /> START</>}
@@ -1628,6 +1631,7 @@ export default function OperatorConsolePage() {
                   setExtraTime(300); 
                   setExtraRunning(false); 
                   broadcastExtraTimer(300, false, extraTimerBroadcast);
+                  addLog('TIMER', 'Extra Timer: Reset to 05:00');
                 }}
                   className="flex-1 flex items-center justify-center gap-1 py-1 bg-orange-900/30 hover:bg-orange-900/50 border border-orange-800/40 rounded text-[7px] font-black text-orange-300 transition cursor-pointer">
                   <RotateCcw className="h-2 w-2" /> RESET
