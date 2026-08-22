@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useMemo, useEffect } from 'react';
-import { X, Search, Printer, BookOpen, Check } from 'lucide-react';
+import { X, Search, Printer, BookOpen, Check, ExternalLink } from 'lucide-react';
 import { basePath } from '@/db/dbClient';
 
 export interface KataEntry {
@@ -188,6 +188,16 @@ export default function KataListModal({ isOpen, onClose }: KataListModalProps) {
                 </button>
               )}
             </div>
+
+            {/* Open in New Tab Button */}
+            <button
+              onClick={() => window.open(`${basePath}/katalist`, '_blank')}
+              title="Open Kata List in new browser tab / window"
+              className="flex items-center gap-1.5 px-3 py-1 bg-slate-800 hover:bg-slate-700 text-slate-200 hover:text-white rounded-lg text-xs font-bold border border-slate-700 transition cursor-pointer"
+            >
+              <ExternalLink className="h-3.5 w-3.5" />
+              <span className="hidden sm:inline">New Tab</span>
+            </button>
 
             {/* Print Button */}
             <button

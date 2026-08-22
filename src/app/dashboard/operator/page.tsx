@@ -732,7 +732,7 @@ export default function OperatorConsolePage() {
       } 
     },
     { id: 'notes',           icon: FileText,       label: 'NOTES',          color: 'blue',   action: () => { if (activeBout) { setNotesText(activeBout.notes || ''); setIsNotesModalOpen(true); } } },
-    { id: 'katalist',        icon: BookOpen,       label: 'KATALIST',       color: 'blue',   action: () => setIsKataListModalOpen(true) },
+    { id: 'katalist',        icon: BookOpen,       label: 'KATALIST',       color: 'blue',   action: () => window.open(`${basePath}/katalist`, '_blank') },
     { id: 'next_match',      icon: ArrowRight,     label: 'NEXT MATCH',     color: 'blue',   action: () => { if (nextBout) { loadBout(nextBout); setIsControlPanelOpen(true); } } },
     { id: 'prev_match',      icon: ArrowLeft,      label: 'PREV MATCH',     color: 'blue',   action: () => { if (prevBout) { loadBout(prevBout); setIsControlPanelOpen(true); } } },
     { id: 'load_match',      icon: FolderOpen,     label: 'LOAD MATCH',     color: 'blue',   action: () => { setLoadMatchSearch(''); setExpandedCatId(null); setIsLoadMatchModalOpen(true); } },
