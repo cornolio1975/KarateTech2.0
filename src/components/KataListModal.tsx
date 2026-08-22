@@ -57,7 +57,7 @@ export const OFFICIAL_WKF_KATA_LIST: KataEntry[] = [
   { id: 45, name: 'Kousoukun Dai' },
   { id: 46, name: 'Kousoukun Sho' },
   { id: 47, name: 'Kururunfa' },
-  { id: 48, name: 'Kushanku' },
+  { id: 48, name: 'Kusanku' },
   { id: 49, name: 'Kyan No Chinto' },
   { id: 50, name: 'Kyan No Wanshu' },
   { id: 51, name: 'Matsukaze' },
@@ -109,7 +109,7 @@ export const OFFICIAL_WKF_KATA_LIST: KataEntry[] = [
   { id: 97, name: 'Tomari Bassai' },
   { id: 98, name: 'Unshu' },
   { id: 99, name: 'Unsu' },
-  { id: 100, name: 'Usheishi' },
+  { id: 100, name: 'Useishi' },
   { id: 101, name: 'Wankan' },
   { id: 102, name: 'Wanshu' },
 ];
