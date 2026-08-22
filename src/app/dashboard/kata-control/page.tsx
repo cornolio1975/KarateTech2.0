@@ -5,9 +5,10 @@ import Link from 'next/link';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { db, basePath } from '@/db/dbClient';
 import { Bout, Participant, Category, Club, isKataCategory } from '@/db/types';
-import { Zap, Play, Check, ShieldAlert, Award, ArrowRight, RefreshCw, Calendar, MapPin, Tv, Trophy, Sparkles, CheckCircle2, ChevronRight, FileText, Flag, Save, RotateCcw, Square, Maximize2, Minimize2, Lock } from 'lucide-react';
+import { Zap, Play, Check, ShieldAlert, Award, ArrowRight, RefreshCw, Calendar, MapPin, Tv, Trophy, Sparkles, CheckCircle2, ChevronRight, FileText, Flag, Save, RotateCcw, Square, Maximize2, Minimize2, Lock, BookOpen } from 'lucide-react';
 import { useTournament } from '@/context/TournamentContext';
 import KataResultBookModal from '@/components/KataResultBookModal';
+import KataListModal from '@/components/KataListModal';
 
 const OFFICIAL_WKF_KATAS = [
   'Anan', 'Anan Dai', 'Ananko', 'Aoyagi', 'Bassai', 'Bassai Dai', 'Bassai Sho', 'Chatanyara Kushanku',
@@ -95,6 +96,7 @@ export const KataControlPanelContent = React.forwardRef<ScoreboardRef, { boutId?
   const [activeScoringTab, setActiveScoringTab] = useState<'AKA' | 'AO'>('AKA');
   const [scoringMethod, setScoringMethod] = useState<'Points' | 'Flags'>('Flags');
   const [selectedWinnerId, setSelectedWinnerId] = useState<string | null>(null);
+  const [isKataListOpen, setIsKataListOpen] = useState<boolean>(false);
   const [isWinnerRevealed, setIsWinnerRevealed] = useState<boolean>(false);
   const [penaltyH, setPenaltyH] = useState<'AKA' | 'AO' | null>(null);
   const [isFullscreen, setIsFullscreen] = useState<boolean>(false);
@@ -824,6 +826,14 @@ export const KataControlPanelContent = React.forwardRef<ScoreboardRef, { boutId?
             </button>
             
             <button
+              onClick={() => setIsKataListOpen(true)}
+              className="flex items-center gap-2 px-3.5 py-1.5 bg-sky-500/10 hover:bg-sky-500/20 text-sky-400 border border-sky-500/30 hover:border-sky-500/50 rounded-xl text-xs font-bold transition cursor-pointer"
+            >
+              <BookOpen className="h-3.5 w-3.5" />
+              Kata List
+            </button>
+
+            <button
               onClick={() => setIsResultBookOpen(true)}
               disabled={!currentBout}
               className="flex items-center gap-2 px-3.5 py-1.5 bg-yellow-400/10 hover:bg-yellow-400/20 text-yellow-400 border border-yellow-400/30 hover:border-yellow-400/50 rounded-xl text-xs font-bold transition cursor-pointer disabled:opacity-50"
@@ -1495,6 +1505,12 @@ export const KataControlPanelContent = React.forwardRef<ScoreboardRef, { boutId?
           </div>
         </div>
       )}
+
+      {/* OFFICIAL WKF KATA LIST MODAL */}
+      <KataListModal
+        isOpen={isKataListOpen}
+        onClose={() => setIsKataListOpen(false)}
+      />
 
     </div>
   );

@@ -14,11 +14,12 @@ import {
   Search, Download, X, Play, Pause, RotateCcw,
   Maximize2, SlidersHorizontal, Trash2, Filter,
   Zap, RefreshCw, Wifi, WifiOff, ArrowRight, ArrowLeft, BarChart3, ExternalLink,
-  ChevronUp, ChevronDown, ChevronLeft, ZoomIn, ZoomOut, Tv, GripHorizontal
+  ChevronUp, ChevronDown, ChevronLeft, ZoomIn, ZoomOut, Tv, GripHorizontal, BookOpen
 } from 'lucide-react';
 import { KumiteScoreboardControl, ScoreboardRef } from '../control/page';
 import { KataControlPanelContent } from '../kata-control/page';
 import { SportdataBracket } from '@/components/SportdataBracket';
+import KataListModal from '@/components/KataListModal';
 
 interface KeyLogEntry {
   id: string;
@@ -124,6 +125,7 @@ export default function OperatorConsolePage() {
 
   const [isBracketModalOpen, setIsBracketModalOpen] = useState(false);
   const [bracketModalCatId, setBracketModalCatId] = useState<string>('ALL');
+  const [isKataListModalOpen, setIsKataListModalOpen] = useState(false);
 
   const [dockOrder, setDockOrder] = useState<string[]>([]);
   const [draggedDockId, setDraggedDockId] = useState<string | null>(null);
@@ -731,6 +733,7 @@ export default function OperatorConsolePage() {
       } 
     },
     { id: 'notes',           icon: FileText,       label: 'NOTES',          color: 'blue',   action: () => { if (activeBout) { setNotesText(activeBout.notes || ''); setIsNotesModalOpen(true); } } },
+    { id: 'katalist',        icon: BookOpen,       label: 'KATALIST',       color: 'blue',   action: () => setIsKataListModalOpen(true) },
     { id: 'next_match',      icon: ArrowRight,     label: 'NEXT MATCH',     color: 'blue',   action: () => { if (nextBout) { loadBout(nextBout); setIsControlPanelOpen(true); } } },
     { id: 'prev_match',      icon: ArrowLeft,      label: 'PREV MATCH',     color: 'blue',   action: () => { if (prevBout) { loadBout(prevBout); setIsControlPanelOpen(true); } } },
     { id: 'load_match',      icon: FolderOpen,     label: 'LOAD MATCH',     color: 'blue',   action: () => { setLoadMatchSearch(''); setExpandedCatId(null); setIsLoadMatchModalOpen(true); } },
@@ -2016,6 +2019,12 @@ export default function OperatorConsolePage() {
           </div>
         </div>
       )}
+
+      {/* OFFICIAL WKF KATA LIST MODAL */}
+      <KataListModal
+        isOpen={isKataListModalOpen}
+        onClose={() => setIsKataListModalOpen(false)}
+      />
     </div>
   );
 }
