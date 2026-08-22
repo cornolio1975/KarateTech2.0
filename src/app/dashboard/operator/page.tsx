@@ -445,6 +445,134 @@ export default function OperatorConsolePage() {
     TIMER: 'text-orange-400 bg-orange-500/10', RESULT: 'text-purple-400 bg-purple-500/10',
   };
 
+  const handleExportKeyLog = () => {
+    if (keyLog.length === 0) {
+      alert('No log entries to export.');
+      return;
+    }
+    const matchInfo = activeBout ? `R${activeBout.round_no}B${activeBout.bout_no}` : 'General';
+    const csvRows = [
+      ['Timestamp', 'Category', 'Message', 'Match'],
+      ...filteredLog.map(entry => [
+        `"${entry.time}"`,
+        `"${entry.category}"`,
+        `"${entry.message.replace(/"/g, '""')}"`,
+        `"${matchInfo}"`
+      ])
+    ];
+    const csvContent = 'data:text/csv;charset=utf-8,' + encodeURIComponent(csvRows.map(e => e.join(',')).join('\n'));
+    const link = document.createElement('a');
+    link.setAttribute('href', csvContent);
+    const fileName = `key_log_${matchInfo}_${new Date().toISOString().slice(0, 10)}.csv`;
+    link.setAttribute('download', fileName);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    addLog('SYSTEM', `Key log exported (${filteredLog.length} entries to ${fileName})`);
+  };
+
+  const handlePrintKeyLog = () => {
+    if (keyLog.length === 0) {
+      alert('No log entries to print.');
+      return;
+    }
+    const matchCode = activeBout ? `R${activeBout.round_no}B${activeBout.bout_no}` : 'N/A';
+    const catName = activeCat?.name || 'All Categories';
+    const tatamiLabel = `Tatami ${takeoverTatami || tatamiId || 1}`;
+    const printWindow = window.open('', '_blank', 'width=800,height=900');
+    if (!printWindow) {
+      alert('Please allow popups to print the Key Log audit sheet.');
+      return;
+    }
+
+    const html = `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <title>Key Log Audit Report - ${matchCode}</title>
+          <style>
+            body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; padding: 24px; color: #1e293b; }
+            .header { border-bottom: 2px solid #0f172a; padding-bottom: 12px; margin-bottom: 16px; display: flex; justify-content: space-between; align-items: flex-end; }
+            .title { font-size: 20px; font-weight: 900; text-transform: uppercase; margin: 0; }
+            .subtitle { font-size: 11px; color: #64748b; margin-top: 4px; }
+            .meta-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 10px; margin-bottom: 16px; font-size: 11px; }
+            .meta-item strong { display: block; color: #475569; font-size: 9px; text-transform: uppercase; }
+            table { width: 100%; border-collapse: collapse; font-size: 11px; }
+            th { background: #0f172a; color: #fff; text-align: left; padding: 8px 10px; font-size: 10px; text-transform: uppercase; }
+            td { padding: 6px 10px; border-bottom: 1px solid #e2e8f0; }
+            tr:nth-child(even) td { background: #f8fafc; }
+            .cat-badge { font-weight: bold; font-size: 9px; padding: 2px 6px; border-radius: 4px; text-transform: uppercase; }
+            .cat-SCORE { background: #dcfce7; color: #166534; }
+            .cat-PENALTY { background: #fee2e2; color: #991b1b; }
+            .cat-TIMER { background: #ffedd5; color: #9a3412; }
+            .cat-SYSTEM { background: #e0f2fe; color: #075985; }
+            .cat-REFEREE { background: #fef9c3; color: #854d0e; }
+            .cat-RESULT { background: #f3e8ff; color: #6b21a8; }
+            .footer { margin-top: 24px; padding-top: 12px; border-top: 1px solid #e2e8f0; display: flex; justify-content: space-between; font-size: 10px; color: #94a3b8; }
+            @media print {
+              body { padding: 0; }
+              @page { margin: 1.5cm; }
+            }
+          </style>
+        </head>
+        <body>
+          <div class="header">
+            <div>
+              <h1 class="title">Official Key Log Audit Sheet</h1>
+              <div class="subtitle">KarateTech Tournament Management System • ${tournamentName || 'Karate Championship'}</div>
+            </div>
+            <div style="text-align: right; font-size: 10px; color: #64748b;">
+              Generated: ${new Date().toLocaleString()}
+            </div>
+          </div>
+
+          <div class="meta-grid">
+            <div class="meta-item"><strong>Match / Bout</strong>${matchCode}</div>
+            <div class="meta-item"><strong>Category</strong>${catName}</div>
+            <div class="meta-item"><strong>Tatami</strong>${tatamiLabel}</div>
+            <div class="meta-item"><strong>Fighters</strong>AKA: ${akaFighter?.full_name || '—'} vs AO: ${aoFighter?.full_name || '—'}</div>
+          </div>
+
+          <table>
+            <thead>
+              <tr>
+                <th style="width: 80px;">Time</th>
+                <th style="width: 90px;">Category</th>
+                <th>Action / Event Description</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${filteredLog.map(entry => `
+                <tr>
+                  <td style="font-family: monospace; font-weight: bold;">${entry.time}</td>
+                  <td><span class="cat-badge cat-${entry.category}">${entry.category}</span></td>
+                  <td>${entry.message}</td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+
+          <div class="footer">
+            <div>Total Events Logged: ${filteredLog.length}</div>
+            <div>Chief Referee Signature: _______________________</div>
+            <div>Tatami Manager Signature: _______________________</div>
+          </div>
+
+          <script>
+            window.onload = function() {
+              window.print();
+            };
+          </script>
+        </body>
+      </html>
+    `;
+
+    printWindow.document.open();
+    printWindow.document.write(html);
+    printWindow.document.close();
+    addLog('SYSTEM', `Key log sent to printer (${filteredLog.length} entries)`);
+  };
+
   type DockBtn = { id: string; icon: React.ElementType; label: string; color: string; action: () => void };
   const handleOperatorRematch = async () => {
     if (!activeBout) {
@@ -1264,7 +1392,7 @@ export default function OperatorConsolePage() {
                   <div className="flex items-center justify-center py-4 text-white/20 text-[9px]">No entries</div>
                 ) : (
                   <div className="divide-y divide-white/5">
-                    {filteredLog.slice(0, 3).map(entry => (
+                    {filteredLog.map(entry => (
                       <div key={entry.id} className="px-2 py-1 hover:bg-white/5 flex gap-1.5 items-center">
                         <span className="text-white/20 shrink-0 text-[8px]">{entry.time}</span>
                         <span className={`shrink-0 px-1 py-0.2 rounded text-[6.5px] font-black ${logColorMap[entry.category] || ''}`}>{entry.category}</span>
@@ -1281,9 +1409,9 @@ export default function OperatorConsolePage() {
                     placeholder="Search logs..." className="bg-transparent text-[8.5px] text-white placeholder-white/20 flex-1 outline-none py-0.5" />
                 </div>
                 <div className="flex gap-1">
-                  <button className="flex-1 flex items-center justify-center gap-1 py-1 bg-white/5 hover:bg-white/10 rounded text-[7px] font-bold text-white/40 transition cursor-pointer"><Download className="h-2.5 w-2.5" /> EXPORT</button>
-                  <button className="flex-1 flex items-center justify-center gap-1 py-1 bg-white/5 hover:bg-white/10 rounded text-[7px] font-bold text-white/40 transition cursor-pointer"><Printer className="h-2.5 w-2.5" /> PRINT</button>
-                  <button onClick={() => setKeyLog([])} className="flex-1 flex items-center justify-center gap-1 py-1 bg-red-900/20 hover:bg-red-900/40 border border-red-800/30 rounded text-[7px] font-bold text-red-400 transition cursor-pointer"><Trash2 className="h-2.5 w-2.5" /> CLEAR</button>
+                  <button onClick={handleExportKeyLog} className="flex-1 flex items-center justify-center gap-1 py-1 bg-white/5 hover:bg-white/15 active:scale-95 rounded text-[7.5px] font-black uppercase text-slate-200 hover:text-white transition cursor-pointer border border-white/10 shadow-xs"><Download className="h-2.5 w-2.5 text-sky-400" /> EXPORT</button>
+                  <button onClick={handlePrintKeyLog} className="flex-1 flex items-center justify-center gap-1 py-1 bg-white/5 hover:bg-white/15 active:scale-95 rounded text-[7.5px] font-black uppercase text-slate-200 hover:text-white transition cursor-pointer border border-white/10 shadow-xs"><Printer className="h-2.5 w-2.5 text-amber-400" /> PRINT</button>
+                  <button onClick={() => setKeyLog([])} className="flex-1 flex items-center justify-center gap-1 py-1 bg-red-900/20 hover:bg-red-900/40 active:scale-95 border border-red-800/30 rounded text-[7.5px] font-black uppercase text-red-400 hover:text-red-300 transition cursor-pointer"><Trash2 className="h-2.5 w-2.5" /> CLEAR</button>
                 </div>
               </div>
             </aside>
