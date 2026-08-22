@@ -814,10 +814,10 @@ export default function OperatorConsolePage() {
     { id: 'bracket',         icon: Trophy,         label: 'BRACKET',       color: 'yellow', action: () => {
         setBracketModalCatId(activeCat?.id || (selectedCatId !== 'ALL' ? selectedCatId : (filteredCategories[0]?.id || 'ALL')));
         setIsBracketModalOpen(true);
-        addLog('SYSTEM', 'Live Bracket Modal opened');
+        addLog('SYSTEM', 'Function Dock: Live Bracket Modal opened');
       } 
     },
-    { id: 'matches',         icon: List,           label: 'MATCHES',        color: 'blue',   action: () => setBracketTab('MATCH LIST') },
+    { id: 'matches',         icon: List,           label: 'MATCHES',        color: 'blue',   action: () => { setBracketTab('MATCH LIST'); addLog('SYSTEM', 'Function Dock: Switched to MATCH LIST'); } },
     { id: 'player_details',  icon: UserSquare2,    label: 'PLAYER DETAILS', color: 'blue',   action: () => {
         const nextState = !isPlayerDetailsDisplayShowing;
         setIsPlayerDetailsDisplayShowing(nextState);
@@ -837,7 +837,7 @@ export default function OperatorConsolePage() {
           });
           channel.close();
         }
-        addLog('SYSTEM', nextState ? 'Player details presented on Referee / Spectator Screen' : 'Player details dismissed from Referee Screen');
+        addLog('SYSTEM', nextState ? 'Function Dock: Player details presented on Referee / Spectator Screen' : 'Function Dock: Player details dismissed from Referee Screen');
       } 
     },
     { id: 'extra_timer',     icon: Timer,          label: 'EXTRA TIMER',    color: 'orange', action: () => {
@@ -845,11 +845,19 @@ export default function OperatorConsolePage() {
         setExtraTimerBroadcast(nextBroadcast);
         setExtraTimerOpen(true);
         broadcastExtraTimer(extraTime, extraRunning, nextBroadcast);
-        addLog('TIMER', nextBroadcast ? 'Extra Timer synced to Referee / Spectator Screen' : 'Extra Timer dismissed from Referee Screen');
+        addLog('TIMER', nextBroadcast ? 'Function Dock: Extra Timer synced to Referee / Spectator Screen' : 'Function Dock: Extra Timer dismissed from Referee Screen');
         setTimeout(() => document.querySelector<HTMLDivElement>('.extra-timer-panel')?.scrollIntoView({ behavior: 'smooth' }), 100);
       } 
     },
-    { id: 'current_match',   icon: ChevronRight,   label: 'CURRENT MATCH',  color: 'yellow', action: () => activeBout && setIsControlPanelOpen(true) },
+    { id: 'current_match',   icon: ChevronRight,   label: 'CURRENT MATCH',  color: 'yellow', action: () => {
+        if (activeBout) {
+          setIsControlPanelOpen(true);
+          addLog('SYSTEM', `Function Dock: Opened Current Match Console (${boutLabel})`);
+        } else {
+          addLog('SYSTEM', 'Function Dock: No active match to open in console');
+        }
+      } 
+    },
     { id: 'referee_screen',  icon: Tv,             label: 'REFEREE SCREEN', color: 'blue',   action: () => {
         const url = `${basePath}/display?liveOnly=true${activeBout ? `&boutId=${activeBout.id}` : ''}`;
         setExpandModal({
@@ -857,25 +865,99 @@ export default function OperatorConsolePage() {
           terminal: 'REFEREE & SPECTATOR SCREEN',
           targetUrl: url
         });
+        addLog('SYSTEM', 'Function Dock: Opened Referee & Spectator Screen in Modal');
       } 
     },
-    { id: 'notes',           icon: FileText,       label: 'NOTES',          color: 'blue',   action: () => { if (activeBout) { setNotesText(activeBout.notes || ''); setIsNotesModalOpen(true); } } },
-    { id: 'katalist',        icon: BookOpen,       label: 'KATALIST',       color: 'blue',   action: () => window.open(`${basePath}/katalist`, '_blank') },
-    { id: 'next_match',      icon: ArrowRight,     label: 'NEXT MATCH',     color: 'blue',   action: () => { if (nextBout) { loadBout(nextBout); setIsControlPanelOpen(true); } } },
-    { id: 'prev_match',      icon: ArrowLeft,      label: 'PREV MATCH',     color: 'blue',   action: () => { if (prevBout) { loadBout(prevBout); setIsControlPanelOpen(true); } } },
-    { id: 'load_match',      icon: FolderOpen,     label: 'LOAD MATCH',     color: 'blue',   action: () => { setLoadMatchSearch(''); setExpandedCatId(null); setIsLoadMatchModalOpen(true); } },
-    { id: 'match_log',       icon: ClipboardList,  label: 'MATCH LOG',      color: 'blue',   action: () => setKeyLogTab('ALL') },
-    { id: 'queue',           icon: Users2,         label: 'QUEUE',          color: 'blue',   action: () => setBracketTab('QUEUE') },
-    { id: 'undo',            icon: Undo2,          label: 'UNDO',           color: 'orange', action: () => { scoreboardRef.current?.undoLastAction(); addLog('SYSTEM', 'Undo action triggered'); } },
+    { id: 'notes',           icon: FileText,       label: 'NOTES',          color: 'blue',   action: () => {
+        if (activeBout) {
+          setNotesText(activeBout.notes || '');
+          setIsNotesModalOpen(true);
+          addLog('SYSTEM', `Function Dock: Opened Notes for Match ${boutLabel}`);
+        } else {
+          addLog('SYSTEM', 'Function Dock: No active match for Notes');
+        }
+      } 
+    },
+    { id: 'katalist',        icon: BookOpen,       label: 'KATALIST',       color: 'blue',   action: () => {
+        window.open(`${basePath}/katalist`, '_blank');
+        addLog('SYSTEM', 'Function Dock: Opened WKF Kata List in new tab');
+      } 
+    },
+    { id: 'next_match',      icon: ArrowRight,     label: 'NEXT MATCH',     color: 'blue',   action: () => {
+        if (nextBout) {
+          loadBout(nextBout);
+          setIsControlPanelOpen(true);
+          addLog('SYSTEM', `Function Dock: Loaded Next Match R${nextBout.round_no}B${nextBout.bout_no}`);
+        } else {
+          addLog('SYSTEM', 'Function Dock: No next match available in category/queue');
+        }
+      } 
+    },
+    { id: 'prev_match',      icon: ArrowLeft,      label: 'PREV MATCH',     color: 'blue',   action: () => {
+        if (prevBout) {
+          loadBout(prevBout);
+          setIsControlPanelOpen(true);
+          addLog('SYSTEM', `Function Dock: Loaded Previous Match R${prevBout.round_no}B${prevBout.bout_no}`);
+        } else {
+          addLog('SYSTEM', 'Function Dock: No previous match available');
+        }
+      } 
+    },
+    { id: 'load_match',      icon: FolderOpen,     label: 'LOAD MATCH',     color: 'blue',   action: () => {
+        setLoadMatchSearch('');
+        setExpandedCatId(null);
+        setIsLoadMatchModalOpen(true);
+        addLog('SYSTEM', 'Function Dock: Opened Load Match modal');
+      } 
+    },
+    { id: 'match_log',       icon: ClipboardList,  label: 'MATCH LOG',      color: 'blue',   action: () => {
+        setKeyLogTab('ALL');
+        addLog('SYSTEM', 'Function Dock: Key Log filter reset to ALL');
+      } 
+    },
+    { id: 'queue',           icon: Users2,         label: 'QUEUE',          color: 'blue',   action: () => {
+        setBracketTab('QUEUE');
+        addLog('SYSTEM', 'Function Dock: Switched to QUEUE tab');
+      } 
+    },
+    { id: 'undo',            icon: Undo2,          label: 'UNDO',           color: 'orange', action: () => {
+        scoreboardRef.current?.undoLastAction();
+        addLog('SYSTEM', 'Function Dock: Undo action triggered');
+      } 
+    },
     { id: 'rematch',         icon: RotateCcw,      label: 'REMATCH',        color: 'red',    action: handleOperatorRematch },
     { id: 'confirm_result',  icon: CheckCircle2,   label: isResultConfirmedOnReferee ? 'REVERSE RESULT' : 'CONFIRM RESULT', color: isResultConfirmedOnReferee ? 'orange' : 'green', action: handleToggleResultOnRefereeView },
     { id: 'save_result',     icon: Save,           label: 'SAVE RESULT',    color: 'green',  action: handleSaveResultAndLoadNextMatch },
-    { id: 'print',           icon: Printer,        label: 'PRINT',          color: 'blue',   action: () => window.print() },
-    { id: 'display',         icon: Monitor,        label: 'DISPLAY',        color: 'blue',   action: () => router.push(`/display?liveOnly=true${activeBout ? `&boutId=${activeBout.id}` : ''}`) },
-    { id: 'live_display',    icon: Radio,          label: 'LIVE DISPLAY',   color: 'blue',   action: () => window.open(`${basePath}/display?liveOnly=true${activeBout ? `&boutId=${activeBout.id}` : ''}`, '_blank') },
-    { id: 'lock',            icon: Lock,           label: 'LOCK',           color: 'red',    action: () => { updateBout({ status: 'Completed' }); addLog('SYSTEM', 'Match Locked'); } },
-    { id: 'pc_manager',      icon: Cpu,            label: 'PC MANAGER',     color: 'blue',   action: () => router.push('/admin') },
-    { id: 'settings',        icon: Settings,       label: 'SETTINGS',       color: 'blue',   action: () => router.push('/settings') },
+    { id: 'print',           icon: Printer,        label: 'PRINT',          color: 'blue',   action: () => {
+        addLog('SYSTEM', 'Function Dock: Triggered Browser Print dialog');
+        window.print();
+      } 
+    },
+    { id: 'display',         icon: Monitor,        label: 'DISPLAY',        color: 'blue',   action: () => {
+        addLog('SYSTEM', 'Function Dock: Navigating to Spectator Display');
+        router.push(`/display?liveOnly=true${activeBout ? `&boutId=${activeBout.id}` : ''}`);
+      } 
+    },
+    { id: 'live_display',    icon: Radio,          label: 'LIVE DISPLAY',   color: 'blue',   action: () => {
+        addLog('SYSTEM', 'Function Dock: Launched Live Spectator Display in new tab');
+        window.open(`${basePath}/display?liveOnly=true${activeBout ? `&boutId=${activeBout.id}` : ''}`, '_blank');
+      } 
+    },
+    { id: 'lock',            icon: Lock,           label: 'LOCK',           color: 'red',    action: () => {
+        updateBout({ status: 'Completed' });
+        addLog('SYSTEM', `Function Dock: Match ${boutLabel} Locked as Completed`);
+      } 
+    },
+    { id: 'pc_manager',      icon: Cpu,            label: 'PC MANAGER',     color: 'blue',   action: () => {
+        addLog('SYSTEM', 'Function Dock: Navigating to PC Manager / Admin');
+        router.push('/admin');
+      } 
+    },
+    { id: 'settings',        icon: Settings,       label: 'SETTINGS',       color: 'blue',   action: () => {
+        addLog('SYSTEM', 'Function Dock: Navigating to Settings');
+        router.push('/settings');
+      } 
+    },
   ];
 
   const handleDockReorder = useCallback((draggedId: string, targetId: string) => {
@@ -902,7 +984,8 @@ export default function OperatorConsolePage() {
     try {
       localStorage.removeItem('kt_operator_dock_order');
     } catch (e) {}
-  }, []);
+    addLog('SYSTEM', 'Function Dock: Button arrangement reset to default order');
+  }, [addLog]);
 
   const orderedDockButtons = useMemo(() => {
     if (!dockOrder || dockOrder.length === 0) return initialDockButtons;
@@ -976,10 +1059,10 @@ export default function OperatorConsolePage() {
             {isOnline ? <Wifi className="h-3 w-3" /> : <WifiOff className="h-3 w-3" />}
             {isOnline ? 'CONNECTED' : 'OFFLINE'}
           </div>
-          <button onClick={loadData} className="p-1.5 rounded text-white/30 hover:text-white/70 transition cursor-pointer"><RefreshCw className={`h-3.5 w-3.5 ${loading ? 'animate-spin' : ''}`} /></button>
-          <button onClick={() => router.push('/settings')} className="p-1.5 rounded text-white/30 hover:text-white/70 transition cursor-pointer"><Settings className="h-3.5 w-3.5" /></button>
-          <button onClick={() => document.documentElement.requestFullscreen?.()} className="p-1.5 rounded text-white/30 hover:text-white/70 transition cursor-pointer"><Maximize2 className="h-3.5 w-3.5" /></button>
-          <Link href="/" className="p-1.5 rounded text-white/30 hover:text-red-400 transition"><X className="h-3.5 w-3.5" /></Link>
+          <button onClick={() => { loadData(); addLog('SYSTEM', 'Top Bar: Data refresh requested'); }} className="p-1.5 rounded text-white/30 hover:text-white/70 transition cursor-pointer" title="Refresh Data"><RefreshCw className={`h-3.5 w-3.5 ${loading ? 'animate-spin' : ''}`} /></button>
+          <button onClick={() => { addLog('SYSTEM', 'Top Bar: Navigating to Settings'); router.push('/settings'); }} className="p-1.5 rounded text-white/30 hover:text-white/70 transition cursor-pointer" title="Settings"><Settings className="h-3.5 w-3.5" /></button>
+          <button onClick={() => { document.documentElement.requestFullscreen?.(); addLog('SYSTEM', 'Top Bar: Fullscreen requested'); }} className="p-1.5 rounded text-white/30 hover:text-white/70 transition cursor-pointer" title="Fullscreen"><Maximize2 className="h-3.5 w-3.5" /></button>
+          <Link href="/" onClick={() => addLog('SYSTEM', 'Top Bar: Exit to Home clicked')} className="p-1.5 rounded text-white/30 hover:text-red-400 transition" title="Back to Home"><X className="h-3.5 w-3.5" /></Link>
         </div>
       </header>      {/* DYNAMIC LIVE SCOREBOARD CONTROL (NO HARDCODED MOCKUPS) */}
       {isControlPanelOpen && activeBout ? (
@@ -1048,7 +1131,7 @@ export default function OperatorConsolePage() {
           </div>
           <div className="flex border-b border-white/10 shrink-0">
             {(['BRACKET CONSOLE', 'CHART', 'MATCH LIST', 'QUEUE'] as const).map(tab => (
-              <button key={tab} onClick={() => setBracketTab(tab)}
+              <button key={tab} onClick={() => { setBracketTab(tab); addLog('SYSTEM', `Match Console: Tab switched to ${tab}`); }}
                 className={`flex-1 text-[7.5px] font-black uppercase py-1.5 tracking-wider transition border-b-2 cursor-pointer ${bracketTab === tab ? 'text-yellow-400 border-yellow-400' : 'text-white/25 border-transparent hover:text-white/50'}`}>
                 {tab}
               </button>
@@ -1062,6 +1145,7 @@ export default function OperatorConsolePage() {
                 onClick={() => {
                   setDisciplineFilter(disc);
                   setSelectedCatId('ALL');
+                  addLog('SYSTEM', `Match Console: Discipline filter changed to ${disc}`);
                 }}
                 className={`flex-1 text-[7.5px] font-black uppercase py-1 rounded transition cursor-pointer border ${
                   disciplineFilter === disc
@@ -1082,7 +1166,11 @@ export default function OperatorConsolePage() {
           <div className="px-2 py-1.5 border-b border-white/5 shrink-0">
             <select
               value={selectedCatId}
-              onChange={e => setSelectedCatId(e.target.value)}
+              onChange={e => {
+                setSelectedCatId(e.target.value);
+                const found = categories.find(c => c.id === e.target.value);
+                addLog('SYSTEM', `Match Console: Category filter selected - ${found ? found.name : 'ALL'}`);
+              }}
               className="w-full text-[9px] bg-[#121620] border border-white/10 rounded px-2 py-1 text-white/80 focus:outline-none focus:border-yellow-400/50 cursor-pointer"
             >
               <option value="ALL">ALL CATEGORIES ({filteredCategories.length})</option>
@@ -1131,16 +1219,16 @@ export default function OperatorConsolePage() {
                       {/* Directional Pad */}
                       <div className="flex items-center gap-0.5">
                         <span className="text-[7px] text-white/30 font-black mr-1 uppercase">SCROLL:</span>
-                        <button onClick={() => scrollChart(0, -150)} title="Scroll Up" className="p-1 rounded bg-white/5 hover:bg-white/15 border border-white/10 text-white/70 hover:text-white transition cursor-pointer">
+                        <button onClick={() => { scrollChart(0, -150); addLog('SYSTEM', 'Bracket Chart: Scrolled Up'); }} title="Scroll Up" className="p-1 rounded bg-white/5 hover:bg-white/15 border border-white/10 text-white/70 hover:text-white transition cursor-pointer">
                           <ChevronUp className="h-3 w-3" />
                         </button>
-                        <button onClick={() => scrollChart(0, 150)} title="Scroll Down" className="p-1 rounded bg-white/5 hover:bg-white/15 border border-white/10 text-white/70 hover:text-white transition cursor-pointer">
+                        <button onClick={() => { scrollChart(0, 150); addLog('SYSTEM', 'Bracket Chart: Scrolled Down'); }} title="Scroll Down" className="p-1 rounded bg-white/5 hover:bg-white/15 border border-white/10 text-white/70 hover:text-white transition cursor-pointer">
                           <ChevronDown className="h-3 w-3" />
                         </button>
-                        <button onClick={() => scrollChart(-150, 0)} title="Scroll Left" className="p-1 rounded bg-white/5 hover:bg-white/15 border border-white/10 text-white/70 hover:text-white transition cursor-pointer">
+                        <button onClick={() => { scrollChart(-150, 0); addLog('SYSTEM', 'Bracket Chart: Scrolled Left'); }} title="Scroll Left" className="p-1 rounded bg-white/5 hover:bg-white/15 border border-white/10 text-white/70 hover:text-white transition cursor-pointer">
                           <ChevronLeft className="h-3 w-3" />
                         </button>
-                        <button onClick={() => scrollChart(150, 0)} title="Scroll Right" className="p-1 rounded bg-white/5 hover:bg-white/15 border border-white/10 text-white/70 hover:text-white transition cursor-pointer">
+                        <button onClick={() => { scrollChart(150, 0); addLog('SYSTEM', 'Bracket Chart: Scrolled Right'); }} title="Scroll Right" className="p-1 rounded bg-white/5 hover:bg-white/15 border border-white/10 text-white/70 hover:text-white transition cursor-pointer">
                           <ChevronRight className="h-3 w-3" />
                         </button>
                       </div>
@@ -1148,14 +1236,14 @@ export default function OperatorConsolePage() {
                       {/* Zoom controls */}
                       <div className="flex items-center gap-0.5">
                         <span className="text-[7px] text-white/30 font-black mr-1 uppercase">ZOOM:</span>
-                        <button onClick={() => setChartZoom(z => Math.max(0.3, +(z - 0.1).toFixed(2)))} title="Zoom Out" className="p-1 rounded bg-white/5 hover:bg-white/15 border border-white/10 text-white/70 hover:text-white transition cursor-pointer">
+                        <button onClick={() => { setChartZoom(z => Math.max(0.3, +(z - 0.1).toFixed(2))); addLog('SYSTEM', 'Bracket Chart: Zoom Out'); }} title="Zoom Out" className="p-1 rounded bg-white/5 hover:bg-white/15 border border-white/10 text-white/70 hover:text-white transition cursor-pointer">
                           <ZoomOut className="h-3 w-3" />
                         </button>
                         <span className="font-mono text-[7.5px] text-yellow-400 font-bold px-1">{Math.round(chartZoom * 100)}%</span>
-                        <button onClick={() => setChartZoom(z => Math.min(1.2, +(z + 0.1).toFixed(2)))} title="Zoom In" className="p-1 rounded bg-white/5 hover:bg-white/15 border border-white/10 text-white/70 hover:text-white transition cursor-pointer">
+                        <button onClick={() => { setChartZoom(z => Math.min(1.2, +(z + 0.1).toFixed(2))); addLog('SYSTEM', 'Bracket Chart: Zoom In'); }} title="Zoom In" className="p-1 rounded bg-white/5 hover:bg-white/15 border border-white/10 text-white/70 hover:text-white transition cursor-pointer">
                           <ZoomIn className="h-3 w-3" />
                         </button>
-                        <button onClick={() => setChartZoom(0.6)} title="Reset Scale (60%)" className="px-1 py-0.5 rounded bg-white/5 hover:bg-white/15 text-[7px] font-bold text-white/40 hover:text-white transition cursor-pointer">
+                        <button onClick={() => { setChartZoom(0.6); addLog('SYSTEM', 'Bracket Chart: Scale reset to 60% FIT'); }} title="Reset Scale (60%)" className="px-1 py-0.5 rounded bg-white/5 hover:bg-white/15 text-[7px] font-bold text-white/40 hover:text-white transition cursor-pointer">
                           FIT
                         </button>
                       </div>
@@ -1253,13 +1341,13 @@ export default function OperatorConsolePage() {
             )}
           </div>
           <div className="shrink-0 border-t border-white/10 p-2 flex gap-1">
-            <button onClick={loadData} className="flex-1 flex items-center justify-center gap-1 py-1.5 bg-white/5 hover:bg-white/10 rounded text-[8px] font-bold text-white/50 transition cursor-pointer">
+            <button onClick={() => { loadData(); addLog('SYSTEM', 'Match Console: Refresh clicked'); }} className="flex-1 flex items-center justify-center gap-1 py-1.5 bg-white/5 hover:bg-white/10 rounded text-[8px] font-bold text-white/50 transition cursor-pointer">
               <RefreshCw className="h-2.5 w-2.5" /> REFRESH
             </button>
-            <button onClick={handleChartClick} className="flex-1 flex items-center justify-center gap-1 py-1.5 bg-yellow-500/10 hover:bg-yellow-500/20 border border-yellow-500/30 rounded text-[8px] font-bold text-yellow-400 transition cursor-pointer">
+            <button onClick={() => { handleChartClick(); addLog('SYSTEM', 'Match Console: Chart view triggered'); }} className="flex-1 flex items-center justify-center gap-1 py-1.5 bg-yellow-500/10 hover:bg-yellow-500/20 border border-yellow-500/30 rounded text-[8px] font-bold text-yellow-400 transition cursor-pointer">
               <BarChart3 className="h-2.5 w-2.5" /> CHART
             </button>
-            <Link href="/draws" className="flex-1 flex items-center justify-center gap-1 py-1.5 bg-white/5 hover:bg-white/10 rounded text-[8px] font-bold text-white/50 transition">
+            <Link href="/draws" onClick={() => addLog('SYSTEM', 'Match Console: Navigating to Repechage / Draws')} className="flex-1 flex items-center justify-center gap-1 py-1.5 bg-white/5 hover:bg-white/10 rounded text-[8px] font-bold text-white/50 transition">
               <List className="h-2.5 w-2.5" /> REPECHAGE
             </Link>
           </div>
@@ -1369,19 +1457,22 @@ export default function OperatorConsolePage() {
                 <span className="text-[9px] font-black uppercase tracking-widest text-white/50">KEY LOG TERMINAL</span>
                 <div className="flex gap-1">
                   <button
-                    onClick={() => setExpandModal({ open: true, terminal: 'KEY LOG TERMINAL', targetUrl: `${basePath}/dashboard/control` })}
+                    onClick={() => {
+                      setExpandModal({ open: true, terminal: 'KEY LOG TERMINAL', targetUrl: `${basePath}/dashboard/control` });
+                      addLog('SYSTEM', 'Key Log: Expanded to output display modal');
+                    }}
                     title="Expand & Output Display"
                     className="p-1 rounded text-white/20 hover:text-white/60 transition cursor-pointer"
                   >
                     <Maximize2 className="h-3 w-3" />
                   </button>
-                  <button className="p-1 rounded text-white/20 hover:text-white/60 transition cursor-pointer"><Filter className="h-3 w-3" /></button>
-                  <button onClick={() => setKeyLog([])} className="p-1 rounded text-white/20 hover:text-red-400 transition cursor-pointer"><Trash2 className="h-3 w-3" /></button>
+                  <button onClick={() => addLog('SYSTEM', 'Key Log: Filter options toggled')} title="Filter" className="p-1 rounded text-white/20 hover:text-white/60 transition cursor-pointer"><Filter className="h-3 w-3" /></button>
+                  <button onClick={() => { setKeyLog([]); addLog('SYSTEM', 'Key Log: Cleared all log history'); }} title="Clear Log" className="p-1 rounded text-white/20 hover:text-red-400 transition cursor-pointer"><Trash2 className="h-3 w-3" /></button>
                 </div>
               </div>
               <div className="flex border-b border-white/10 shrink-0">
                 {(['ALL', 'SCORE', 'PENALTY', 'TIMER', 'SYSTEM'] as const).map(tab => (
-                  <button key={tab} onClick={() => setKeyLogTab(tab)}
+                  <button key={tab} onClick={() => { setKeyLogTab(tab); addLog('SYSTEM', `Key Log: Tab filtered by ${tab}`); }}
                     className={`flex-1 text-[7px] font-black uppercase py-1.5 tracking-wider transition border-b-2 cursor-pointer ${keyLogTab === tab ? 'text-yellow-400 border-yellow-400' : 'text-white/25 border-transparent hover:text-white/50'}`}>
                     {tab}
                   </button>
@@ -1411,7 +1502,7 @@ export default function OperatorConsolePage() {
                 <div className="flex gap-1">
                   <button onClick={handleExportKeyLog} className="flex-1 flex items-center justify-center gap-1 py-1 bg-white/5 hover:bg-white/15 active:scale-95 rounded text-[7.5px] font-black uppercase text-slate-200 hover:text-white transition cursor-pointer border border-white/10 shadow-xs"><Download className="h-2.5 w-2.5 text-sky-400" /> EXPORT</button>
                   <button onClick={handlePrintKeyLog} className="flex-1 flex items-center justify-center gap-1 py-1 bg-white/5 hover:bg-white/15 active:scale-95 rounded text-[7.5px] font-black uppercase text-slate-200 hover:text-white transition cursor-pointer border border-white/10 shadow-xs"><Printer className="h-2.5 w-2.5 text-amber-400" /> PRINT</button>
-                  <button onClick={() => setKeyLog([])} className="flex-1 flex items-center justify-center gap-1 py-1 bg-red-900/20 hover:bg-red-900/40 active:scale-95 border border-red-800/30 rounded text-[7.5px] font-black uppercase text-red-400 hover:text-red-300 transition cursor-pointer"><Trash2 className="h-2.5 w-2.5" /> CLEAR</button>
+                  <button onClick={() => { setKeyLog([]); addLog('SYSTEM', 'Key Log: Cleared all log history'); }} className="flex-1 flex items-center justify-center gap-1 py-1 bg-red-900/20 hover:bg-red-900/40 active:scale-95 border border-red-800/30 rounded text-[7.5px] font-black uppercase text-red-400 hover:text-red-300 transition cursor-pointer"><Trash2 className="h-2.5 w-2.5" /> CLEAR</button>
                 </div>
               </div>
             </aside>
