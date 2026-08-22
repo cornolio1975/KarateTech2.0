@@ -690,7 +690,6 @@ export default function OperatorConsolePage() {
       } 
     },
     { id: 'matches',         icon: List,           label: 'MATCHES',        color: 'blue',   action: () => setBracketTab('MATCH LIST') },
-    { id: 'fighters',        icon: Users,          label: 'FIGHTERS',       color: 'blue',   action: () => setPlayerDetailsOpen(v => !v) },
     { id: 'player_details',  icon: UserSquare2,    label: 'PLAYER DETAILS', color: 'blue',   action: () => {
         const nextState = !isPlayerDetailsDisplayShowing;
         setIsPlayerDetailsDisplayShowing(nextState);
