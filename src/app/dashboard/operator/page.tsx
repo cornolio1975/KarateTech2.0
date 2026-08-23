@@ -337,17 +337,26 @@ export default function OperatorConsolePage() {
     addLog('TIMER', 'Timer reset');
   };
 
+  const addLogRef = useRef(addLog);
+  useEffect(() => {
+    addLogRef.current = addLog;
+  }, [addLog]);
+
   useEffect(() => {
     if (timerRunning) {
       timerRef.current = setInterval(() => {
         setTimerSeconds(prev => {
-          if (prev <= 0) { setTimerRunning(false); addLog('TIMER', 'Match time expired'); return 0; }
+          if (prev <= 0) { 
+            setTimerRunning(false); 
+            addLogRef.current('TIMER', 'Match time expired'); 
+            return 0; 
+          }
           return prev - 1;
         });
       }, 1000);
     } else if (timerRef.current) clearInterval(timerRef.current);
     return () => { if (timerRef.current) clearInterval(timerRef.current); };
-  }, [timerRunning, addLog]);
+  }, [timerRunning]);
 
   useEffect(() => {
     if (extraRunning) {
@@ -358,7 +367,7 @@ export default function OperatorConsolePage() {
             if (extraTimerBroadcastRef.current) {
               broadcastExtraTimer(0, false, true);
             }
-            addLog('TIMER', 'Extra Timer: Time expired (00:00)');
+            addLogRef.current('TIMER', 'Extra Timer: Time expired (00:00)');
             return 0;
           }
           const next = prev - 1;
@@ -380,7 +389,7 @@ export default function OperatorConsolePage() {
         extraTimerRef.current = null;
       }
     };
-  }, [extraRunning, addLog]);
+  }, [extraRunning]);
 
   useEffect(() => { setMounted(true); loadData(); }, []);
 
@@ -810,6 +819,95 @@ export default function OperatorConsolePage() {
       alert('Failed to save result. Please check connection and try again.');
     }
   };
+
+  const handleShortcutAction = useCallback((key: string) => {
+    if (key === 'F1') {
+      setBracketModalCatId(activeCat?.id || (selectedCatId !== 'ALL' ? selectedCatId : (filteredCategories[0]?.id || 'ALL')));
+      setIsBracketModalOpen(true);
+      addLog('SYSTEM', 'Shortcut [F1]: Live Bracket Modal opened');
+    } else if (key === 'F2') {
+      const nextState = !isPlayerDetailsDisplayShowing;
+      setIsPlayerDetailsDisplayShowing(nextState);
+      if (typeof window !== 'undefined') {
+        const channel = new BroadcastChannel('wkf-scoreboard-sync');
+        channel.postMessage({
+          type: 'SHOW_PLAYER_DETAILS',
+          show: nextState,
+          akaFighter,
+          aoFighter,
+          category: activeCat,
+          bout: activeBout,
+          akaClub: akaFighter ? (clubs.find(c => c.id === akaFighter.club_id)?.name || '') : '',
+          aoClub: aoFighter ? (clubs.find(c => c.id === aoFighter.club_id)?.name || '') : '',
+          akaCoach: akaFighter ? (coaches.find(c => c.id === akaFighter.coach_id)?.name || '') : '',
+          aoCoach: aoFighter ? (coaches.find(c => c.id === aoFighter.coach_id)?.name || '') : '',
+        });
+        channel.close();
+      }
+      addLog('SYSTEM', nextState ? 'Shortcut [F2]: Player details presented on Referee / Spectator Screen' : 'Shortcut [F2]: Player details dismissed from Referee Screen');
+    } else if (key === 'F3') {
+      handleToggleResultOnRefereeView();
+      addLog('RESULT', 'Shortcut [F3]: Confirm / Reverse Result toggled');
+    } else if (key === 'F4') {
+      const nextRunning = !extraRunning;
+      setExtraRunning(nextRunning);
+      broadcastExtraTimer(extraTime, nextRunning, extraTimerBroadcast);
+      addLog('TIMER', nextRunning ? `Shortcut [F4]: Extra Timer started (${formatTimer(extraTime)})` : `Shortcut [F4]: Extra Timer paused at ${formatTimer(extraTime)}`);
+      setTimeout(() => document.querySelector<HTMLDivElement>('.extra-timer-panel')?.scrollIntoView({ behavior: 'smooth' }), 100);
+    } else if (key === 'F5') {
+      setKeyLogTab('ALL');
+      if (logContainerRef.current) logContainerRef.current.scrollTop = 0;
+      addLog('SYSTEM', 'Shortcut [F5]: Key Log Terminal focused & reset to ALL');
+    } else if (key === 'F6') {
+      addLog('SYSTEM', 'Shortcut [F6]: Navigating to Settings');
+      router.push('/settings');
+    }
+  }, [
+    activeCat,
+    selectedCatId,
+    filteredCategories,
+    isPlayerDetailsDisplayShowing,
+    akaFighter,
+    aoFighter,
+    clubs,
+    coaches,
+    activeBout,
+    handleToggleResultOnRefereeView,
+    extraRunning,
+    extraTime,
+    extraTimerBroadcast,
+    router,
+    addLog
+  ]);
+
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      const isInput = ['INPUT', 'TEXTAREA', 'SELECT'].includes((e.target as HTMLElement)?.tagName);
+      if (isInput) return;
+
+      if (['F1', 'F2', 'F3', 'F4', 'F5', 'F6'].includes(e.key)) {
+        e.preventDefault();
+        handleShortcutAction(e.key);
+      } else if (e.key === 'Escape') {
+        if (isBracketModalOpen) { setIsBracketModalOpen(false); addLog('SYSTEM', 'Hotkey [Esc]: Bracket modal closed'); }
+        else if (isLoadMatchModalOpen) { setIsLoadMatchModalOpen(false); addLog('SYSTEM', 'Hotkey [Esc]: Load match modal closed'); }
+        else if (isNotesModalOpen) { setIsNotesModalOpen(false); addLog('SYSTEM', 'Hotkey [Esc]: Notes modal closed'); }
+        else if (selectedProfileModal) { setSelectedProfileModal(null); addLog('SYSTEM', 'Hotkey [Esc]: Profile modal closed'); }
+        else if (expandModal) { setExpandModal(null); addLog('SYSTEM', 'Hotkey [Esc]: Expanded modal closed'); }
+      }
+    };
+
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [
+    handleShortcutAction,
+    isBracketModalOpen,
+    isLoadMatchModalOpen,
+    isNotesModalOpen,
+    selectedProfileModal,
+    expandModal,
+    addLog
+  ]);
 
   const initialDockButtons: DockBtn[] = [
     { id: 'bracket',         icon: Trophy,         label: 'BRACKET',       color: 'yellow', action: () => {
@@ -1441,12 +1539,27 @@ export default function OperatorConsolePage() {
                     );
                   })}
                 </div>
-                <div className="mt-2.5 pt-2 border-t border-white/5 flex flex-wrap gap-2">
-                  <span className="text-[7.5px] text-white/25 font-bold uppercase">SHORTCUTS:</span>
-                  {[['F1','BRACKET'],['F2','PLAYER'],['F3','RESULT'],['F4','EXTRA TIMER'],['F5','KEY LOG'],['F6','SETTINGS']].map(([key, label]) => (
-                    <div key={key} className="flex items-center gap-1 text-[7px] text-white/30 font-bold">
-                      <span className="bg-white/10 rounded px-1 py-0.5 text-white/50">{key}</span><span>{label}</span>
-                    </div>
+                <div className="mt-2.5 pt-2 border-t border-white/5 flex flex-wrap items-center gap-1.5">
+                  <span className="text-[7.5px] text-white/30 font-black uppercase tracking-wider mr-1">SHORTCUTS:</span>
+                  {[
+                    ['F1', 'BRACKET'],
+                    ['F2', 'PLAYER'],
+                    ['F3', 'RESULT'],
+                    ['F4', 'EXTRA TIMER'],
+                    ['F5', 'KEY LOG'],
+                    ['F6', 'SETTINGS'],
+                  ].map(([key, label]) => (
+                    <button
+                      key={key}
+                      onClick={() => handleShortcutAction(key)}
+                      title={`Press ${key} or click to trigger ${label}`}
+                      className="flex items-center gap-1 text-[7px] text-white/50 hover:text-white bg-white/5 hover:bg-white/15 active:scale-95 border border-white/10 hover:border-yellow-400/50 rounded-md px-1.5 py-0.5 transition cursor-pointer font-bold shadow-xs"
+                    >
+                      <span className="bg-yellow-400/10 text-yellow-400 border border-yellow-400/30 rounded px-1 py-0.2 font-mono font-black text-[6.5px]">
+                        {key}
+                      </span>
+                      <span>{label}</span>
+                    </button>
                   ))}
                 </div>
               </div>
