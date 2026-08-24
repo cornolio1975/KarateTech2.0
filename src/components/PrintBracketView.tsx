@@ -143,12 +143,12 @@ export const PrintBracketView: React.FC<PrintBracketViewProps> = ({
             <div style={{ fontSize: '6px', color: '#64748b', fontWeight: 700, letterSpacing: '0.15em', textTransform: 'uppercase', marginTop: '1px', lineHeight: 1 }}>
               • PRECISION. SPEED. RESULTS. •
             </div>
-            <div className="mt-0.5 flex items-center overflow-hidden">
+            <div style={{ marginTop: '3px', background: '#ffffff', display: 'inline-block', borderRadius: '2px', padding: '1px 2px' }}>
               <img 
                 src={`${basePath}/spsportdata-logo.jpg`} 
                 alt="SP SportData Solution" 
-                className="h-[14px] max-h-[14px] w-auto object-contain"
-                style={{ mixBlendMode: 'multiply', background: 'transparent' }}
+                className="h-[13px] max-h-[13px] w-auto object-contain"
+                style={{ display: 'block' }}
               />
             </div>
           </div>

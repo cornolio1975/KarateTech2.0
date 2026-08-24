@@ -144,11 +144,11 @@ export const SportdataBracket: React.FC<SportdataBracketProps> = ({
               <div style={{ fontSize: '5px', color: '#64748b', fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', marginTop: '1px', lineHeight: 1 }}>
                 • PRECISION. SPEED. RESULTS. •
               </div>
-              <div style={{ marginTop: '2px' }}>
+              <div style={{ marginTop: '2px', background: '#ffffff', display: 'inline-block', borderRadius: '2px', padding: '1px 2px' }}>
                 <img
                   src={`${basePath}/spsportdata-logo.jpg`}
                   alt="SP SportData Solution"
-                  style={{ height: '12px', maxHeight: '12px', width: 'auto', objectFit: 'contain', mixBlendMode: 'multiply', background: 'transparent' }}
+                  style={{ height: '11px', maxHeight: '11px', width: 'auto', objectFit: 'contain', display: 'block' }}
                 />
               </div>
             </div>
@@ -699,11 +699,11 @@ export const SportdataBracket: React.FC<SportdataBracketProps> = ({
               <div style={{ fontSize: '5px', color: '#64748b', fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', marginTop: '1px', lineHeight: 1 }}>
                 • PRECISION. SPEED. RESULTS. •
               </div>
-              <div style={{ marginTop: '2px' }}>
+              <div style={{ marginTop: '2px', background: '#ffffff', display: 'inline-block', borderRadius: '2px', padding: '1px 2px' }}>
                 <img
                   src={`${basePath}/spsportdata-logo.jpg`}
                   alt="SP SportData Solution"
-                  style={{ height: '12px', maxHeight: '12px', width: 'auto', objectFit: 'contain', mixBlendMode: 'multiply', background: 'transparent' }}
+                  style={{ height: '11px', maxHeight: '11px', width: 'auto', objectFit: 'contain', display: 'block' }}
                 />
               </div>
             </div>
