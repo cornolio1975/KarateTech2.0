@@ -1964,14 +1964,11 @@ function SpectatorDisplayContent() {
                 </div>
               </div>
 
-              {/* Tournament Title & Slogan */}
+              {/* Tournament Title */}
               <div className="my-2 space-y-1">
                 <h1 className="text-xl md:text-3xl lg:text-4xl font-black uppercase tracking-tight text-white/90 drop-shadow-[0_0_30px_rgba(255,255,255,0.2)]">
                   {tournamentName || 'Kelab Karate Do Senshi Goju-Ryu'}
                 </h1>
-                <p className="text-xs md:text-sm text-yellow-400/90 font-black uppercase tracking-[0.3em]">
-                  • PRECISION. SPEED. RESULTS. •
-                </p>
               </div>
 
               {/* Next Upcoming Match Call / Queue or Category Completed Notice */}
@@ -2024,7 +2021,10 @@ function SpectatorDisplayContent() {
                       <span style={{ color: '#ffffff', marginLeft: '4px' }}>2.0</span>
                       <span style={{ color: '#94a3b8', fontSize: '0.65rem', marginLeft: '2px', verticalAlign: 'super' }}>©</span>
                     </div>
-                    <div className="text-[7.5px] text-white/40 font-bold uppercase tracking-[0.2em] mt-1">
+                    <div className="text-[7.5px] text-white/50 font-bold uppercase tracking-[0.2em] mt-0.5 leading-none">
+                      • PRECISION. SPEED. RESULTS. •
+                    </div>
+                    <div className="text-[6.5px] text-white/30 font-bold uppercase tracking-[0.15em] mt-0.5">
                       OFFICIAL WKF COMPETITION ENGINE
                     </div>
                   </div>
