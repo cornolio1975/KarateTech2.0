@@ -2225,7 +2225,7 @@ function SpectatorDisplayContent() {
               <div className="flex flex-col items-center gap-1.5">
                 <span className={`w-4 h-4 lg:w-5 lg:h-5 rounded-full ${timerActive ? 'bg-green-500 animate-ping shadow-[0_0_20px_rgba(34,197,94,0.6)]' : 'bg-red-500 shadow-[0_0_10px_rgba(239,68,68,0.6)]'}`} />
                 <span className="text-xs lg:text-sm font-black uppercase text-white/50 tracking-[0.2em]">
-                  {timerActive ? 'RUNNING' : timeLeft === 0 ? 'TIME EXPIRED' : 'PAUSED'}
+                  {timerActive ? 'RUNNING' : timeLeft === 0 ? 'IDLE' : 'PAUSED'}
                 </span>
               </div>
             </div>

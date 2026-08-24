@@ -780,8 +780,6 @@ export const KumiteScoreboardControl = React.forwardRef<ScoreboardRef, { boutId?
             setTimerActive(false);
             triggerBuzzer();
             if (onLogEvent) onLogEvent('TIMER', 'Match time expired (00:00) — Buzzer sounded');
-            // Auto-trigger finish modal to prompt user to confirm result
-            setShowFinishModal(true);
             return 0;
           }
           const nextVal = prev - 1;
@@ -1957,23 +1955,29 @@ export const KumiteScoreboardControl = React.forwardRef<ScoreboardRef, { boutId?
               <div className="flex items-center justify-center gap-2 mt-1">
                 <span className={`w-3 h-3 rounded-full ${timerActive ? 'bg-green-500 animate-ping' : 'bg-red-500'}`} />
                 <span className="text-xs md:text-sm font-black uppercase text-white/70 tracking-wider">
-                  {timerActive ? 'ACTIVE RUNNING' : timeLeft === 0 ? 'TIME EXPIRED' : 'PAUSED'}
+                  {timerActive ? 'ACTIVE RUNNING' : timeLeft === 0 ? 'IDLE' : 'PAUSED'}
                 </span>
               </div>
-              {/* Decision Badge on Console Timer */}
+              {/* Decision Display on Operator Console */}
               {timeLeft === 0 && !timerActive && (
-                <div className="mt-1.5 w-full flex justify-center">
+                <div className="mt-2 w-full flex flex-col items-center gap-1 animate-in fade-in duration-300">
                   {winnerSide === 'aka' ? (
-                    <div className="bg-red-600/90 text-white font-black text-[10px] md:text-xs px-3 py-1 rounded-lg animate-pulse uppercase border border-red-400 tracking-wider text-center">
-                      🏆 DECISION: AKA ({winMethod === 'SENSHU' ? 'SENSHU' : winMethod === 'Superior Points' ? 'SUPERIOR PTS' : winMethod || 'POINTS'})
+                    <div className="bg-red-600 text-white font-black text-xs md:text-sm px-3.5 py-1.5 rounded-xl uppercase border-2 border-red-400 shadow-[0_0_20px_rgba(239,68,68,0.5)] tracking-wider text-center flex items-center justify-center gap-1.5 w-full">
+                      <span>🏆 DECISION: AKA</span>
+                      <span className="text-yellow-300 font-extrabold text-[10px] md:text-xs">
+                        ({winMethod === 'SENSHU' ? 'SENSHU ADVANTAGE' : winMethod === 'Superior Points' ? 'SUPERIOR POINTS' : winMethod === 'Points' ? 'POINTS ADVANTAGE' : winMethod || 'POINTS ADVANTAGE'})
+                      </span>
                     </div>
                   ) : winnerSide === 'ao' ? (
-                    <div className="bg-blue-600/90 text-white font-black text-[10px] md:text-xs px-3 py-1 rounded-lg animate-pulse uppercase border border-blue-400 tracking-wider text-center">
-                      🏆 DECISION: AO ({winMethod === 'SENSHU' ? 'SENSHU' : winMethod === 'Superior Points' ? 'SUPERIOR PTS' : winMethod || 'POINTS'})
+                    <div className="bg-blue-600 text-white font-black text-xs md:text-sm px-3.5 py-1.5 rounded-xl uppercase border-2 border-blue-400 shadow-[0_0_20px_rgba(59,130,246,0.5)] tracking-wider text-center flex items-center justify-center gap-1.5 w-full">
+                      <span>🏆 DECISION: AO</span>
+                      <span className="text-yellow-300 font-extrabold text-[10px] md:text-xs">
+                        ({winMethod === 'SENSHU' ? 'SENSHU ADVANTAGE' : winMethod === 'Superior Points' ? 'SUPERIOR POINTS' : winMethod === 'Points' ? 'POINTS ADVANTAGE' : winMethod || 'POINTS ADVANTAGE'})
+                      </span>
                     </div>
                   ) : (
-                    <div className="bg-yellow-500 text-black font-black text-[10px] md:text-xs px-3 py-1 rounded-lg animate-pulse uppercase border border-yellow-400 tracking-wider text-center">
-                      ⚖️ DECISION: HANTEI (TIED)
+                    <div className="bg-yellow-500 text-black font-black text-xs md:text-sm px-3.5 py-1.5 rounded-xl uppercase border-2 border-yellow-400 shadow-[0_0_20px_rgba(234,179,8,0.5)] tracking-wider text-center flex items-center justify-center gap-1.5 w-full animate-pulse">
+                      <span>⚖️ DECISION: HANTEI (TIED — REFEREE VOTE REQUIRED)</span>
                     </div>
                   )}
                 </div>
