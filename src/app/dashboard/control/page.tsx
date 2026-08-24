@@ -1440,6 +1440,22 @@ export const KumiteScoreboardControl = React.forwardRef<ScoreboardRef, { boutId?
     setResultConfirmed(true);
     setWinnerConfirmed(true);
     resultConfirmedRef.current = true;
+
+    // Broadcast confirmed result to Referee View so Winner Page displays only NOW
+    if (typeof window !== 'undefined') {
+      try {
+        const channel = new BroadcastChannel('wkf-scoreboard-sync');
+        channel.postMessage({
+          type: 'SHOW_RESULT',
+          resultConfirmed: true,
+          winnerSide: side,
+          winner: side,
+          winMethod: method
+        });
+        channel.close();
+      } catch (err) {}
+    }
+
     if (onLogEvent) onLogEvent('SYSTEM', `Match Result Confirmed — Winner: ${side.toUpperCase()} (${method})`);
   };
 
@@ -2409,6 +2425,22 @@ export const KumiteScoreboardControl = React.forwardRef<ScoreboardRef, { boutId?
                     setResultConfirmed(true);
                     setWinnerConfirmed(true);
                     setShowFinishModal(false);
+
+                    // Broadcast confirmed result to Referee View so Winner Page displays only NOW
+                    if (typeof window !== 'undefined') {
+                      try {
+                        const channel = new BroadcastChannel('wkf-scoreboard-sync');
+                        channel.postMessage({
+                          type: 'SHOW_RESULT',
+                          resultConfirmed: true,
+                          winnerSide: winnerSide,
+                          winner: winnerSide,
+                          winMethod: winMethod
+                        });
+                        channel.close();
+                      } catch (err) {}
+                    }
+
                     if (onLogEvent) onLogEvent('SYSTEM', `Match Result Confirmed — Winner: ${winnerSide.toUpperCase()} (${winMethod})`);
                   }}
                   disabled={saving || !winnerSide}
