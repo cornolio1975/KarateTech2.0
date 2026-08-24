@@ -326,6 +326,8 @@ export default function OperatorConsolePage() {
       } else if (
         data?.type === 'MATCH_FINISHED' ||
         data?.type === 'BOUT_UPDATED' ||
+        data?.type === 'SHOW_RESULT' ||
+        data?.type === 'SYNC_MATCH_STATE' ||
         data?.type === 'SYNC_FULL_STATE' ||
         data?.type === 'REFRESH_DATA' ||
         data?.type === 'REFRESH_DISPLAY'
