@@ -238,6 +238,21 @@ function SpectatorDisplayContent() {
   const [resultConfirmed, setResultConfirmed] = useState<boolean>(false);
   const [isIdle, setIsIdle] = useState<boolean>(false);
 
+  // Live Wall Clock for Category Completed / Arena Standby Screen
+  const [wallClockTime, setWallClockTime] = useState<string>('');
+  const [wallClockDate, setWallClockDate] = useState<string>('');
+
+  useEffect(() => {
+    const updateClock = () => {
+      const now = new Date();
+      setWallClockTime(now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true }));
+      setWallClockDate(now.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' }));
+    };
+    updateClock();
+    const interval = setInterval(updateClock, 1000);
+    return () => clearInterval(interval);
+  }, []);
+
   // Player Details presentation slide on Referee Screen
   const [showPlayerDetails, setShowPlayerDetails] = useState<boolean>(false);
   const [playerDetailsPayload, setPlayerDetailsPayload] = useState<any>(null);
@@ -1909,43 +1924,59 @@ function SpectatorDisplayContent() {
       {/* STANDARD WKF KUMITE SCOREBOARD DISPLAY (Preserved baseline setup) */}
       {currentSlideType === 'live_scoreboard' && !isKata && (
         isIdle ? (
-          <div className="flex-1 flex flex-col justify-center items-center my-auto max-w-6xl mx-auto w-full p-6 animate-in fade-in zoom-in-95 duration-500">
+          <div className="flex-1 flex flex-col justify-center items-center my-auto max-w-6xl mx-auto w-full p-4 lg:p-6 animate-in fade-in zoom-in-95 duration-500">
             {/* Outer Glow Box */}
-            <div className="w-full bg-[#0a0d18]/95 border-2 border-yellow-500/40 rounded-[3rem] p-8 md:p-12 shadow-[0_0_100px_rgba(234,179,8,0.25)] flex flex-col items-center justify-between text-center relative overflow-hidden backdrop-blur-2xl">
+            <div className="w-full bg-[#070a14]/95 border-2 border-yellow-500/40 rounded-[3rem] p-6 md:p-10 lg:p-12 shadow-[0_0_120px_rgba(234,179,8,0.25)] flex flex-col items-center justify-between text-center relative overflow-hidden backdrop-blur-2xl">
               <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-transparent via-yellow-400 to-transparent" />
               
-              {/* Header Badge */}
-              <div className="flex items-center gap-3 mb-6">
-                <div className="p-2 bg-yellow-500/20 border border-yellow-500/40 rounded-2xl text-yellow-400">
-                  <Clock className="h-7 w-7 animate-pulse" />
+              {/* Top Bar: Tatami Indicator & Category Concluded Status */}
+              <div className="w-full flex items-center justify-between border-b border-white/10 pb-4 mb-4 flex-wrap gap-3">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-yellow-500/20 border border-yellow-500/40 rounded-2xl text-yellow-400">
+                    <Clock className="h-6 w-6 animate-pulse" />
+                  </div>
+                  <div className="text-left">
+                    <span className="text-yellow-400 font-black tracking-[0.25em] text-xs md:text-sm uppercase block">
+                      {tatamiName || 'TATAMI 1'} • ARENA STANDBY
+                    </span>
+                    <span className="text-white/40 font-extrabold text-[10px] uppercase tracking-widest">
+                      WKF Competition Control Hub
+                    </span>
+                  </div>
                 </div>
-                <div className="text-left">
-                  <span className="text-yellow-400 font-black tracking-[0.25em] text-xs md:text-sm uppercase block">
-                    {tatamiName || 'TATAMI 1'} • ARENA STANDBY
-                  </span>
-                  <span className="text-white/40 font-extrabold text-[10px] uppercase tracking-widest">
-                    WKF Competition Control Hub
-                  </span>
+
+                <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-yellow-500/10 border border-yellow-500/30 text-yellow-300 font-black text-xs uppercase tracking-widest animate-pulse">
+                  <span className="w-2.5 h-2.5 rounded-full bg-yellow-400 animate-ping" />
+                  CATEGORY CONCLUDED • STANDBY
                 </div>
               </div>
 
-              {/* Central Standby Title */}
-              <div className="my-6 space-y-3">
-                <div className="inline-flex items-center gap-2 px-5 py-1.5 rounded-full bg-yellow-500/10 border border-yellow-500/30 text-yellow-300 font-black text-xs uppercase tracking-widest animate-pulse">
-                  <span className="w-2.5 h-2.5 rounded-full bg-yellow-400 animate-ping" />
-                  TATAMI IDLE • READY FOR NEXT BOUT
+              {/* Central Section: Giant Live Real-Time Wall Clock */}
+              <div className="my-3 flex flex-col items-center justify-center">
+                <span className="text-xs md:text-sm font-black uppercase text-yellow-400/80 tracking-[0.35em] mb-1">
+                  CURRENT TOURNAMENT TIME
+                </span>
+                <div className="font-din text-6xl md:text-8xl lg:text-9xl font-black text-white tracking-tight leading-none drop-shadow-[0_0_50px_rgba(255,255,255,0.4)]">
+                  {wallClockTime || '00:00:00 AM'}
                 </div>
-                <h1 className="text-4xl md:text-6xl lg:text-7xl font-black uppercase tracking-tight text-white drop-shadow-[0_0_35px_rgba(255,255,255,0.3)]">
+                <div className="text-sm md:text-base font-bold text-white/50 uppercase tracking-widest mt-2">
+                  {wallClockDate || 'Arena Standby'}
+                </div>
+              </div>
+
+              {/* Tournament Title & Slogan */}
+              <div className="my-2 space-y-1">
+                <h1 className="text-xl md:text-3xl lg:text-4xl font-black uppercase tracking-tight text-white/90 drop-shadow-[0_0_30px_rgba(255,255,255,0.2)]">
                   {tournamentName || 'Kelab Karate Do Senshi Goju-Ryu'}
                 </h1>
-                <p className="text-base md:text-xl text-yellow-400/90 font-black uppercase tracking-[0.3em] mt-2">
-                  • PRECISION • SPEED • RESULTS •
+                <p className="text-xs md:text-sm text-yellow-400/90 font-black uppercase tracking-[0.3em]">
+                  • PRECISION. SPEED. RESULTS. •
                 </p>
               </div>
 
-              {/* Next Upcoming Match Call / Queue */}
-              {allBouts && allBouts.filter(b => b.status !== 'Completed' && b.status !== 'Walkover').length > 0 && (
-                <div className="w-full max-w-2xl bg-black/50 border border-white/10 rounded-2xl p-4 mt-4 text-left">
+              {/* Next Upcoming Match Call / Queue or Category Completed Notice */}
+              {allBouts && allBouts.filter(b => b.status !== 'Completed' && b.status !== 'Walkover').length > 0 ? (
+                <div className="w-full max-w-2xl bg-black/50 border border-white/10 rounded-2xl p-4 mt-3 text-left">
                   <span className="text-[10px] font-black uppercase tracking-widest text-white/50 block mb-2">
                     NEXT SCHEDULED MATCH ON THIS TATAMI:
                   </span>
@@ -1969,14 +2000,51 @@ function SpectatorDisplayContent() {
                     );
                   })()}
                 </div>
+              ) : (
+                <div className="w-full max-w-2xl bg-black/40 border border-white/10 rounded-2xl p-3.5 mt-2 text-center">
+                  <span className="text-xs text-white/60 font-bold uppercase tracking-wider block">
+                    All matches in this category completed • Waiting for officials to load next category
+                  </span>
+                </div>
               )}
 
-              {/* Brand Footer */}
-              <div className="mt-8 pt-4 border-t border-white/10 w-full flex items-center justify-between text-xs text-white/40 font-bold uppercase tracking-wider">
-                <span>KarateTech 2.0© Official WKF Engine</span>
-                <div className="flex items-center gap-2">
-                  <img src={`${basePath}/spsportdata-logo.jpg`} alt="SP SportData" className="h-4 max-h-[16px] object-contain mix-blend-screen" />
-                  <span>SP SportData Solution</span>
+              {/* Prominent Dual Brand Footer: KarateTech 2.0© & SP SportData Solution */}
+              <div className="mt-6 pt-5 border-t border-white/10 w-full flex flex-col md:flex-row items-center justify-between gap-4">
+                {/* KarateTech 2.0© Official Logo */}
+                <div className="flex items-center gap-3">
+                  <img
+                    src={`${basePath}/karatetech-logo.png`}
+                    alt="KarateTech Logo"
+                    className="h-10 w-10 object-contain rounded-full border border-white/20 shadow-lg shadow-black/50"
+                  />
+                  <div className="text-left">
+                    <div style={{ fontFamily: "'Montserrat', sans-serif", fontWeight: 900, fontSize: '1.05rem', lineHeight: 1, letterSpacing: '0.01em' }}>
+                      <span style={{ color: '#b91c2e' }}>Karate</span>
+                      <span style={{ color: '#38bdf8' }}>Tech</span>
+                      <span style={{ color: '#ffffff', marginLeft: '4px' }}>2.0</span>
+                      <span style={{ color: '#94a3b8', fontSize: '0.65rem', marginLeft: '2px', verticalAlign: 'super' }}>©</span>
+                    </div>
+                    <div className="text-[7.5px] text-white/40 font-bold uppercase tracking-[0.2em] mt-1">
+                      OFFICIAL WKF COMPETITION ENGINE
+                    </div>
+                  </div>
+                </div>
+
+                {/* SP SportData Solution Logo */}
+                <div className="flex items-center gap-3 bg-white/5 border border-white/10 px-4 py-2 rounded-2xl">
+                  <img
+                    src={`${basePath}/spsportdata-logo.jpg`}
+                    alt="SP SportData Solution"
+                    className="h-7 max-h-[28px] w-auto object-contain mix-blend-screen"
+                  />
+                  <div className="text-left">
+                    <span className="text-xs font-black text-white uppercase tracking-wider block">
+                      SP SPORTDATA SOLUTION
+                    </span>
+                    <span className="text-[7.5px] text-white/40 font-bold uppercase tracking-widest">
+                      TECHNOLOGY & DATA PARTNER
+                    </span>
+                  </div>
                 </div>
               </div>
             </div>
