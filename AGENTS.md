@@ -10,3 +10,14 @@ The Kumite Scoreboard (`src/app/dashboard/scoreboard`), Match Console Hub, and C
 - DO NOT alter, redesign, or refactor the Kumite Scoreboard, Match Console, or Control Panel layout/styling unless explicitly instructed.
 - Preserve all existing WKF Kumite score handling, time management, tatami sync, and spectator display features.
 
+# Scoreboard Color Lock (Mandatory Rule)
+
+When implementing or switching console themes (e.g., **WKF Dark**, **Arena Blue**, **Tatami Green**):
+- **DO NOT apply console theme colors to the competition scoreboard fighter colors.**
+- Competitor colors are strictly protected:
+  - 🔴 **AKA = RED** (`AKA_COLOR = 'RED'`)
+  - 🔵 **AO = BLUE** (`AO_COLOR = 'BLUE'`)
+- The theme system affects only the KarateTech UI (backgrounds, panels, buttons, docks, lists, popups, borders).
+- The competition scoreboard remains permanently **RED for AKA** and **BLUE for AO** in every theme.
+
+

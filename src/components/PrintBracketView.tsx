@@ -65,11 +65,36 @@ export const PrintBracketView: React.FC<PrintBracketViewProps> = ({
       margin: ${dimensions.marginMm}mm; 
     }
     @media print {
-      body { margin: 0; overflow: hidden; }
-      .print-container { width: 100%; display: flex; justify-content: center; align-items: flex-start; }
+      html, body {
+        margin: 0 !important;
+        padding: 0 !important;
+        background: #fff !important;
+        overflow: hidden !important;
+        width: 100% !important;
+        height: 100% !important;
+      }
+      .print-container {
+        width: 100% !important;
+        max-width: 100% !important;
+        height: 100% !important;
+        max-height: 100% !important;
+        padding: 0 !important;
+        margin: 0 !important;
+        display: flex !important;
+        flex-direction: column !important;
+        justify-content: space-between !important;
+        page-break-inside: avoid !important;
+        break-inside: avoid !important;
+        overflow: hidden !important;
+      }
       .print-bracket-page {
-        min-height: 0 !important;
-        height: auto !important;
+        page-break-inside: avoid !important;
+        break-inside: avoid !important;
+        page-break-after: avoid !important;
+        break-after: avoid !important;
+        height: 100% !important;
+        max-height: 100% !important;
+        overflow: hidden !important;
       }
       .sportdata-header {
         display: none !important;
@@ -97,7 +122,7 @@ export const PrintBracketView: React.FC<PrintBracketViewProps> = ({
   `;
 
   return (
-    <div className="print-bracket-page print-container bg-white text-black min-h-screen p-2 flex flex-col w-full h-full">
+    <div className="print-bracket-page print-container bg-white text-black p-3 print:p-0 flex flex-col justify-between w-full h-full">
       <style dangerouslySetInnerHTML={{ __html: printCss }} />
 
       {/* 1. Header (Fixed Size, doesn't scale with bracket) */}
@@ -106,35 +131,35 @@ export const PrintBracketView: React.FC<PrintBracketViewProps> = ({
           <img 
             src={logoUrl || `${basePath}/karatetech-logo.png`} 
             alt="Logo" 
-            className="h-[40px] w-[40px] object-cover rounded-full border border-gray-300"
+            className="h-[36px] w-[36px] object-cover rounded-full border border-gray-300"
           />
           <div className="flex flex-col">
-            <div className="text-xl font-black tracking-tight leading-none">
+            <div className="text-lg font-black tracking-tight leading-none">
               <span className="text-[#b91c2e]">Karate</span>
               <span className="text-[#0284c7]">Tech</span>
             </div>
-            <div className="text-[10px] font-bold text-slate-900 mt-0">SP SportData Solution</div>
-            <div className="text-[9px] text-slate-500 tracking-widest mt-0">• Precision. • Speed. • Results. •</div>
+            <div className="text-[9px] font-bold text-slate-900 mt-0">SP SportData Solution</div>
+            <div className="text-[8px] text-slate-500 tracking-widest mt-0">• Precision. • Speed. • Results. •</div>
           </div>
         </div>
         
         <div className="text-right">
-          <div className="text-base font-black uppercase text-slate-900">{tournamentName || 'Karate Championship'}</div>
-          <div className="text-[10px] text-slate-500 font-semibold mt-0">Official Draw Sheet • Printed {new Date().toLocaleDateString()}</div>
+          <div className="text-sm font-black uppercase text-slate-900">{tournamentName || 'Karate Championship'}</div>
+          <div className="text-[9px] text-slate-500 font-semibold mt-0">Official Draw Sheet • Printed {new Date().toLocaleDateString()}</div>
         </div>
       </div>
 
       {/* 2. Category Banner */}
-      <div className="bg-slate-50 border border-slate-200 border-l-[6px] border-l-blue-600 px-3 py-1 rounded mb-2 flex justify-between items-center shrink-0">
-        <div className="text-base font-black uppercase text-slate-900">{selectedCategory.name}</div>
-        <div className="text-xs font-bold text-slate-600">
+      <div className="bg-slate-50 border border-slate-200 border-l-[5px] border-l-blue-600 px-2.5 py-0.5 rounded mb-1.5 flex justify-between items-center shrink-0">
+        <div className="text-sm font-black uppercase text-slate-900">{selectedCategory.name}</div>
+        <div className="text-[11px] font-bold text-slate-600">
           {selectedCategory.gender} • {selectedCategory.format === 'round_robin' ? 'Round Robin' : selectedCategory.format === 'wkf_repechage' ? 'WKF Repechage' : 'Single Elimination'}
         </div>
       </div>
 
       {/* 3. Scaled Bracket Canvas */}
       <div 
-        className="mx-auto overflow-hidden flex-shrink-0"
+        className="mx-auto overflow-hidden flex-shrink-0 flex items-center justify-center"
         style={{
           width: `${dimensions.bracketBaseWidthPx * dimensions.scaleFactor}px`,
           height: `${dimensions.bracketBaseHeightPx * dimensions.scaleFactor}px`,
@@ -165,23 +190,27 @@ export const PrintBracketView: React.FC<PrintBracketViewProps> = ({
       </div>
 
       {/* 4. Footer */}
-      <div className="mt-2 pt-2 border-t border-slate-300 flex justify-between shrink-0">
+      <div className="mt-1 pt-1.5 border-t border-slate-300 flex justify-between shrink-0">
         <div className="text-center w-1/4">
-          <div className="border-b border-slate-400 h-6 mb-1"></div>
-          <div className="text-[9px] font-bold text-slate-500 uppercase">Draw Officer Signature</div>
+          <div className="border-b border-slate-400 h-5 mb-0.5"></div>
+          <div className="text-[8px] font-bold text-slate-500 uppercase">Draw Officer Signature</div>
         </div>
         <div className="text-center w-1/4">
-          <div className="border-b border-slate-400 h-6 mb-1"></div>
-          <div className="text-[9px] font-bold text-slate-500 uppercase">Tournament Director</div>
+          <div className="border-b border-slate-400 h-5 mb-0.5"></div>
+          <div className="text-[8px] font-bold text-slate-500 uppercase">Tournament Director</div>
         </div>
         <div className="text-center w-1/4">
-          <div className="border-b border-slate-400 h-6 mb-1"></div>
-          <div className="text-[9px] font-bold text-slate-500 uppercase">Chief Referee</div>
+          <div className="border-b border-slate-400 h-5 mb-0.5"></div>
+          <div className="text-[8px] font-bold text-slate-500 uppercase">Chief Referee</div>
         </div>
         <div className="text-center w-1/4">
-          <div className="border-b border-slate-400 h-6 mb-1"></div>
-          <div className="text-[9px] font-bold text-slate-500 uppercase">Date & Official Stamp</div>
+          <div className="border-b border-slate-400 h-5 mb-0.5"></div>
+          <div className="text-[8px] font-bold text-slate-500 uppercase">Date & Official Stamp</div>
         </div>
+      </div>
+
+      <div className="text-[6.5px] font-semibold text-slate-400 uppercase tracking-wider text-center mt-0.5">
+        © KarateTech Tournament Management System • SP SportData Solution • Precision · Speed · Results
       </div>
     </div>
   );

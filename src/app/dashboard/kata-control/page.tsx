@@ -504,25 +504,49 @@ export const KataControlPanelContent = React.forwardRef<ScoreboardRef, { boutId?
       setSelectedWinnerId(winnerId);
       setIsWinnerRevealed(true);
 
+      const isFinished = Boolean(winnerId);
+      const nextStatus = isFinished ? 'Completed' : (currentBout.status === 'Scheduled' ? 'Running' : currentBout.status);
+
+      let finalTotalA = totalScoreA;
+      let finalTotalB = totalScoreB;
+      let finalJudgeScoresA = [...judgeScoresA];
+      let finalJudgeScoresB = [...judgeScoresB];
+
+      if (scoringMethod === 'Flags' && winnerId && totalScoreA === 0 && totalScoreB === 0) {
+        if (winnerId === currentBout.participant_a_id) {
+          finalTotalA = panelSize;
+          finalTotalB = 0;
+          finalJudgeScoresA = Array(panelSize).fill(1);
+          finalJudgeScoresB = Array(panelSize).fill(0);
+        } else if (winnerId === currentBout.participant_b_id) {
+          finalTotalA = 0;
+          finalTotalB = panelSize;
+          finalJudgeScoresA = Array(panelSize).fill(0);
+          finalJudgeScoresB = Array(panelSize).fill(1);
+        }
+      }
+
       const updated = await db.bouts.updateBoutState(currentBout.id, {
         kata_a: kataA,
         kata_b: kataB,
-        judge_scores_a: judgeScoresA,
-        judge_scores_b: judgeScoresB,
-        total_score_a: totalScoreA,
-        total_score_b: totalScoreB,
-        score_a: Math.round(totalScoreA),
-        score_b: Math.round(totalScoreB),
+        judge_scores_a: finalJudgeScoresA,
+        judge_scores_b: finalJudgeScoresB,
+        total_score_a: finalTotalA,
+        total_score_b: finalTotalB,
+        score_a: Math.round(finalTotalA),
+        score_b: Math.round(finalTotalB),
         winner_id: winnerId,
-        status: currentBout.status === 'Scheduled' ? 'Running' : currentBout.status
+        victory_method: winMtd || (winnerId === currentBout.participant_a_id ? 'AKA WIN' : winnerId === currentBout.participant_b_id ? 'AO WIN' : undefined),
+        status: nextStatus
       });
 
       if (updated) {
         setCurrentBout(updated);
-        if (onLogEvent) onLogEvent('SYSTEM', `Result saved`);
+        await loadData();
+        if (onLogEvent) onLogEvent('SYSTEM', isFinished ? `Kata Match R${currentBout.round_no}B${currentBout.bout_no} Saved & Completed (${finalTotalA} - ${finalTotalB})` : `Result saved`);
       }
 
-      // Broadcast saved result & winner reveal immediately to spectator view
+      // Broadcast saved result & winner reveal immediately to spectator view and operator bracket
       if (broadcastChannelRef.current) {
         const participantA = participants.find(p => p.id === currentBout.participant_a_id);
         const participantB = participants.find(p => p.id === currentBout.participant_b_id);
@@ -531,23 +555,25 @@ export const KataControlPanelContent = React.forwardRef<ScoreboardRef, { boutId?
         const winnerSide = winnerId === currentBout.participant_a_id ? 'aka' : winnerId === currentBout.participant_b_id ? 'ao' : null;
 
         broadcastChannelRef.current.postMessage({
+          type: isFinished ? 'MATCH_FINISHED' : 'BOUT_UPDATED',
           boutId: currentBout.id,
           isKata: true,
           akaName: participantA?.full_name || 'AKA',
           akaClub: clubA?.name || 'Senshi Club',
           aoName: participantB?.full_name || 'AO',
           aoClub: clubB?.name || 'Goju-Ryu Club',
-          scoreAka: totalScoreA,
-          scoreAo: totalScoreB,
+          scoreAka: finalTotalA,
+          scoreAo: finalTotalB,
           kataA,
           kataB,
-          judgeScoresA,
-          judgeScoresB,
+          judgeScoresA: finalJudgeScoresA,
+          judgeScoresB: finalJudgeScoresB,
           panelSize,
           scoringMethod,
           winner: winnerSide,
           winMethod: winMtd || (winnerSide === 'aka' ? 'AKA WIN' : winnerSide === 'ao' ? 'AO WIN' : 'TIE'),
-          penaltyH
+          penaltyH,
+          resultConfirmed: isFinished
         });
       }
     } catch (err) {
@@ -569,18 +595,37 @@ export const KataControlPanelContent = React.forwardRef<ScoreboardRef, { boutId?
         winner = penaltyH === 'AKA' ? currentBout.participant_b_id : currentBout.participant_a_id;
         winMtd = `Chief Judge Decision (Penalty ${penaltyH})`;
       }
+
+      let finalTotalA = totalScoreA;
+      let finalTotalB = totalScoreB;
+      let finalJudgeScoresA = [...judgeScoresA];
+      let finalJudgeScoresB = [...judgeScoresB];
+
+      if (scoringMethod === 'Flags' && winner && totalScoreA === 0 && totalScoreB === 0) {
+        if (winner === currentBout.participant_a_id) {
+          finalTotalA = panelSize;
+          finalTotalB = 0;
+          finalJudgeScoresA = Array(panelSize).fill(1);
+          finalJudgeScoresB = Array(panelSize).fill(0);
+        } else if (winner === currentBout.participant_b_id) {
+          finalTotalA = 0;
+          finalTotalB = panelSize;
+          finalJudgeScoresA = Array(panelSize).fill(0);
+          finalJudgeScoresB = Array(panelSize).fill(1);
+        }
+      }
       
       const updates: Partial<Bout> = {
         kata_a: kataA,
         kata_b: kataB,
-        judge_scores_a: judgeScoresA,
-        judge_scores_b: judgeScoresB,
-        total_score_a: totalScoreA,
-        total_score_b: totalScoreB,
-        score_a: Math.round(totalScoreA),
-        score_b: Math.round(totalScoreB),
+        judge_scores_a: finalJudgeScoresA,
+        judge_scores_b: finalJudgeScoresB,
+        total_score_a: finalTotalA,
+        total_score_b: finalTotalB,
+        score_a: Math.round(finalTotalA),
+        score_b: Math.round(finalTotalB),
         winner_id: winner,
-        victory_method: winMtd || undefined,
+        victory_method: winMtd || (winner === currentBout.participant_a_id ? 'AKA WIN' : winner === currentBout.participant_b_id ? 'AO WIN' : undefined),
         status: 'Completed',
       };
 
@@ -589,9 +634,9 @@ export const KataControlPanelContent = React.forwardRef<ScoreboardRef, { boutId?
       
       // Refresh list
       await loadData();
-      if (onLogEvent) onLogEvent('SYSTEM', `Match completed and bracket advanced`);
+      if (onLogEvent) onLogEvent('SYSTEM', `Match completed and bracket advanced (${finalTotalA} - ${finalTotalB})`);
 
-      // Broadcast completion & winner reveal to spectator view
+      // Broadcast completion & winner reveal to spectator view and operator bracket
       if (broadcastChannelRef.current) {
         const participantA = participants.find(p => p.id === currentBout.participant_a_id);
         const participantB = participants.find(p => p.id === currentBout.participant_b_id);
@@ -600,18 +645,19 @@ export const KataControlPanelContent = React.forwardRef<ScoreboardRef, { boutId?
         const winnerSide = winner === currentBout.participant_a_id ? 'aka' : winner === currentBout.participant_b_id ? 'ao' : null;
 
         broadcastChannelRef.current.postMessage({
+          type: 'MATCH_FINISHED',
           boutId: currentBout.id,
           isKata: true,
           akaName: participantA?.full_name || 'AKA',
           akaClub: clubA?.name || 'Senshi Club',
           aoName: participantB?.full_name || 'AO',
           aoClub: clubB?.name || 'Goju-Ryu Club',
-          scoreAka: totalScoreA,
-          scoreAo: totalScoreB,
+          scoreAka: finalTotalA,
+          scoreAo: finalTotalB,
           kataA,
           kataB,
-          judgeScoresA,
-          judgeScoresB,
+          judgeScoresA: finalJudgeScoresA,
+          judgeScoresB: finalJudgeScoresB,
           panelSize,
           scoringMethod,
           winner: winnerSide,

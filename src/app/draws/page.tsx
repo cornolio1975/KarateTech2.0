@@ -64,6 +64,23 @@ export default function DrawsPage() {
     setMounted(true);
   }, []);
 
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    let channel: BroadcastChannel | null = null;
+    try {
+      channel = new BroadcastChannel('wkf-scoreboard-sync');
+      channel.onmessage = (event) => {
+        if (['MATCH_FINISHED', 'BOUT_UPDATED', 'SYNC_FULL_STATE', 'REFRESH_DATA', 'REFRESH_DISPLAY'].includes(event.data?.type)) {
+          db.bouts.list().then(bList => setBouts(bList)).catch(() => {});
+        }
+      };
+    } catch (e) {}
+
+    return () => {
+      if (channel) channel.close();
+    };
+  }, []);
+
   const loadData = async () => {
     try {
       setLoading(true);
@@ -227,60 +244,46 @@ export default function DrawsPage() {
   };
 
   // --- Dedicated Standalone Print Engine via /draws/print-preview ---
-  const printCategoryDraws = (targetCatIds: string[]) => {
+  const printCategoryDraws = (targetCatIds: string[], autoPrint: boolean = false) => {
     if (targetCatIds.length === 0) {
       alert('No categories found to print.');
       return;
     }
     const catIdParam = targetCatIds.join(',');
-    const printUrl = `/draws/print-preview?catId=${catIdParam}`;
+    const autoPrintParam = autoPrint ? '&autoPrint=true' : '';
+    const printUrl = `${basePath}/draws/print-preview?catId=${catIdParam}${autoPrintParam}`;
     const printWin = window.open(printUrl, '_blank');
     if (!printWin) {
-      alert('Pop-up window blocked. Please allow pop-ups for this site to view the print layout.');
+      // Direct navigation fallback if popup blocker is active
+      window.location.href = printUrl;
     }
   };
 
   // --- Print handlers ---
-  const handlePrint = async () => {
-    try {
-      setLoading(true);
-      await loadData();
-      const currentBouts = await db.bouts.list();
-      if (currentBouts.length === 0) {
-        alert('No brackets found to print. Please click "Generate All Brackets" first.');
-        return;
-      }
-      const catIdsWithBouts = Array.from(new Set(currentBouts.map(b => b.category_id)));
-      printCategoryDraws(catIdsWithBouts);
-    } catch (e) {
-      console.error('Error printing brackets:', e);
-    } finally {
-      setLoading(false);
+  const handlePrint = () => {
+    const currentBouts = bouts;
+    if (currentBouts.length === 0) {
+      alert('No brackets found to print. Please click "Generate All Brackets" first.');
+      return;
     }
+    const catIdsWithBouts = Array.from(new Set(currentBouts.map(b => b.category_id)));
+    printCategoryDraws(catIdsWithBouts, true);
   };
 
-  const handlePrintCurrent = async () => {
+  const handlePrintCurrent = () => {
     if (!selectedCatId) return;
-    try {
-      setLoading(true);
-      await loadData();
-      const currentBouts = await db.bouts.list();
-      const currentCatBouts = currentBouts.filter(b => b.category_id === selectedCatId);
-      if (currentCatBouts.length === 0) {
-        alert('No bracket generated for this category yet. Please click "Generate Bracket".');
-        return;
-      }
-      printCategoryDraws([selectedCatId]);
-    } catch (e) {
-      console.error('Error printing bracket:', e);
-    } finally {
-      setLoading(false);
+    const currentCatBouts = bouts.filter(b => b.category_id === selectedCatId);
+    if (currentCatBouts.length === 0) {
+      alert('No bracket generated for this category yet. Please click "Generate Bracket".');
+      return;
     }
+    printCategoryDraws([selectedCatId], true);
   };
 
   // Open current category bracket as a standalone PDF-ready page in new browser tab
-  const handleOpenAsPDF = async () => {
-    handlePrintCurrent(); // Using the exact same workflow for vector PDF via browser native print
+  const handleOpenAsPDF = () => {
+    if (!selectedCatId) return;
+    printCategoryDraws([selectedCatId], false);
   };
 
 

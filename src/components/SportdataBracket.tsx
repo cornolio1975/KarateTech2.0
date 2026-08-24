@@ -310,7 +310,9 @@ export const SportdataBracket: React.FC<SportdataBracketProps> = ({
                             </span>
                           </div>
                           <span className="font-mono font-extrabold text-foreground">
-                            {b.score_a}
+                            {b.total_score_a !== undefined && b.total_score_a !== null && b.total_score_a !== 0
+                              ? (b.total_score_a % 1 !== 0 ? b.total_score_a.toFixed(2) : b.total_score_a)
+                              : (b.score_a ?? 0)}
                           </span>
                         </div>
 
@@ -325,7 +327,9 @@ export const SportdataBracket: React.FC<SportdataBracketProps> = ({
                             </span>
                           </div>
                           <span className="font-mono font-extrabold text-foreground">
-                            {b.score_b}
+                            {b.total_score_b !== undefined && b.total_score_b !== null && b.total_score_b !== 0
+                              ? (b.total_score_b % 1 !== 0 ? b.total_score_b.toFixed(2) : b.total_score_b)
+                              : (b.score_b ?? 0)}
                           </span>
                         </div>
                       </div>
@@ -391,67 +395,81 @@ export const SportdataBracket: React.FC<SportdataBracketProps> = ({
   const W_card = Math.min(18, 70 / R); // percentage card width
   const X_champion = 85;
 
-  // 5. Standings calculation
+  // 5. Standings calculation - Auto updates all winner names (1st, 2nd, 3rd, 3rd) as matches finish
   const getStandings = () => {
-    const finalBout = mainBouts.find((b) => b.round_no === R);
-    if (
-      !finalBout ||
-      (finalBout.status !== "Completed" && finalBout.status !== "Walkover") ||
-      !finalBout.winner_id
-    )
-      return [];
-
-    const first = participants.find((p) => p.id === finalBout.winner_id);
-    const secondId =
-      finalBout.winner_id === finalBout.participant_a_id
-        ? finalBout.participant_b_id
-        : finalBout.participant_a_id;
-    const second = secondId
-      ? participants.find((p) => p.id === secondId)
-      : null;
-
-    const list = [
-      { rank: "1", p: first },
-      { rank: "2", p: second },
+    const list: {
+      rank: string;
+      label: string;
+      medal: string;
+      tag: string;
+      tagClass: string;
+      p: Participant | null;
+    }[] = [
+      { rank: "1", label: "1.", medal: "🥇", tag: "GOLD", tagClass: "bg-amber-500 text-black", p: null },
+      { rank: "2", label: "2.", medal: "🥈", tag: "SILVER", tagClass: "bg-slate-300 text-black", p: null },
+      { rank: "3", label: "3.", medal: "🥉", tag: "BRONZE", tagClass: "bg-amber-700 text-white", p: null },
+      { rank: "3", label: "3.", medal: "🥉", tag: "BRONZE", tagClass: "bg-amber-700 text-white", p: null },
     ];
 
-    if (
-      bronzeBout &&
-      (bronzeBout.status === "Completed" || bronzeBout.status === "Walkover") &&
-      bronzeBout.winner_id
-    ) {
-      const third = participants.find((p) => p.id === bronzeBout.winner_id);
-      const fourthId =
-        bronzeBout.winner_id === bronzeBout.participant_a_id
-          ? bronzeBout.participant_b_id
-          : bronzeBout.participant_a_id;
-      const fourth = fourthId
-        ? participants.find((p) => p.id === fourthId)
+    // 1. Final Bout (Gold & Silver)
+    const finalBout =
+      mainBouts.find((b) => b.round_no === R && (b.bout_no === 1 || !b.bout_no)) ||
+      mainBouts.find((b) => b.round_no === R);
+
+    if (finalBout && finalBout.winner_id) {
+      const goldWinner = participants.find((p) => p.id === finalBout.winner_id) || null;
+      const silverWinnerId =
+        finalBout.winner_id === finalBout.participant_a_id
+          ? finalBout.participant_b_id
+          : finalBout.participant_a_id;
+      const silverWinner = silverWinnerId
+        ? participants.find((p) => p.id === silverWinnerId) || null
         : null;
-      list.push({ rank: "3", p: third });
-      if (fourth) list.push({ rank: "3", p: fourth });
+
+      list[0].p = goldWinner;
+      list[1].p = silverWinner;
+    }
+
+    // 2. Explicit Bronze Matches (if any)
+    const bronzeMatches = categoryBouts.filter(
+      (b) => (b.round_no === 98 || b.round_no === 99 || b.bout_no === 99) && b.winner_id
+    );
+
+    if (bronzeMatches.length > 0) {
+      bronzeMatches.forEach((bm, idx) => {
+        if (idx < 2 && bm.winner_id) {
+          const bronzeWinner = participants.find((p) => p.id === bm.winner_id) || null;
+          if (bronzeWinner) list[2 + idx].p = bronzeWinner;
+        }
+      });
     } else {
+      // 3. Single Elimination Semifinals (Losers of semifinals are both 3rd place Bronze winners)
       const semiRound = R - 1;
       if (semiRound > 0) {
         const semiBouts = mainBouts.filter((b) => b.round_no === semiRound);
+        const semiBronzeWinners: (Participant | null)[] = [];
+
         semiBouts.forEach((sb) => {
-          if (
-            (sb.status === "Completed" || sb.status === "Walkover") &&
-            sb.winner_id
-          ) {
+          if (sb.winner_id) {
             const loserId =
               sb.winner_id === sb.participant_a_id
                 ? sb.participant_b_id
                 : sb.participant_a_id;
             if (loserId) {
-              const loser = participants.find((p) => p.id === loserId);
-              list.push({ rank: "3", p: loser });
+              const bronzePlayer = participants.find((p) => p.id === loserId) || null;
+              if (bronzePlayer && !semiBronzeWinners.some((bp) => bp?.id === bronzePlayer.id)) {
+                semiBronzeWinners.push(bronzePlayer);
+              }
             }
           }
         });
+
+        if (semiBronzeWinners[0]) list[2].p = semiBronzeWinners[0];
+        if (semiBronzeWinners[1]) list[3].p = semiBronzeWinners[1];
       }
     }
-    return list.filter((item) => item.p !== undefined && item.p !== null);
+
+    return list;
   };
 
   const standings = getStandings();
@@ -572,12 +590,12 @@ export const SportdataBracket: React.FC<SportdataBracketProps> = ({
     );
   };
 
-  const finalBout = mainBouts.find((b) => b.round_no === R && b.bout_no === 1);
+  const finalBout =
+    mainBouts.find((b) => b.round_no === R && (b.bout_no === 1 || !b.bout_no)) ||
+    mainBouts.find((b) => b.round_no === R);
   const championPlayer =
-    finalBout &&
-    (finalBout.status === "Completed" || finalBout.status === "Walkover") &&
-    finalBout.winner_id
-      ? participants.find((p) => p.id === finalBout.winner_id)
+    finalBout && finalBout.winner_id
+      ? participants.find((p) => p.id === finalBout.winner_id) || null
       : null;
 
   return (
@@ -1021,112 +1039,129 @@ export const SportdataBracket: React.FC<SportdataBracketProps> = ({
               )}
             </div>
 
-            {/* 5. Standing Leaderboard Table (stamped on the bottom-right space) */}
-            {standings.length > 0 && (
+            {/* 5. Final Standings Leaderboard Table (Positioned below Champion, shifted left) */}
+            <div
+              style={{
+                position: "absolute",
+                left: `calc(${X_champion}% - 75px)`,
+                top: `calc(${yChampion}% + 8px)`,
+                minWidth: "190px",
+                maxWidth: "230px",
+                width: "max-content",
+              }}
+              className="border border-black bg-white text-black rounded-lg p-2 shadow-xs overflow-hidden z-10"
+            >
+              <div className="text-[8px] font-black uppercase tracking-wider border-b border-black pb-0.5 mb-1.5 flex items-center justify-between text-black leading-none">
+                <div className="flex items-center gap-1">
+                  <span className="text-[8.5px]">🏆</span>
+                  <span className="font-black text-black">
+                    FINAL STANDINGS
+                  </span>
+                </div>
+              </div>
+              <div className="space-y-1.5 text-[7.5px] font-bold uppercase text-black">
+                {standings.map((slot, index) => {
+                  const comp = slot.p || (index === 0 ? championPlayer : null);
+                  const compClub = comp ? clubs.find((c) => c.id === comp.club_id) : null;
+
+                  return (
+                    <div
+                      key={index}
+                      className="border-b border-dashed border-gray-300 pb-0.5 text-black leading-relaxed"
+                    >
+                      <div className="flex items-start justify-between gap-1.5">
+                        <div className="flex items-start gap-1 min-w-0 flex-1">
+                          <span className="text-[8px] shrink-0">{slot.medal}</span>
+                          <span className="text-black text-[7.5px] font-black shrink-0">
+                            {slot.label}
+                          </span>
+                          {comp ? (
+                            <span className="font-black text-black text-[7.5px] leading-tight break-words">
+                              {comp.full_name}
+                            </span>
+                          ) : (
+                            <span className="text-gray-400 text-[7px] font-normal tracking-wider">
+                              ____________________
+                            </span>
+                          )}
+                        </div>
+                        <div className="text-[7px] font-bold text-black shrink-0 text-right pl-1 whitespace-nowrap">
+                          {comp ? (
+                            compClub?.name || "Independent"
+                          ) : (
+                            <span className="text-gray-400 text-[6px] italic font-normal">
+                              (Club)
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* 6. Referees Table (stamped bottom right, hidden in print mode where official footer is used) */}
+            {!hideZoomControls && (
               <div
                 style={{
                   position: "absolute",
                   right: "20px",
-                  bottom: "100px",
-                  width: "300px",
+                  bottom: "20px",
+                  width: "380px",
                 }}
-                className={`border rounded-lg p-2.5 shadow-xs overflow-hidden ${
+                className={`border rounded-lg text-[8px] font-bold uppercase overflow-hidden ${
                   theme === "dark"
-                    ? "bg-[#080d19] border-gray-800 text-gray-300"
-                    : "bg-gray-50 border-gray-300 text-gray-800"
+                    ? "bg-[#080d19] border-gray-800 text-gray-400"
+                    : "bg-gray-50 border-gray-300 text-gray-600"
                 }`}
               >
-                <div className="text-[8px] font-black uppercase tracking-wider border-b pb-1 mb-1.5 flex items-center gap-1">
-                  <span>🏆</span>
-                  <span>Final Standings Leaderboard</span>
-                </div>
-                <div className="space-y-1 text-[9px] font-bold uppercase">
-                  {standings.map((s, index) => {
-                    const compClub = clubs.find((c) => c.id === s.p?.club_id);
-                    return (
-                      <div
-                        key={index}
-                        className="flex items-center justify-between border-b border-dashed border-gray-800/40 pb-0.5"
-                      >
-                        <span className="flex items-center gap-1.5 min-w-0">
-                          <span className="text-gray-500 w-2.5 text-center">
-                            {s.rank}.
-                          </span>
-                          <span className="truncate max-w-[150px]">
-                            {s.p?.full_name}
-                          </span>
-                        </span>
-                        <span className="text-[7.5px] text-gray-500 truncate pl-2">
-                          {compClub?.name || "Independent"}
-                        </span>
+                <div className="flex border-b border-gray-800/40">
+                  <div className="w-16 p-1.5 bg-gray-900/10 border-r border-gray-800/40 font-black text-center flex items-center justify-center">
+                    Referees
+                  </div>
+                  <div className="flex-1 grid grid-cols-4">
+                    <div className="border-r border-gray-800/40 p-1 text-center flex flex-col justify-between min-h-[36px]">
+                      <span className="text-[6px] text-gray-500">Referee</span>
+                      <div className="border-t border-gray-800/20 pt-0.5 mt-auto">
+                        Sign
                       </div>
-                    );
-                  })}
+                    </div>
+                    <div className="border-r border-gray-800/40 p-1 text-center flex flex-col justify-between min-h-[36px]">
+                      <span className="text-[6px] text-gray-500">Judge 1</span>
+                      <div className="border-t border-gray-800/20 pt-0.5 mt-auto">
+                        Sign
+                      </div>
+                    </div>
+                    <div className="border-r border-gray-800/40 p-1 text-center flex flex-col justify-between min-h-[36px]">
+                      <span className="text-[6px] text-gray-500">Judge 2</span>
+                      <div className="border-t border-gray-800/20 pt-0.5 mt-auto">
+                        Sign
+                      </div>
+                    </div>
+                    <div className="p-1 text-center flex flex-col justify-between min-h-[36px]">
+                      <span className="text-[6px] text-gray-500">Judge 3</span>
+                      <div className="border-t border-gray-800/20 pt-0.5 mt-auto">
+                        Sign
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </div>
             )}
 
-            {/* 6. Referees Table (stamped bottom right) */}
-            <div
-              style={{
-                position: "absolute",
-                right: "20px",
-                bottom: "20px",
-                width: "380px",
-              }}
-              className={`border rounded-lg text-[8px] font-bold uppercase overflow-hidden ${
-                theme === "dark"
-                  ? "bg-[#080d19] border-gray-800 text-gray-400"
-                  : "bg-gray-50 border-gray-300 text-gray-600"
-              }`}
-            >
-              <div className="flex border-b border-gray-800/40">
-                <div className="w-16 p-1.5 bg-gray-900/10 border-r border-gray-800/40 font-black text-center flex items-center justify-center">
-                  Referees
-                </div>
-                <div className="flex-1 grid grid-cols-4">
-                  <div className="border-r border-gray-800/40 p-1 text-center flex flex-col justify-between min-h-[36px]">
-                    <span className="text-[6px] text-gray-500">Referee</span>
-                    <div className="border-t border-gray-800/20 pt-0.5 mt-auto">
-                      Sign
-                    </div>
-                  </div>
-                  <div className="border-r border-gray-800/40 p-1 text-center flex flex-col justify-between min-h-[36px]">
-                    <span className="text-[6px] text-gray-500">Judge 1</span>
-                    <div className="border-t border-gray-800/20 pt-0.5 mt-auto">
-                      Sign
-                    </div>
-                  </div>
-                  <div className="border-r border-gray-800/40 p-1 text-center flex flex-col justify-between min-h-[36px]">
-                    <span className="text-[6px] text-gray-500">Judge 2</span>
-                    <div className="border-t border-gray-800/20 pt-0.5 mt-auto">
-                      Sign
-                    </div>
-                  </div>
-                  <div className="p-1 text-center flex flex-col justify-between min-h-[36px]">
-                    <span className="text-[6px] text-gray-500">Judge 3</span>
-                    <div className="border-t border-gray-800/20 pt-0.5 mt-auto">
-                      Sign
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* 7. Footer disclaimer notice */}
+            {/* 7. Official Company Footer Notice */}
             <div
               style={{
                 position: "absolute",
                 left: "20px",
-                bottom: "15px",
+                bottom: "12px",
               }}
               className={`text-[6.5px] font-semibold tracking-wide uppercase ${
                 theme === "dark" ? "text-gray-600" : "text-gray-400"
               }`}
             >
-              (c) sportdata GmbH &amp; Co KG 2000-2026 (2026-06-14 18:41) v
-              12.2.0 build 2 (2026-06-11 10:31 CET) License: University
-              Pertananan Nasional Malaysia MAS (expire 2026-09-11)
+              © KarateTech Tournament Management System • SP SportData Solution • Precision · Speed · Results • All Rights Reserved
             </div>
           </div>
         </div>

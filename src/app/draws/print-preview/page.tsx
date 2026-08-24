@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState, Suspense } from 'react';
+import React, { useEffect, useState, useMemo, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { PrintBracketView } from '@/components/PrintBracketView';
 import { db } from '@/db/dbClient';
@@ -9,7 +9,7 @@ import { Orientation, FitMode, MarginSize } from '@/utils/printScaling';
 
 function PrintPreviewContent() {
   const searchParams = useSearchParams();
-  const catIdParam = searchParams.get('catId');
+  const rawCatParam = searchParams.get('catId') || searchParams.get('categoryId');
   
   const [bouts, setBouts] = useState<Bout[]>([]);
   const [participants, setParticipants] = useState<Participant[]>([]);
@@ -22,8 +22,7 @@ function PrintPreviewContent() {
   const [orientation, setOrientation] = useState<Orientation>('auto');
   const [marginSize, setMarginSize] = useState<MarginSize>('normal');
 
-  // Parse multiple categories if comma-separated
-  const selectedCatIds = catIdParam ? catIdParam.split(',') : [];
+  const autoPrint = searchParams.get('autoPrint') === 'true';
 
   useEffect(() => {
     async function loadData() {
@@ -47,6 +46,26 @@ function PrintPreviewContent() {
     loadData();
   }, []);
 
+  // Parse multiple categories if comma-separated, or default to all categories with bouts
+  const selectedCatIds = useMemo(() => {
+    if (rawCatParam && rawCatParam !== 'ALL') {
+      return rawCatParam.split(',').filter(Boolean);
+    }
+    const catIdsWithBouts = Array.from(new Set(bouts.map(b => b.category_id))).filter(Boolean);
+    if (catIdsWithBouts.length > 0) return catIdsWithBouts;
+    return categories.map(c => c.id);
+  }, [rawCatParam, bouts, categories]);
+
+  // Automatically trigger native print dialog when opened with autoPrint=true
+  useEffect(() => {
+    if (!loading && selectedCatIds.length > 0 && autoPrint) {
+      const timer = setTimeout(() => {
+        window.print();
+      }, 500);
+      return () => clearTimeout(timer);
+    }
+  }, [loading, selectedCatIds.length, autoPrint]);
+
   if (loading) {
     return (
       <div className="flex h-screen items-center justify-center bg-gray-100 text-gray-800">
@@ -58,7 +77,7 @@ function PrintPreviewContent() {
   if (selectedCatIds.length === 0) {
     return (
       <div className="flex h-screen items-center justify-center bg-gray-100 text-gray-800">
-        <p className="text-xl font-bold">No categories selected for printing.</p>
+        <p className="text-xl font-bold">No categories with brackets found to print.</p>
       </div>
     );
   }
@@ -124,7 +143,7 @@ function PrintPreviewContent() {
         {selectedCatIds.map((catId, index) => (
           <React.Fragment key={catId}>
             <div 
-              className="mx-auto shadow-2xl print:shadow-none print:border-none print:max-w-none print:!w-full max-w-[95vw] border border-slate-200 bg-white print:block print:overflow-visible"
+              className="mx-auto shadow-2xl print:shadow-none print:border-none print:max-w-none print:!w-full max-w-[95vw] border border-slate-200 bg-white print:block print:overflow-hidden print:m-0 print:p-0"
             >
               <PrintBracketView 
                 bouts={bouts}
@@ -140,7 +159,7 @@ function PrintPreviewContent() {
             
             {/* The Page Break (Only in Print) */}
             {index < selectedCatIds.length - 1 && (
-              <div className="hidden print:block" style={{ pageBreakAfter: 'always', breakAfter: 'page', height: '1px' }} />
+              <div className="hidden print:block" style={{ pageBreakAfter: 'always', breakAfter: 'page', height: '0px', margin: 0, padding: 0 }} />
             )}
             
             {/* Spacing for Screen View (Hidden in Print) */}

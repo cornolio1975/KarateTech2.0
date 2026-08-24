@@ -31,91 +31,77 @@ export function calculatePrintDimensions(
   prefMargin: MarginSize = 'normal'
 ): PrintDimensions {
   
-  // Resolve Margin in mm
-  let marginMm = 15;
-  if (prefMargin === 'narrow') marginMm = 10;
-  if (prefMargin === 'wide') marginMm = 20;
+  // Resolve Margin in mm (tuned for zero overflow)
+  let marginMm = 8;
+  if (prefMargin === 'narrow') marginMm = 5;
+  if (prefMargin === 'wide') marginMm = 12;
+
+  let paperSize: PaperSize = 'A4';
+  // Karate draw brackets expand horizontally: default orientation is landscape
+  let resolvedOrientation: 'portrait' | 'landscape' = 'landscape';
+  if (prefOrientation === 'portrait') {
+    resolvedOrientation = 'portrait';
+  } else if (prefOrientation === 'landscape') {
+    resolvedOrientation = 'landscape';
+  } else {
+    // Auto: landscape is standard for tournament tree brackets
+    resolvedOrientation = 'landscape';
+  }
 
   if (isRoundRobin) {
-    // Round robin is just a table, force landscape usually
-    const resolvedOrientation = prefOrientation === 'portrait' ? 'portrait' : 'landscape';
     return {
       paperSize: 'A4',
       orientation: resolvedOrientation,
-      bracketBaseWidthPx: 1000,
-      bracketBaseHeightPx: 750,
+      bracketBaseWidthPx: 1050,
+      bracketBaseHeightPx: 680,
       scaleFactor: 1.0,
       marginMm
     };
   }
 
-  let paperSize: PaperSize = 'A4';
-  let resolvedOrientation: 'portrait' | 'landscape' = 'landscape';
-  
-  // 1. Intelligent Orientation
-  if (prefOrientation === 'auto') {
-    resolvedOrientation = competitorCount <= 8 ? 'portrait' : 'landscape';
-  } else {
-    resolvedOrientation = prefOrientation as 'portrait' | 'landscape';
-  }
-
-  // 2. Define standard paper sizes in pixels (assuming ~96 DPI)
-  // A4 is ~794x1123 px at 96 DPI.
+  // 2. Standard paper pixel dimensions (at ~96 DPI screen/print baseline)
+  // A4 Landscape: 1123 x 794 px
   const paperSizes = {
     'A4': { portrait: { w: 794, h: 1123 }, landscape: { w: 1123, h: 794 } },
     'A3': { portrait: { w: 1123, h: 1587 }, landscape: { w: 1587, h: 1123 } },
     'A2': { portrait: { w: 1587, h: 2245 }, landscape: { w: 2245, h: 1587 } }
   };
 
-  // Safe printable area (subtract margins, approx 1mm = 3.8px)
-  const marginPx = marginMm * 3.8;
+  // Safe printable area (subtract margins, approx 1mm = 3.78px)
+  const marginPx = marginMm * 3.78;
   const availableWidth = paperSizes[paperSize][resolvedOrientation].w - (marginPx * 2);
-  const availableHeight = paperSizes[paperSize][resolvedOrientation].h - (marginPx * 2) - 180; // 180px reserved for Header, Banner, Footer
+  // Reserve 145px for Header (40px), Category Banner (30px), Footer (35px), and outer paddings (40px)
+  const availableHeight = paperSizes[paperSize][resolvedOrientation].h - (marginPx * 2) - 145;
 
-  // 3. Calculate Base Pixel Size of the Bracket
-  const minCardWidthPx = 180;
-  const minRoundHeightPx = Math.max(competitorCount * 35, 600); // 35px height per competitor
-  
-  const baseWidth = Math.max((rounds + 1) * minCardWidthPx, 800); // +1 for champion slot
-  const baseHeight = minRoundHeightPx;
+  // 3. Base size for bracket rendering
+  const minCardWidthPx = 185;
+  const baseHeight = Math.max(competitorCount * 42, 480);
+  const baseWidth = Math.max((rounds + 1) * minCardWidthPx, 860);
 
-  // 4. Calculate Scale Factor based on Fit Mode
+  // 4. Calculate Scale Factor to guarantee fitting inside printable area
   const scaleX = availableWidth / baseWidth;
   const scaleY = availableHeight / baseHeight;
   
-  let scaleFactor = 1.0;
+  let scaleFactor = Math.min(scaleX, scaleY);
 
   if (prefFitMode === 'actual') {
     scaleFactor = 1.0;
   } else if (prefFitMode === 'width') {
-    scaleFactor = Math.min(scaleX, 1.0); // Fit width, but never scale UP
+    scaleFactor = scaleX;
   } else {
-    // 'auto' mode - fit both dimensions if possible, but prioritize width.
-    // If it's a huge bracket, fitting height might make it unreadable.
-    scaleFactor = Math.min(scaleX, scaleY, 1.0);
-    // Add a hard floor to scaleFactor in auto mode to prevent completely illegible text
-    if (scaleFactor < 0.4 && competitorCount > 32) {
-       scaleFactor = scaleX; // Fallback to width-only scaling if it gets too tiny
-    }
+    // 'auto' mode - strictly fit within single page boundaries
+    scaleFactor = Math.min(scaleX, scaleY);
   }
 
-  // 5. Stretch bracket to utilize maximum left/right borders
-  // If we have extra horizontal space after scaling, we expand the baseWidth.
-  // Because the bracket uses percentages for card widths, this will stretch the cards
-  // horizontally to fill the page, making text much clearer and utilizing all space.
-  let finalBaseWidth = baseWidth;
-  if (prefFitMode !== 'actual') {
-    const requiredWidthToFill = availableWidth / scaleFactor;
-    if (requiredWidthToFill > finalBaseWidth) {
-      finalBaseWidth = requiredWidthToFill;
-    }
-  }
+  // Stretch base dimensions so the bracket utilizes 100% of printable space
+  const finalBaseWidth = availableWidth / scaleFactor;
+  const finalBaseHeight = availableHeight / scaleFactor;
 
   return {
     paperSize,
     orientation: resolvedOrientation,
     bracketBaseWidthPx: finalBaseWidth,
-    bracketBaseHeightPx: baseHeight,
+    bracketBaseHeightPx: finalBaseHeight,
     scaleFactor,
     marginMm
   };

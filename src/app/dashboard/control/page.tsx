@@ -779,11 +779,13 @@ export const KumiteScoreboardControl = React.forwardRef<ScoreboardRef, { boutId?
           if (prev <= 1) {
             setTimerActive(false);
             triggerBuzzer();
+            if (onLogEvent) onLogEvent('TIMER', 'Match time expired (00:00) — Buzzer sounded');
             return 0;
           }
           const nextVal = prev - 1;
           if (nextVal === 150) {
             triggerBeep();
+            if (onLogEvent) onLogEvent('TIMER', '15s warning (Atoshibaraku)');
           }
           return nextVal;
         });
@@ -794,7 +796,7 @@ export const KumiteScoreboardControl = React.forwardRef<ScoreboardRef, { boutId?
     return () => {
       if (timerRef.current) clearInterval(timerRef.current);
     };
-  }, [timerActive, autoDetermineWinner]);
+  }, [timerActive, autoDetermineWinner, onLogEvent]);
 
   // Save current state to history for undo operations
   const pushHistory = (
@@ -840,9 +842,45 @@ export const KumiteScoreboardControl = React.forwardRef<ScoreboardRef, { boutId?
     ]);
   };
 
-  // Undo action: undoes actions all the way back to match start
+  // Undo action: undoes actions all the way back to match start time
   const handleUndo = useCallback(() => {
-    if (history.length <= 1) return;
+    if (history.length === 0) return;
+
+    // Pause timer on undo so operator can make corrections cleanly
+    setTimerActive(false);
+
+    if (history.length <= 1) {
+      // Revert completely back to initial match start snapshot (timer, scores, penalties, senshu)
+      const initial = history[0];
+      if (initial) {
+        setScoreAka(initial.scoreAka ?? 0);
+        setScoreAo(initial.scoreAo ?? 0);
+        setSenshuAka(initial.senshuAka ?? false);
+        setSenshuAo(initial.senshuAo ?? false);
+        setFirstScorer(initial.firstScorer ?? null);
+        setHasTimerRun(initial.hasTimerRun ?? false);
+        setC1Aka(initial.c1Aka ?? 0);
+        setC1Ao(initial.c1Ao ?? 0);
+        setPointsAka(initial.pointsAka ?? []);
+        setPointsAo(initial.pointsAo ?? []);
+        setEventsAka(initial.eventsAka ?? []);
+        setEventsAo(initial.eventsAo ?? []);
+        setStoppageScorers(initial.stoppageScorers ?? []);
+        setStoppageInitialSenshu(initial.stoppageInitialSenshu ?? null);
+        setWinnerSide(initial.winnerSide ?? null);
+        setWinMethod(initial.winMethod ?? '');
+        setShowFinishModal(false);
+        setWinnerConfirmed(false);
+        setResultConfirmed(false);
+        setResultSaved(false);
+        if (initial.timeLeft !== undefined) {
+          setTimeLeft(initial.timeLeft);
+        }
+      }
+      if (onLogEvent) onLogEvent('SYSTEM', 'Undo: Reverted all the way back to match start time and state');
+      return;
+    }
+
     const lastState = history[history.length - 1];
     setScoreAka(lastState.scoreAka);
     setScoreAo(lastState.scoreAo);
@@ -860,11 +898,16 @@ export const KumiteScoreboardControl = React.forwardRef<ScoreboardRef, { boutId?
     setStoppageInitialSenshu(lastState.stoppageInitialSenshu ?? null);
     setWinnerSide(lastState.winnerSide ?? null);
     setWinMethod(lastState.winMethod ?? '');
+    setShowFinishModal(false);
+    setWinnerConfirmed(false);
+    setResultConfirmed(false);
+    setResultSaved(false);
     if (lastState.timeLeft !== undefined) {
       setTimeLeft(lastState.timeLeft);
     }
     setHistory((prev) => (prev.length > 1 ? prev.slice(0, -1) : prev));
-  }, [history]);
+    if (onLogEvent) onLogEvent('SYSTEM', 'Undo: Reverted to previous state');
+  }, [history, onLogEvent]);
 
   // Adjust scores with Senshu Award Rules:
   // 1. Start: both OFF
@@ -1115,30 +1158,61 @@ export const KumiteScoreboardControl = React.forwardRef<ScoreboardRef, { boutId?
     }
   };
 
+  const formatTimerDisplay = (deciseconds: number) => {
+    const totalSecs = Math.max(0, Math.round(deciseconds / 10));
+    const mins = Math.floor(totalSecs / 60);
+    const secs = totalSecs % 60;
+    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+  };
+
   // Timer controls
   const handleStartTimer = () => {
     if (timeLeft > 0) {
       setTimerActive(true);
-      if (onLogEvent) onLogEvent('TIMER', 'Timer started');
+      if (onLogEvent) onLogEvent('TIMER', `Timer started at ${formatTimerDisplay(timeLeft)}`);
     }
   };
 
   const handleStopTimer = () => {
     setTimerActive(false);
-    if (onLogEvent) onLogEvent('TIMER', 'Timer paused');
+    if (onLogEvent) onLogEvent('TIMER', `Timer paused at ${formatTimerDisplay(timeLeft)}`);
   };
 
   const handleResetTimer = () => {
     pushHistory();
     setTimerActive(false);
-    setTimeLeft(matchDuration * 10);
+    const initialT = matchDuration * 10;
+    setTimeLeft(initialT);
     setHasTimerRun(false);
-    if (onLogEvent) onLogEvent('TIMER', 'Timer reset');
+    if (onLogEvent) {
+      const mins = Math.floor(matchDuration / 60);
+      const secs = matchDuration % 60;
+      const formatted = `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+      onLogEvent('TIMER', `Timer reset to match start duration (${formatted})`);
+    }
   };
 
   const handleAdjustTime = (seconds: number) => {
     pushHistory();
-    setTimeLeft((prev) => Math.max(0, prev + seconds * 10));
+    const newT = Math.max(0, timeLeft + seconds * 10);
+    setTimeLeft(newT);
+    if (onLogEvent) {
+      const sign = seconds > 0 ? `+${seconds}s` : `${seconds}s`;
+      const formatted = formatTimerDisplay(newT);
+      onLogEvent('TIMER', `Timer adjusted (${sign}) → ${formatted}`);
+    }
+  };
+
+  const handleSetMatchDuration = (val: number) => {
+    pushHistory();
+    setMatchDuration(val);
+    setTimeLeft(val * 10);
+    if (onLogEvent) {
+      const mins = Math.floor(val / 60);
+      const secs = val % 60;
+      const formatted = `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+      onLogEvent('TIMER', `Match duration preset set to ${formatted}`);
+    }
   };
 
   // Set hasTimerRun to true when timer is active and clear stoppageScorers when active
@@ -1939,10 +2013,7 @@ export const KumiteScoreboardControl = React.forwardRef<ScoreboardRef, { boutId?
                     ].map(opt => (
                       <button
                         key={opt.val}
-                        onClick={() => {
-                          setMatchDuration(opt.val);
-                          setTimeLeft(opt.val * 10);
-                        }}
+                        onClick={() => handleSetMatchDuration(opt.val)}
                         disabled={timerActive || bout.status === 'Completed'}
                         className={`flex items-center justify-center rounded border text-[10px] lg:text-xs font-black transition cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed ${
                           matchDuration === opt.val

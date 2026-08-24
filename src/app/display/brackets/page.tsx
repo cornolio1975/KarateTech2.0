@@ -22,14 +22,30 @@ function BracketDisplayContent() {
     loadData();
   }, [categoryId]);
 
-  // Polling for live updates
+  // Real-time broadcast listener & Polling for live updates
   useEffect(() => {
     if (!categoryId) return;
+
+    let channel: BroadcastChannel | null = null;
+    if (typeof window !== 'undefined') {
+      try {
+        channel = new BroadcastChannel('wkf-scoreboard-sync');
+        channel.onmessage = (event) => {
+          if (['MATCH_FINISHED', 'BOUT_UPDATED', 'SYNC_FULL_STATE', 'REFRESH_DATA', 'REFRESH_DISPLAY'].includes(event.data?.type)) {
+            fetchBoutsQuietly();
+          }
+        };
+      } catch (e) {}
+    }
+
     const intervalId = setInterval(() => {
       fetchBoutsQuietly();
-    }, 3000); // 3 seconds poll for live synchronization
+    }, 2500); // 2.5 seconds fallback poll for live synchronization
     
-    return () => clearInterval(intervalId);
+    return () => {
+      clearInterval(intervalId);
+      if (channel) channel.close();
+    };
   }, [categoryId]);
 
   const loadData = async () => {

@@ -53,6 +53,9 @@ export interface TatamiTelemetry {
   isAdminControlled: boolean;
 }
 
+export type ConsoleTheme = 'wkf-dark' | 'arena-blue' | 'tatami-green' | 'dojo-gold';
+export type RefereeThemeSetting = 'sync' | ConsoleTheme;
+
 interface TournamentContextType {
   searchQuery: string;
   setSearchQuery: (query: string) => void;
@@ -67,6 +70,10 @@ interface TournamentContextType {
   setIsFilterOpen: (open: boolean) => void;
   theme: 'light' | 'dark';
   toggleTheme: () => void;
+  consoleTheme: ConsoleTheme;
+  setConsoleTheme: (theme: ConsoleTheme) => void;
+  refereeTheme: RefereeThemeSetting;
+  setRefereeTheme: (theme: RefereeThemeSetting) => void;
   refreshKey: number;
   triggerRefresh: () => void;
   tournamentName: string;
@@ -191,6 +198,8 @@ export function TournamentProvider({ children }: { children: React.ReactNode }) 
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [theme, setTheme] = useState<'light' | 'dark'>('light');
+  const [consoleTheme, setConsoleThemeState] = useState<ConsoleTheme>('wkf-dark');
+  const [refereeTheme, setRefereeThemeState] = useState<RefereeThemeSetting>('sync');
   const [refreshKey, setRefreshKey] = useState(0);
   const [tournamentName, setTournamentNameState] = useState('Kelab Senshi Goju-Ryu Open Karate Championship 2026');
   const [liveStreamUrl, setLiveStreamUrlState] = useState('');
@@ -679,6 +688,21 @@ export function TournamentProvider({ children }: { children: React.ReactNode }) 
         }
       }
 
+      const storedConsoleTheme = localStorage.getItem('kt_console_theme') as ConsoleTheme | null;
+      if (storedConsoleTheme && ['wkf-dark', 'arena-blue', 'tatami-green', 'dojo-gold'].includes(storedConsoleTheme)) {
+        setConsoleThemeState(storedConsoleTheme);
+        document.documentElement.setAttribute('data-console-theme', storedConsoleTheme);
+        document.body.setAttribute('data-console-theme', storedConsoleTheme);
+      } else {
+        document.documentElement.setAttribute('data-console-theme', 'wkf-dark');
+        document.body.setAttribute('data-console-theme', 'wkf-dark');
+      }
+
+      const storedRefTheme = localStorage.getItem('kt_referee_theme') as RefereeThemeSetting | null;
+      if (storedRefTheme && ['sync', 'wkf-dark', 'arena-blue', 'tatami-green', 'dojo-gold'].includes(storedRefTheme)) {
+        setRefereeThemeState(storedRefTheme);
+      }
+
       const storedStream = localStorage.getItem('ts_livestream_url');
       if (storedStream) {
         setLiveStreamUrlState(storedStream);
@@ -950,6 +974,57 @@ export function TournamentProvider({ children }: { children: React.ReactNode }) 
     document.documentElement.classList.toggle('legibility-font', isDyslexic);
   }, [userEmail, usersList, globalAccessibility]);
 
+  const setConsoleTheme = useCallback((newTheme: ConsoleTheme) => {
+    setConsoleThemeState(newTheme);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('kt_console_theme', newTheme);
+      document.documentElement.setAttribute('data-console-theme', newTheme);
+      document.body.setAttribute('data-console-theme', newTheme);
+      try {
+        const channel = new BroadcastChannel('kt-console-theme-sync');
+        channel.postMessage({ type: 'THEME_CHANGE', theme: newTheme });
+        channel.close();
+      } catch (e) {}
+    }
+  }, []);
+
+  const setRefereeTheme = useCallback((newRefTheme: RefereeThemeSetting) => {
+    setRefereeThemeState(newRefTheme);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('kt_referee_theme', newRefTheme);
+      try {
+        const channel = new BroadcastChannel('kt-console-theme-sync');
+        channel.postMessage({ type: 'REFEREE_THEME_CHANGE', refereeTheme: newRefTheme });
+        channel.close();
+      } catch (e) {}
+    }
+  }, []);
+
+  // Guarantee data-console-theme is always on <html> and <body>
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    document.documentElement.setAttribute('data-console-theme', consoleTheme);
+    document.body.setAttribute('data-console-theme', consoleTheme);
+  }, [consoleTheme]);
+
+  // Multi-window theme listener
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    try {
+      const channel = new BroadcastChannel('kt-console-theme-sync');
+      channel.onmessage = (event) => {
+        if (event.data?.type === 'THEME_CHANGE' && event.data.theme) {
+          setConsoleThemeState(event.data.theme);
+          document.documentElement.setAttribute('data-console-theme', event.data.theme);
+        }
+        if (event.data?.type === 'REFEREE_THEME_CHANGE' && event.data.refereeTheme) {
+          setRefereeThemeState(event.data.refereeTheme);
+        }
+      };
+      return () => channel.close();
+    } catch (e) {}
+  }, []);
+
   const toggleTheme = () => {
     const nextTheme = theme === 'light' ? 'dark' : 'light';
     setTheme(nextTheme);
@@ -1135,6 +1210,10 @@ export function TournamentProvider({ children }: { children: React.ReactNode }) 
         setIsFilterOpen,
         theme,
         toggleTheme,
+        consoleTheme,
+        setConsoleTheme,
+        refereeTheme,
+        setRefereeTheme,
         refreshKey,
         triggerRefresh,
         tournamentName,

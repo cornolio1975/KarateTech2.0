@@ -33,6 +33,14 @@
   --status-disqualified: #ef4444; /* Red */
   --status-cancelled: #6b7280; /* Grey */
   
+  /* Protected Scoreboard Colors (Locked: Never change with themes) */
+  --scoreboard-aka: #ef4444; /* Red */
+  --scoreboard-aka-dark: #dc2626;
+  --scoreboard-aka-bg: #150000;
+  --scoreboard-ao: #3b82f6; /* Blue */
+  --scoreboard-ao-dark: #2563eb;
+  --scoreboard-ao-bg: #000a1f;
+
   --radius-xl: 12px;
   --radius-lg: 8px;
 }
@@ -61,6 +69,176 @@
   
   --border: #374151;
   --input: #374151;
+}
+
+/* -------------------------------------------------------------------------- */
+/* KARATETECH 3 CONSOLE THEMES — RICH ATMOSPHERIC COLOR TONES                */
+/* Competitor colors (AKA RED / AO BLUE) are strictly protected & locked.   */
+/* -------------------------------------------------------------------------- */
+
+:root,
+html[data-console-theme="wkf-dark"],
+[data-console-theme="wkf-dark"] {
+  --console-theme: 'wkf-dark';
+  --background: #090d16;
+  --foreground: #f8fafc;
+  --card: #111827;
+  --card-foreground: #f8fafc;
+  --popover: #111827;
+  --popover-foreground: #f8fafc;
+  --primary: #eab308;
+  --primary-foreground: #0f172a;
+  --secondary: #1a2336;
+  --secondary-foreground: #f8fafc;
+  --muted: #1a2336;
+  --muted-foreground: #94a3b8;
+  --accent: #1a2336;
+  --accent-foreground: #f8fafc;
+  --border: #25314d;
+  --input: #25314d;
+
+  --console-bg: #090d16;
+  --console-bg-gradient: radial-gradient(ellipse at 50% 0%, #17223b 0%, #090d16 80%);
+  --console-panel: #111827;
+  --console-panel-secondary: #182236;
+  --console-panel-border: rgba(255, 255, 255, 0.12);
+  --console-panel-border-hover: rgba(255, 255, 255, 0.25);
+  --console-accent: #eab308;
+  --console-accent-glow: rgba(234, 179, 8, 0.4);
+  --console-text: #f8fafc;
+  --console-text-muted: #94a3b8;
+}
+
+html[data-console-theme="arena-blue"],
+[data-console-theme="arena-blue"] {
+  --console-theme: 'arena-blue';
+  --background: #0a1630;
+  --foreground: #f0f9ff;
+  --card: #0f2248;
+  --card-foreground: #f0f9ff;
+  --popover: #0f2248;
+  --popover-foreground: #f0f9ff;
+  --primary: #38bdf8;
+  --primary-foreground: #020817;
+  --secondary: #152e60;
+  --secondary-foreground: #f0f9ff;
+  --muted: #152e60;
+  --muted-foreground: #7dd3fc;
+  --accent: #152e60;
+  --accent-foreground: #f0f9ff;
+  --border: #20498a;
+  --input: #20498a;
+
+  --console-bg: #0a1630;
+  --console-bg-gradient: radial-gradient(ellipse at 50% 0%, #123370 0%, #081226 85%);
+  --console-panel: #0f2248;
+  --console-panel-secondary: #162f62;
+  --console-panel-border: rgba(56, 189, 248, 0.3);
+  --console-panel-border-hover: rgba(56, 189, 248, 0.55);
+  --console-accent: #38bdf8;
+  --console-accent-glow: rgba(56, 189, 248, 0.45);
+  --console-text: #f0f9ff;
+  --console-text-muted: #7dd3fc;
+}
+
+html[data-console-theme="tatami-green"],
+[data-console-theme="tatami-green"] {
+  --console-theme: 'tatami-green';
+  --background: #091f14;
+  --foreground: #ecfdf5;
+  --card: #0e2d1d;
+  --card-foreground: #ecfdf5;
+  --popover: #0e2d1d;
+  --popover-foreground: #ecfdf5;
+  --primary: #34d399;
+  --primary-foreground: #021a0d;
+  --secondary: #143d27;
+  --secondary-foreground: #ecfdf5;
+  --muted: #143d27;
+  --muted-foreground: #6ee7b7;
+  --accent: #143d27;
+  --accent-foreground: #ecfdf5;
+  --border: #1d5738;
+  --input: #1d5738;
+
+  --console-bg: #091f14;
+  --console-bg-gradient: radial-gradient(ellipse at 50% 0%, #13452b 0%, #06170e 85%);
+  --console-panel: #0e2d1d;
+  --console-panel-secondary: #154029;
+  --console-panel-border: rgba(52, 211, 153, 0.3);
+  --console-panel-border-hover: rgba(52, 211, 153, 0.55);
+  --console-accent: #34d399;
+  --console-accent-glow: rgba(52, 211, 153, 0.45);
+  --console-text: #ecfdf5;
+  --console-text-muted: #6ee7b7;
+}
+
+html[data-console-theme="dojo-gold"],
+[data-console-theme="dojo-gold"] {
+  --console-theme: 'dojo-gold';
+  --background: #1c1303;
+  --foreground: #fefce8;
+  --card: #291b05;
+  --card-foreground: #fefce8;
+  --popover: #291b05;
+  --popover-foreground: #fefce8;
+  --primary: #f59e0b;
+  --primary-foreground: #000000;
+  --secondary: #3d2907;
+  --secondary-foreground: #fefce8;
+  --muted: #3d2907;
+  --muted-foreground: #fde047;
+  --accent: #3d2907;
+  --accent-foreground: #fefce8;
+  --border: #78350f;
+  --input: #78350f;
+
+  --console-bg: #1c1303;
+  --console-bg-gradient: radial-gradient(ellipse at 50% 0%, #452c04 0%, #140d02 85%);
+  --console-panel: #291b05;
+  --console-panel-secondary: #3d2907;
+  --console-panel-border: rgba(245, 158, 11, 0.35);
+  --console-panel-border-hover: rgba(245, 158, 11, 0.6);
+  --console-accent: #f59e0b;
+  --console-accent-glow: rgba(245, 158, 11, 0.5);
+  --console-text: #fefce8;
+  --console-text-muted: #fde047;
+}
+
+/* Whole-Page Dynamic Theming Enforcement */
+html, body {
+  background-color: var(--background) !important;
+  background-image: var(--console-bg-gradient) !important;
+  background-attachment: fixed;
+  color: var(--foreground);
+  transition: background-color 0.3s ease, background-image 0.3s ease, color 0.3s ease, border-color 0.3s ease;
+}
+
+.glass-header {
+  background-color: var(--card) !important;
+  border-bottom: 1px solid var(--border) !important;
+  backdrop-filter: blur(12px);
+}
+
+aside {
+  background-color: var(--card) !important;
+  border-color: var(--border) !important;
+}
+
+.operator-console-root {
+  background-color: var(--console-bg) !important;
+  background-image: var(--console-bg-gradient) !important;
+  color: var(--console-text) !important;
+}
+
+.operator-panel {
+  background-color: var(--console-panel) !important;
+  border-color: var(--console-panel-border) !important;
+}
+
+.operator-panel-secondary {
+  background-color: var(--console-panel-secondary) !important;
+  border-color: var(--console-panel-border) !important;
 }
 
 @theme {

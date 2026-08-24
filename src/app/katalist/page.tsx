@@ -36,10 +36,10 @@ export default function KataListPage() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-900 flex flex-col print:bg-white print:text-black">
+    <div className="min-h-screen bg-background text-foreground flex flex-col print:bg-white print:text-black">
       
       {/* Top Controls Bar (Screen only, hidden when printing) */}
-      <header className="sticky top-0 z-50 bg-[#0c1017] border-b border-slate-800 px-4 py-3 text-white flex items-center justify-between gap-3 shadow-lg print:hidden">
+      <header className="sticky top-0 z-50 bg-card border-b border-border px-4 py-3 text-foreground flex items-center justify-between gap-3 shadow-lg print:hidden">
         <div className="flex items-center gap-3">
           <Link
             href="/dashboard/operator"

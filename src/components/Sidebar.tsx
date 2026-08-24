@@ -89,31 +89,36 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
         ${isOpen ? 'w-64 translate-x-0' : 'w-0 -translate-x-full border-none px-0'}
       `}
     >
-      <a 
-        href="https://spsportdatasolution.org/karatetech/"
-        target="_blank"
-        rel="noopener noreferrer"
-        className="h-16 flex items-center gap-3 px-6 border-b border-border hover:bg-secondary/40 transition-colors group cursor-pointer"
-        title="Open Corporate Home Showcase (spsportdatasolution.org/karatetech)"
+      <div 
+        className="flex flex-col px-5 py-3 border-b border-border select-none bg-card/50"
       >
-        <div className="h-10 w-10 rounded-full overflow-hidden border border-white/20 bg-slate-900 shrink-0 group-hover:scale-105 group-hover:border-primary transition-all">
-          <img src={logoUrl || `${basePath}/karatetech-logo.png`} alt="Logo" className="h-full w-full object-cover" />
-        </div>
-        <div className="flex flex-col leading-none">
-          <div style={{ fontFamily: "'Montserrat', sans-serif", fontWeight: 900, fontSize: '0.95rem', lineHeight: 1, letterSpacing: '0.01em' }}>
-            <span style={{ color: '#b91c2e' }}>Karate</span>
-            <span style={{ color: '#38bdf8' }}>Tech</span>
-            <span style={{ color: '#facc15', marginLeft: '3px', fontSize: '0.85rem' }}>2.0</span>
+        <div className="flex items-center gap-3">
+          <div className="h-10 w-10 rounded-full overflow-hidden border border-white/20 bg-slate-900 shrink-0">
+            <img src={logoUrl || `${basePath}/karatetech-logo.png`} alt="Logo" className="h-full w-full object-cover" />
           </div>
-          <div style={{ height: '1.5px', background: 'linear-gradient(90deg, #b91c2e 40%, #38bdf8 70%, transparent 100%)', marginTop: '1.5px', marginBottom: '1.5px', borderRadius: '1px' }} />
-          <span style={{ fontFamily: "'Montserrat', sans-serif", fontWeight: 700, fontSize: '0.62rem', letterSpacing: '0.01em', color: '#818cf8', lineHeight: 1.15 }} className="group-hover:underline flex items-center gap-1">
-            SP SportData Solution <ExternalLink className="inline h-2.5 w-2.5 opacity-70" />
-          </span>
-          <span style={{ fontFamily: "'Montserrat', sans-serif", fontWeight: 700, fontSize: '0.45rem', letterSpacing: '0.08em', color: '#94a3b8', lineHeight: 1.2, marginTop: '1.5px' }}>
-            • PRECISION. • SPEED. • RESULTS. •
-          </span>
+          <div className="flex flex-col leading-none flex-1 min-w-0">
+            <div style={{ fontFamily: "'Montserrat', sans-serif", fontWeight: 900, fontSize: '0.95rem', lineHeight: 1, letterSpacing: '0.01em' }}>
+              <span style={{ color: '#b91c2e' }}>Karate</span>
+              <span style={{ color: '#38bdf8' }}>Tech</span>
+              <span style={{ color: '#ffffff', marginLeft: '3px', fontSize: '0.85rem' }}>2.0</span>
+              <span style={{ color: '#94a3b8', fontSize: '0.62rem', marginLeft: '2px', verticalAlign: 'super' }}>©</span>
+            </div>
+            <div style={{ height: '1.5px', background: 'linear-gradient(90deg, #b91c2e 40%, #38bdf8 70%, transparent 100%)', marginTop: '3px', marginBottom: '3px', borderRadius: '1px' }} />
+            <span style={{ fontFamily: "'Montserrat', sans-serif", fontWeight: 700, fontSize: '0.46rem', letterSpacing: '0.08em', color: '#94a3b8', lineHeight: 1.2 }}>
+              • PRECISION. • SPEED. • RESULTS. •
+            </span>
+          </div>
         </div>
-      </a>
+
+        {/* SP SportData Solution Logo Image Fitted Below (Seamless transparent blend) */}
+        <div className="mt-2 w-full flex items-center justify-center overflow-hidden">
+          <img 
+            src={`${basePath}/spsportdata-logo.jpg`} 
+            alt="SP SportData Solution" 
+            className="w-full max-h-[30px] object-contain mix-blend-screen"
+          />
+        </div>
+      </div>
 
       {/* Navigation Links */}
       <nav className="flex-1 overflow-y-auto px-4 py-4 space-y-1">

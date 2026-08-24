@@ -6,7 +6,7 @@ import Link from 'next/link';
 import { useTournament } from '@/context/TournamentContext';
 import { 
   Search, SlidersHorizontal, Download, Upload, MoreHorizontal, 
-  Plus, Bell, Moon, Sun, ChevronDown, CheckCircle, AlertTriangle, Menu, Home, Globe, ExternalLink, Tv
+  Plus, Bell, Moon, Sun, ChevronDown, CheckCircle, AlertTriangle, Menu, Home, Globe, ExternalLink, Tv, Palette, Check, Lock
 } from 'lucide-react';
 import { db, describeError } from '@/db/dbClient';
 
@@ -27,11 +27,14 @@ export default function TopBar({ onImportClick, onMenuToggle }: TopBarProps) {
     setIsAddOpen,
     theme,
     toggleTheme,
+    consoleTheme,
+    setConsoleTheme,
     tournamentName,
     triggerRefresh
   } = useTournament();
 
   const [isBulkOpen, setIsBulkOpen] = useState(false);
+  const [isThemeOpen, setIsThemeOpen] = useState(false);
   const isParticipantsPage = pathname === '/participants';
 
   // Handler for bulk action execution
@@ -256,14 +259,150 @@ export default function TopBar({ onImportClick, onMenuToggle }: TopBarProps) {
             <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-red-500"></span>
           </button>
 
-          {/* Theme Switcher */}
-          <button
-            onClick={toggleTheme}
-            className="p-2 hover:bg-secondary text-muted-foreground hover:text-foreground rounded-lg transition-colors cursor-pointer"
-            title="Toggle theme"
-          >
-            {theme === 'dark' ? <Sun className="h-4.5 w-4.5" /> : <Moon className="h-4.5 w-4.5" />}
-          </button>
+          {/* Console Theme Picker Dropdown */}
+          <div className="relative">
+            <button
+              onClick={() => setIsThemeOpen(!isThemeOpen)}
+              className="flex items-center gap-1.5 px-2.5 py-1.5 hover:bg-secondary text-muted-foreground hover:text-foreground rounded-lg transition-colors cursor-pointer border border-border/50 text-xs font-bold"
+              title="Change Console Theme (WKF Dark, Arena Blue, Tatami Green)"
+            >
+              <Palette className="h-4 w-4 text-primary" />
+              <span className="hidden md:inline capitalize text-[11px]">
+                {consoleTheme === 'wkf-dark' ? 'WKF Dark' : consoleTheme === 'arena-blue' ? 'Arena Blue' : consoleTheme === 'tatami-green' ? 'Tatami Green' : 'Dojo Gold'}
+              </span>
+              <ChevronDown className="h-3 w-3 opacity-60" />
+            </button>
+
+            {isThemeOpen && (
+              <>
+                <div
+                  className="fixed inset-0 z-40"
+                  onClick={() => setIsThemeOpen(false)}
+                />
+                <div className="absolute right-0 mt-2 w-72 bg-card border border-border rounded-xl shadow-2xl z-50 p-3 space-y-2.5 text-foreground animate-in fade-in zoom-in-95 duration-150">
+                  <div className="flex items-center justify-between border-b border-border pb-2">
+                    <span className="text-xs font-black uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+                      <Palette className="h-3.5 w-3.5 text-primary" />
+                      Console Theme
+                    </span>
+                    <span className="text-[10px] font-bold text-amber-500 bg-amber-500/10 px-2 py-0.5 rounded border border-amber-500/20 flex items-center gap-1">
+                      <Lock className="h-2.5 w-2.5" />
+                      Scoreboard Protected
+                    </span>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    {/* 1. WKF Dark */}
+                    <label
+                      onClick={() => { setConsoleTheme('wkf-dark'); setIsThemeOpen(false); }}
+                      className={`flex items-center justify-between p-2 rounded-lg border cursor-pointer transition ${
+                        consoleTheme === 'wkf-dark'
+                          ? 'bg-yellow-500/10 border-yellow-500/50 text-foreground font-bold'
+                          : 'border-transparent hover:bg-secondary text-muted-foreground hover:text-foreground'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="radio"
+                          name="topbarTheme"
+                          checked={consoleTheme === 'wkf-dark'}
+                          onChange={() => { setConsoleTheme('wkf-dark'); setIsThemeOpen(false); }}
+                          className="h-3.5 w-3.5 text-yellow-500 focus:ring-yellow-500 cursor-pointer"
+                        />
+                        <div className="flex flex-col">
+                          <span className="text-xs font-bold leading-tight">1. WKF Dark</span>
+                          <span className="text-[10px] text-muted-foreground">Obsidian & Gold</span>
+                        </div>
+                      </div>
+                      <span className="w-3 h-3 rounded-full bg-yellow-400 border border-black/20" />
+                    </label>
+
+                    {/* 2. Arena Blue */}
+                    <label
+                      onClick={() => { setConsoleTheme('arena-blue'); setIsThemeOpen(false); }}
+                      className={`flex items-center justify-between p-2 rounded-lg border cursor-pointer transition ${
+                        consoleTheme === 'arena-blue'
+                          ? 'bg-sky-500/10 border-sky-500/50 text-foreground font-bold'
+                          : 'border-transparent hover:bg-secondary text-muted-foreground hover:text-foreground'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="radio"
+                          name="topbarTheme"
+                          checked={consoleTheme === 'arena-blue'}
+                          onChange={() => { setConsoleTheme('arena-blue'); setIsThemeOpen(false); }}
+                          className="h-3.5 w-3.5 text-sky-400 focus:ring-sky-400 cursor-pointer"
+                        />
+                        <div className="flex flex-col">
+                          <span className="text-xs font-bold leading-tight">2. Arena Blue</span>
+                          <span className="text-[10px] text-muted-foreground">Midnight & Cyan</span>
+                        </div>
+                      </div>
+                      <span className="w-3 h-3 rounded-full bg-sky-400 border border-black/20" />
+                    </label>
+
+                    {/* 3. Tatami Green */}
+                    <label
+                      onClick={() => { setConsoleTheme('tatami-green'); setIsThemeOpen(false); }}
+                      className={`flex items-center justify-between p-2 rounded-lg border cursor-pointer transition ${
+                        consoleTheme === 'tatami-green'
+                          ? 'bg-emerald-500/10 border-emerald-500/50 text-foreground font-bold'
+                          : 'border-transparent hover:bg-secondary text-muted-foreground hover:text-foreground'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="radio"
+                          name="topbarTheme"
+                          checked={consoleTheme === 'tatami-green'}
+                          onChange={() => { setConsoleTheme('tatami-green'); setIsThemeOpen(false); }}
+                          className="h-3.5 w-3.5 text-emerald-400 focus:ring-emerald-400 cursor-pointer"
+                        />
+                        <div className="flex flex-col">
+                          <span className="text-xs font-bold leading-tight">3. Tatami Green</span>
+                          <span className="text-[10px] text-muted-foreground">Emerald & Mint</span>
+                        </div>
+                      </div>
+                      <span className="w-3 h-3 rounded-full bg-emerald-400 border border-black/20" />
+                    </label>
+
+                    {/* 4. Dojo Gold */}
+                    <label
+                      onClick={() => { setConsoleTheme('dojo-gold'); setIsThemeOpen(false); }}
+                      className={`flex items-center justify-between p-2 rounded-lg border cursor-pointer transition ${
+                        consoleTheme === 'dojo-gold'
+                          ? 'bg-amber-500/10 border-amber-500/50 text-foreground font-bold'
+                          : 'border-transparent hover:bg-secondary text-muted-foreground hover:text-foreground'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="radio"
+                          name="topbarTheme"
+                          checked={consoleTheme === 'dojo-gold'}
+                          onChange={() => { setConsoleTheme('dojo-gold'); setIsThemeOpen(false); }}
+                          className="h-3.5 w-3.5 text-amber-400 focus:ring-amber-400 cursor-pointer"
+                        />
+                        <div className="flex flex-col">
+                          <span className="text-xs font-bold leading-tight">4. Dojo Gold</span>
+                          <span className="text-[10px] text-muted-foreground">Solar Amber & Gold</span>
+                        </div>
+                      </div>
+                      <span className="w-3 h-3 rounded-full bg-amber-400 border border-black/20 shadow-xs shadow-amber-400" />
+                    </label>
+                  </div>
+
+                  <div className="pt-2 border-t border-border flex items-center justify-between text-[11px] text-muted-foreground">
+                    <span>Scoreboard:</span>
+                    <span className="font-bold text-red-500">AKA Red</span>
+                    <span>•</span>
+                    <span className="font-bold text-blue-500">AO Blue</span>
+                  </div>
+                </div>
+              </>
+            )}
+          </div>
 
           {/* User Info Dropdown */}
           <div className="flex items-center gap-2 pl-1 cursor-pointer">

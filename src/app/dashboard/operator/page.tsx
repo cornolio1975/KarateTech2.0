@@ -14,7 +14,8 @@ import {
   Search, Download, X, Play, Pause, RotateCcw,
   Maximize2, SlidersHorizontal, Trash2, Filter,
   Zap, RefreshCw, Wifi, WifiOff, ArrowRight, ArrowLeft, BarChart3, ExternalLink,
-  ChevronUp, ChevronDown, ChevronLeft, ZoomIn, ZoomOut, Tv, GripHorizontal, BookOpen
+  ChevronUp, ChevronDown, ChevronLeft, ZoomIn, ZoomOut, Tv, GripHorizontal, BookOpen,
+  Palette, ChevronDown as ChevronDownIcon
 } from 'lucide-react';
 import { KumiteScoreboardControl, ScoreboardRef } from '../control/page';
 import { KataControlPanelContent } from '../kata-control/page';
@@ -54,8 +55,12 @@ export default function OperatorConsolePage() {
     tatamiId, 
     takeoverTatami, 
     userRole, 
-    updateTatamiTelemetry
+    updateTatamiTelemetry,
+    consoleTheme,
+    setConsoleTheme
   } = useTournament();
+
+  const [isThemeMenuOpen, setIsThemeMenuOpen] = useState(false);
 
   const isLockedOutByAdmin = userRole !== 'Admin' && takeoverTatami === tatamiId;
 
@@ -288,31 +293,48 @@ export default function OperatorConsolePage() {
     return () => { window.removeEventListener('online', onOnline); window.removeEventListener('offline', onOffline); };
   }, [addLog]);
 
+  const loadBoutRef = useRef(loadBout);
+  useEffect(() => { loadBoutRef.current = loadBout; }, [loadBout]);
+
+  const loadDataRef = useRef(loadData);
+  useEffect(() => { loadDataRef.current = loadData; }, [loadData]);
+
+  const boutsRef = useRef(bouts);
+  useEffect(() => { boutsRef.current = bouts; }, [bouts]);
+
   useEffect(() => {
     if (typeof window === 'undefined') return;
     const channel = new BroadcastChannel('wkf-scoreboard-sync');
     channel.onmessage = (event) => {
       const data = event.data;
       if (data?.type === 'LOAD_BOUT' && data.boutId) {
-        const found = bouts.find(b => b.id === data.boutId);
+        const found = boutsRef.current.find(b => b.id === data.boutId);
         if (found) {
-          loadBout(found, undefined, undefined, false);
+          loadBoutRef.current(found, undefined, undefined, false);
           if (data.categoryId) setSelectedCatId(data.categoryId);
-          addLog('SYSTEM', `Loaded match R${found.round_no}B${found.bout_no} from Live Bracket`);
+          addLogRef.current('SYSTEM', `Loaded match R${found.round_no}B${found.bout_no} from Live Bracket`);
         } else {
           db.bouts.list().then(bList => {
             setBouts(bList);
             const b = bList.find(item => item.id === data.boutId);
             if (b) {
-              loadBout(b, undefined, undefined, false);
+              loadBoutRef.current(b, undefined, undefined, false);
               if (data.categoryId) setSelectedCatId(data.categoryId);
             }
           });
         }
+      } else if (
+        data?.type === 'MATCH_FINISHED' ||
+        data?.type === 'BOUT_UPDATED' ||
+        data?.type === 'SYNC_FULL_STATE' ||
+        data?.type === 'REFRESH_DATA' ||
+        data?.type === 'REFRESH_DISPLAY'
+      ) {
+        loadDataRef.current();
       }
     };
     return () => channel.close();
-  }, [bouts, loadBout, addLog]);
+  }, []);
 
   const handleTimerToggle = () => {
     if (!activeBout) return;
@@ -418,6 +440,31 @@ export default function OperatorConsolePage() {
   const catBouts = selectedCatId === 'ALL'
     ? allBoutsFiltered
     : allBoutsFiltered.filter(b => b.category_id === selectedCatId);
+
+  const [collapsedCategories, setCollapsedCategories] = useState<Record<string, boolean>>({});
+  const toggleCategoryCollapse = (catId: string) => {
+    setCollapsedCategories(prev => ({ ...prev, [catId]: !prev[catId] }));
+  };
+
+  // Group bouts by category for convenient hierarchical browsing in Bracket Console
+  const groupedCategorySections = useMemo(() => {
+    const targetCategories = selectedCatId === 'ALL'
+      ? filteredCategories
+      : filteredCategories.filter(c => c.id === selectedCatId);
+
+    return targetCategories.map(cat => {
+      const bList = allBoutsFiltered.filter(b => b.category_id === cat.id);
+      const completedCount = bList.filter(b => b.status === 'Completed').length;
+      const runningCount = bList.filter(b => b.status === 'Running').length;
+      return {
+        category: cat,
+        bouts: bList,
+        completedCount,
+        runningCount,
+        totalCount: bList.length
+      };
+    }).filter(group => selectedCatId !== 'ALL' || group.totalCount > 0);
+  }, [filteredCategories, allBoutsFiltered, selectedCatId]);
 
   const chartCategoryId = selectedCatId !== 'ALL' ? selectedCatId : (activeBout?.category_id || categories[0]?.id || '');
 
@@ -820,11 +867,16 @@ export default function OperatorConsolePage() {
     }
   };
 
-  const handleShortcutAction = useCallback((key: string) => {
+    const handleShortcutAction = useCallback((key: string) => {
     if (key === 'F1') {
-      setBracketModalCatId(activeCat?.id || (selectedCatId !== 'ALL' ? selectedCatId : (filteredCategories[0]?.id || 'ALL')));
-      setIsBracketModalOpen(true);
-      addLog('SYSTEM', 'Shortcut [F1]: Live Bracket Modal opened');
+      if (isBracketModalOpen) {
+        setIsBracketModalOpen(false);
+        addLog('SYSTEM', 'Shortcut [F1]: Live Bracket Modal closed (returned to initial page)');
+      } else {
+        setBracketModalCatId(activeCat?.id || (selectedCatId !== 'ALL' ? selectedCatId : (filteredCategories[0]?.id || 'ALL')));
+        setIsBracketModalOpen(true);
+        addLog('SYSTEM', 'Shortcut [F1]: Live Bracket Modal opened');
+      }
     } else if (key === 'F2') {
       const nextState = !isPlayerDetailsDisplayShowing;
       setIsPlayerDetailsDisplayShowing(nextState);
@@ -844,25 +896,32 @@ export default function OperatorConsolePage() {
         });
         channel.close();
       }
-      addLog('SYSTEM', nextState ? 'Shortcut [F2]: Player details presented on Referee / Spectator Screen' : 'Shortcut [F2]: Player details dismissed from Referee Screen');
+      addLog('SYSTEM', nextState ? 'Shortcut [F2]: Player details presented on Referee / Spectator Screen' : 'Shortcut [F2]: Player details dismissed (returned to initial page)');
     } else if (key === 'F3') {
       handleToggleResultOnRefereeView();
       addLog('RESULT', 'Shortcut [F3]: Confirm / Reverse Result toggled');
     } else if (key === 'F4') {
-      const nextRunning = !extraRunning;
-      setExtraRunning(nextRunning);
-      broadcastExtraTimer(extraTime, nextRunning, extraTimerBroadcast);
-      addLog('TIMER', nextRunning ? `Shortcut [F4]: Extra Timer started (${formatTimer(extraTime)})` : `Shortcut [F4]: Extra Timer paused at ${formatTimer(extraTime)}`);
+      const nextBroadcast = !extraTimerBroadcast;
+      setExtraTimerBroadcast(nextBroadcast);
+      setExtraTimerOpen(true);
+      broadcastExtraTimer(extraTime, extraRunning, nextBroadcast);
+      addLog('TIMER', nextBroadcast ? 'Shortcut [F4]: Extra Timer synced to Referee / Spectator Screen' : 'Shortcut [F4]: Extra Timer dismissed from Referee Screen');
       setTimeout(() => document.querySelector<HTMLDivElement>('.extra-timer-panel')?.scrollIntoView({ behavior: 'smooth' }), 100);
     } else if (key === 'F5') {
-      setKeyLogTab('ALL');
-      if (logContainerRef.current) logContainerRef.current.scrollTop = 0;
-      addLog('SYSTEM', 'Shortcut [F5]: Key Log Terminal focused & reset to ALL');
+      if (bracketTab !== 'BRACKET CONSOLE') {
+        setBracketTab('BRACKET CONSOLE');
+        addLog('SYSTEM', 'Shortcut [F5]: Returned to initial Match Console view');
+      } else {
+        setKeyLogTab('ALL');
+        if (logContainerRef.current) logContainerRef.current.scrollTop = 0;
+        addLog('SYSTEM', 'Shortcut [F5]: Key Log Terminal focused & reset to ALL');
+      }
     } else if (key === 'F6') {
       addLog('SYSTEM', 'Shortcut [F6]: Navigating to Settings');
       router.push('/settings');
     }
   }, [
+    isBracketModalOpen,
     activeCat,
     selectedCatId,
     filteredCategories,
@@ -873,9 +932,11 @@ export default function OperatorConsolePage() {
     coaches,
     activeBout,
     handleToggleResultOnRefereeView,
+    extraTimerOpen,
     extraRunning,
     extraTime,
     extraTimerBroadcast,
+    bracketTab,
     router,
     addLog
   ]);
@@ -911,12 +972,26 @@ export default function OperatorConsolePage() {
 
   const initialDockButtons: DockBtn[] = [
     { id: 'bracket',         icon: Trophy,         label: 'BRACKET',       color: 'yellow', action: () => {
-        setBracketModalCatId(activeCat?.id || (selectedCatId !== 'ALL' ? selectedCatId : (filteredCategories[0]?.id || 'ALL')));
-        setIsBracketModalOpen(true);
-        addLog('SYSTEM', 'Function Dock: Live Bracket Modal opened');
+        if (isBracketModalOpen) {
+          setIsBracketModalOpen(false);
+          addLog('SYSTEM', 'Function Dock: Live Bracket Modal closed (returned to initial page)');
+        } else {
+          setBracketModalCatId(activeCat?.id || (selectedCatId !== 'ALL' ? selectedCatId : (filteredCategories[0]?.id || 'ALL')));
+          setIsBracketModalOpen(true);
+          addLog('SYSTEM', 'Function Dock: Live Bracket Modal opened');
+        }
       } 
     },
-    { id: 'matches',         icon: List,           label: 'MATCHES',        color: 'blue',   action: () => { setBracketTab('MATCH LIST'); addLog('SYSTEM', 'Function Dock: Switched to MATCH LIST'); } },
+    { id: 'matches',         icon: List,           label: 'MATCHES',        color: 'blue',   action: () => {
+        if (bracketTab === 'MATCH LIST') {
+          setBracketTab('BRACKET CONSOLE');
+          addLog('SYSTEM', 'Function Dock: Returned to initial BRACKET CONSOLE view');
+        } else {
+          setBracketTab('MATCH LIST');
+          addLog('SYSTEM', 'Function Dock: Switched to MATCH LIST');
+        }
+      } 
+    },
     { id: 'player_details',  icon: UserSquare2,    label: 'PLAYER DETAILS', color: 'blue',   action: () => {
         const nextState = !isPlayerDetailsDisplayShowing;
         setIsPlayerDetailsDisplayShowing(nextState);
@@ -936,7 +1011,7 @@ export default function OperatorConsolePage() {
           });
           channel.close();
         }
-        addLog('SYSTEM', nextState ? 'Function Dock: Player details presented on Referee / Spectator Screen' : 'Function Dock: Player details dismissed from Referee Screen');
+        addLog('SYSTEM', nextState ? 'Function Dock: Player details presented on Referee / Spectator Screen' : 'Function Dock: Player details dismissed (returned to initial page)');
       } 
     },
     { id: 'extra_timer',     icon: Timer,          label: 'EXTRA TIMER',    color: 'orange', action: () => {
@@ -949,7 +1024,10 @@ export default function OperatorConsolePage() {
       } 
     },
     { id: 'current_match',   icon: ChevronRight,   label: 'CURRENT MATCH',  color: 'yellow', action: () => {
-        if (activeBout) {
+        if (isControlPanelOpen) {
+          setIsControlPanelOpen(false);
+          addLog('SYSTEM', 'Function Dock: Scoreboard panel closed (returned to initial view)');
+        } else if (activeBout) {
           setIsControlPanelOpen(true);
           addLog('SYSTEM', `Function Dock: Opened Current Match Console (${boutLabel})`);
         } else {
@@ -958,17 +1036,25 @@ export default function OperatorConsolePage() {
       } 
     },
     { id: 'referee_screen',  icon: Tv,             label: 'REFEREE SCREEN', color: 'blue',   action: () => {
-        const url = `${basePath}/display?liveOnly=true${activeBout ? `&boutId=${activeBout.id}` : ''}`;
-        setExpandModal({
-          open: true,
-          terminal: 'REFEREE & SPECTATOR SCREEN',
-          targetUrl: url
-        });
-        addLog('SYSTEM', 'Function Dock: Opened Referee & Spectator Screen in Modal');
+        if (expandModal) {
+          setExpandModal(null);
+          addLog('SYSTEM', 'Function Dock: Referee Screen modal closed (returned to initial page)');
+        } else {
+          const url = `${basePath}/display?liveOnly=true${activeBout ? `&boutId=${activeBout.id}` : ''}`;
+          setExpandModal({
+            open: true,
+            terminal: 'REFEREE & SPECTATOR SCREEN',
+            targetUrl: url
+          });
+          addLog('SYSTEM', 'Function Dock: Opened Referee & Spectator Screen in Modal');
+        }
       } 
     },
     { id: 'notes',           icon: FileText,       label: 'NOTES',          color: 'blue',   action: () => {
-        if (activeBout) {
+        if (isNotesModalOpen) {
+          setIsNotesModalOpen(false);
+          addLog('SYSTEM', 'Function Dock: Notes closed (returned to initial page)');
+        } else if (activeBout) {
           setNotesText(activeBout.notes || '');
           setIsNotesModalOpen(true);
           addLog('SYSTEM', `Function Dock: Opened Notes for Match ${boutLabel}`);
@@ -1003,10 +1089,15 @@ export default function OperatorConsolePage() {
       } 
     },
     { id: 'load_match',      icon: FolderOpen,     label: 'LOAD MATCH',     color: 'blue',   action: () => {
-        setLoadMatchSearch('');
-        setExpandedCatId(null);
-        setIsLoadMatchModalOpen(true);
-        addLog('SYSTEM', 'Function Dock: Opened Load Match modal');
+        if (isLoadMatchModalOpen) {
+          setIsLoadMatchModalOpen(false);
+          addLog('SYSTEM', 'Function Dock: Load Match modal closed (returned to initial page)');
+        } else {
+          setLoadMatchSearch('');
+          setExpandedCatId(null);
+          setIsLoadMatchModalOpen(true);
+          addLog('SYSTEM', 'Function Dock: Opened Load Match modal');
+        }
       } 
     },
     { id: 'match_log',       icon: ClipboardList,  label: 'MATCH LOG',      color: 'blue',   action: () => {
@@ -1015,8 +1106,13 @@ export default function OperatorConsolePage() {
       } 
     },
     { id: 'queue',           icon: Users2,         label: 'QUEUE',          color: 'blue',   action: () => {
-        setBracketTab('QUEUE');
-        addLog('SYSTEM', 'Function Dock: Switched to QUEUE tab');
+        if (bracketTab === 'QUEUE') {
+          setBracketTab('BRACKET CONSOLE');
+          addLog('SYSTEM', 'Function Dock: Returned to initial BRACKET CONSOLE view');
+        } else {
+          setBracketTab('QUEUE');
+          addLog('SYSTEM', 'Function Dock: Switched to QUEUE tab');
+        }
       } 
     },
     { id: 'undo',            icon: Undo2,          label: 'UNDO',           color: 'orange', action: () => {
@@ -1105,7 +1201,7 @@ export default function OperatorConsolePage() {
   if (!mounted) return null;
 
   return (
-    <div className="h-[100dvh] w-full bg-[#090b0f] text-white flex flex-col overflow-hidden select-none relative" style={{ fontFamily: 'system-ui, sans-serif' }}>
+    <div className="h-[100dvh] w-full operator-console-root flex flex-col overflow-hidden select-none relative" style={{ fontFamily: 'system-ui, sans-serif' }}>
       
       {/* ADMIN TAKEOVER OVERLAY */}
       {isLockedOutByAdmin && (
@@ -1122,20 +1218,40 @@ export default function OperatorConsolePage() {
       )}
 
       {/* TOP BAR */}
-      <header className="flex items-center justify-between px-3 py-1.5 bg-[#0c0f14] border-b border-white/10 shrink-0 z-20">
+      <header className="flex items-center justify-between px-3 py-1.5 operator-panel border-b shrink-0 z-20">
         <div className="flex items-center gap-3">
-          <div className="flex items-center gap-2">
-            <img src={`${basePath}/karatetech-logo.png`} alt="KarateTech Logo" className="h-8 w-8 object-contain rounded-full border border-white/20 shadow-md shadow-black/50" />
-            <div>
-              <div style={{ fontFamily: "'Montserrat', sans-serif", fontWeight: 900, fontSize: '0.75rem', lineHeight: 1, letterSpacing: '0.01em' }}>
-                <span style={{ color: '#b91c2e' }}>Karate</span>
-                <span style={{ color: '#38bdf8' }}>Tech</span>
-                <span style={{ color: '#ffffff', marginLeft: '3px', fontSize: '0.65rem' }}>2.0</span>
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2.5">
+              <img src={`${basePath}/karatetech-logo.png`} alt="KarateTech Logo" className="h-9 w-9 object-contain rounded-full border border-white/20 shadow-md shadow-black/50" />
+              <div>
+                <div style={{ fontFamily: "'Montserrat', sans-serif", fontWeight: 900, fontSize: '0.85rem', lineHeight: 1, letterSpacing: '0.01em' }}>
+                  <span style={{ color: '#b91c2e' }}>Karate</span>
+                  <span style={{ color: '#38bdf8' }}>Tech</span>
+                  <span style={{ color: '#ffffff', marginLeft: '3px', fontSize: '0.75rem' }}>2.0</span>
+                  <span style={{ color: '#94a3b8', fontSize: '0.55rem', marginLeft: '2px', verticalAlign: 'super' }}>©</span>
+                </div>
+                <div className="text-[6.5px] text-white/40 font-bold uppercase tracking-[0.15em] mt-0.5 leading-none">
+                  • PRECISION. SPEED. RESULTS. •
+                </div>
+                <div className="mt-1 flex items-center overflow-hidden">
+                  <img 
+                    src={`${basePath}/spsportdata-logo.jpg`} 
+                    alt="SP SportData Solution" 
+                    className="h-4.5 max-h-[18px] w-auto object-contain mix-blend-screen"
+                  />
+                </div>
               </div>
-              <div className="flex items-center gap-1.5 mt-0.5">
-                <span className="text-[8px] font-black text-yellow-400 tracking-wider">OPERATOR CONSOLE</span>
-                <span className="text-[6px] text-white/40 font-bold uppercase tracking-[0.2em]">PRECISION. SPEED. RESULTS.</span>
-              </div>
+            </div>
+
+            {/* Separate Divider & Operator Console Title */}
+            <div className="h-7 w-px bg-white/15" />
+            <div className="flex flex-col justify-center">
+              <span className="text-[9.5px] font-black text-yellow-400 tracking-widest uppercase leading-none">
+                OPERATOR CONSOLE
+              </span>
+              <span className="text-[7px] text-white/40 font-bold uppercase tracking-wider mt-0.5">
+                MATCH CONTROL DESK
+              </span>
             </div>
           </div>
           <div className="h-5 w-px bg-white/10" />
@@ -1158,6 +1274,128 @@ export default function OperatorConsolePage() {
             {isOnline ? <Wifi className="h-3 w-3" /> : <WifiOff className="h-3 w-3" />}
             {isOnline ? 'CONNECTED' : 'OFFLINE'}
           </div>
+          {/* Console Theme Picker */}
+          <div className="relative">
+            <button 
+              onClick={() => setIsThemeMenuOpen(!isThemeMenuOpen)} 
+              className="flex items-center gap-1 px-2 py-1 rounded bg-white/5 hover:bg-white/10 text-white/70 hover:text-white border border-white/10 transition cursor-pointer text-[10px] font-bold" 
+              title="Select Console Theme (WKF Dark, Arena Blue, Tatami Green)"
+            >
+              <Palette className="h-3 w-3 text-yellow-400" />
+              <span className="capitalize hidden sm:inline">
+                {consoleTheme === 'wkf-dark' ? 'WKF Dark' : consoleTheme === 'arena-blue' ? 'Arena Blue' : consoleTheme === 'tatami-green' ? 'Tatami Green' : 'Dojo Gold'}
+              </span>
+              <ChevronDownIcon className="h-2.5 w-2.5 opacity-50" />
+            </button>
+
+            {isThemeMenuOpen && (
+              <>
+                <div className="fixed inset-0 z-40" onClick={() => setIsThemeMenuOpen(false)} />
+                <div className="absolute right-0 mt-2 w-64 bg-[#0d121f] border border-white/20 rounded-xl shadow-2xl z-50 p-2.5 space-y-2 text-white animate-in fade-in zoom-in-95 duration-150">
+                  <div className="flex items-center justify-between border-b border-white/10 pb-1.5">
+                    <span className="text-[10px] font-black uppercase tracking-wider text-white/50 flex items-center gap-1">
+                      <Palette className="h-3 w-3 text-yellow-400" />
+                      Console Theme
+                    </span>
+                    <span className="text-[9px] font-bold text-amber-400 bg-amber-400/10 px-1.5 py-0.5 rounded border border-amber-400/20">
+                      Scoreboard Locked
+                    </span>
+                  </div>
+
+                  <div className="space-y-1">
+                    {/* 1. WKF Dark */}
+                    <label
+                      onClick={() => { setConsoleTheme('wkf-dark'); addLog('SYSTEM', 'Theme switched to WKF Dark'); setIsThemeMenuOpen(false); }}
+                      className={`flex items-center justify-between p-1.5 rounded-lg border cursor-pointer transition text-[11px] ${
+                        consoleTheme === 'wkf-dark'
+                          ? 'bg-yellow-500/20 border-yellow-500/60 text-white font-bold'
+                          : 'border-transparent hover:bg-white/5 text-white/60 hover:text-white'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="radio"
+                          name="operatorTheme"
+                          checked={consoleTheme === 'wkf-dark'}
+                          onChange={() => { setConsoleTheme('wkf-dark'); addLog('SYSTEM', 'Theme switched to WKF Dark'); setIsThemeMenuOpen(false); }}
+                          className="h-3 w-3 text-yellow-500 cursor-pointer"
+                        />
+                        <span>1. WKF Dark</span>
+                      </div>
+                      <span className="w-2.5 h-2.5 rounded-full bg-yellow-400" />
+                    </label>
+
+                    {/* 2. Arena Blue */}
+                    <label
+                      onClick={() => { setConsoleTheme('arena-blue'); addLog('SYSTEM', 'Theme switched to Arena Blue'); setIsThemeMenuOpen(false); }}
+                      className={`flex items-center justify-between p-1.5 rounded-lg border cursor-pointer transition text-[11px] ${
+                        consoleTheme === 'arena-blue'
+                          ? 'bg-sky-500/20 border-sky-500/60 text-white font-bold'
+                          : 'border-transparent hover:bg-white/5 text-white/60 hover:text-white'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="radio"
+                          name="operatorTheme"
+                          checked={consoleTheme === 'arena-blue'}
+                          onChange={() => { setConsoleTheme('arena-blue'); addLog('SYSTEM', 'Theme switched to Arena Blue'); setIsThemeMenuOpen(false); }}
+                          className="h-3 w-3 text-sky-400 cursor-pointer"
+                        />
+                        <span>2. Arena Blue</span>
+                      </div>
+                      <span className="w-2.5 h-2.5 rounded-full bg-sky-400" />
+                    </label>
+
+                    {/* 3. Tatami Green */}
+                    <label
+                      onClick={() => { setConsoleTheme('tatami-green'); addLog('SYSTEM', 'Theme switched to Tatami Green'); setIsThemeMenuOpen(false); }}
+                      className={`flex items-center justify-between p-1.5 rounded-lg border cursor-pointer transition text-[11px] ${
+                        consoleTheme === 'tatami-green'
+                          ? 'bg-emerald-500/20 border-emerald-500/60 text-white font-bold'
+                          : 'border-transparent hover:bg-white/5 text-white/60 hover:text-white'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="radio"
+                          name="operatorTheme"
+                          checked={consoleTheme === 'tatami-green'}
+                          onChange={() => { setConsoleTheme('tatami-green'); addLog('SYSTEM', 'Theme switched to Tatami Green'); setIsThemeMenuOpen(false); }}
+                          className="h-3 w-3 text-emerald-400 cursor-pointer"
+                        />
+                        <span>3. Tatami Green</span>
+                      </div>
+                      <span className="w-2.5 h-2.5 rounded-full bg-emerald-400" />
+                    </label>
+
+                    {/* 4. Dojo Gold */}
+                    <label
+                      onClick={() => { setConsoleTheme('dojo-gold'); addLog('SYSTEM', 'Theme switched to Dojo Gold'); setIsThemeMenuOpen(false); }}
+                      className={`flex items-center justify-between p-1.5 rounded-lg border cursor-pointer transition text-[11px] ${
+                        consoleTheme === 'dojo-gold'
+                          ? 'bg-amber-500/20 border-amber-400/60 text-white font-bold'
+                          : 'border-transparent hover:bg-white/5 text-white/60 hover:text-white'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="radio"
+                          name="operatorTheme"
+                          checked={consoleTheme === 'dojo-gold'}
+                          onChange={() => { setConsoleTheme('dojo-gold'); addLog('SYSTEM', 'Theme switched to Dojo Gold'); setIsThemeMenuOpen(false); }}
+                          className="h-3 w-3 text-amber-400 cursor-pointer"
+                        />
+                        <span>4. Dojo Gold</span>
+                      </div>
+                      <span className="w-2.5 h-2.5 rounded-full bg-amber-400 shadow-xs shadow-amber-400" />
+                    </label>
+                  </div>
+                </div>
+              </>
+            )}
+          </div>
+
           <button onClick={() => { loadData(); addLog('SYSTEM', 'Top Bar: Data refresh requested'); }} className="p-1.5 rounded text-white/30 hover:text-white/70 transition cursor-pointer" title="Refresh Data"><RefreshCw className={`h-3.5 w-3.5 ${loading ? 'animate-spin' : ''}`} /></button>
           <button onClick={() => { addLog('SYSTEM', 'Top Bar: Navigating to Settings'); router.push('/settings'); }} className="p-1.5 rounded text-white/30 hover:text-white/70 transition cursor-pointer" title="Settings"><Settings className="h-3.5 w-3.5" /></button>
           <button onClick={() => { document.documentElement.requestFullscreen?.(); addLog('SYSTEM', 'Top Bar: Fullscreen requested'); }} className="p-1.5 rounded text-white/30 hover:text-white/70 transition cursor-pointer" title="Fullscreen"><Maximize2 className="h-3.5 w-3.5" /></button>
@@ -1175,9 +1413,9 @@ export default function OperatorConsolePage() {
           </button>
           <React.Suspense fallback={<div className="flex h-full items-center justify-center p-20">Loading Controls...</div>}>
             {boutIsKata ? (
-              <KataControlPanelContent ref={scoreboardRef} boutId={activeBout.id} onClose={() => { setIsControlPanelOpen(false); setActiveBout(null); }} onLogEvent={addLog} />
+              <KataControlPanelContent ref={scoreboardRef} boutId={activeBout.id} onClose={() => { setIsControlPanelOpen(false); setActiveBout(null); loadData(); }} onLogEvent={addLog} />
             ) : (
-              <KumiteScoreboardControl ref={scoreboardRef} boutId={activeBout.id} onClose={() => { setIsControlPanelOpen(false); setActiveBout(null); }} onLogEvent={addLog} />
+              <KumiteScoreboardControl ref={scoreboardRef} boutId={activeBout.id} onClose={() => { setIsControlPanelOpen(false); setActiveBout(null); loadData(); }} onLogEvent={addLog} />
             )}
           </React.Suspense>
         </div>
@@ -1185,14 +1423,14 @@ export default function OperatorConsolePage() {
         <div className="shrink-0 w-full border-b border-white/10 bg-[#07070a] relative overflow-y-auto" style={{ zoom: 0.45, maxHeight: 'calc(100dvh - 30px)' }}>
           <React.Suspense fallback={<div className="flex h-full items-center justify-center p-10">Loading Live Scoreboard...</div>}>
             {boutIsKata ? (
-              <KataControlPanelContent ref={scoreboardRef} boutId={activeBout.id} onClose={() => setActiveBout(null)} onLogEvent={addLog} />
+              <KataControlPanelContent ref={scoreboardRef} boutId={activeBout.id} onClose={() => { setActiveBout(null); loadData(); }} onLogEvent={addLog} />
             ) : (
-              <KumiteScoreboardControl ref={scoreboardRef} boutId={activeBout.id} onClose={() => setActiveBout(null)} onLogEvent={addLog} />
+              <KumiteScoreboardControl ref={scoreboardRef} boutId={activeBout.id} onClose={() => { setActiveBout(null); loadData(); }} onLogEvent={addLog} />
             )}
           </React.Suspense>
         </div>
       ) : (
-        <section className="shrink-0 h-[140px] bg-[#0c0f14] border-b border-white/10 flex flex-col items-center justify-center p-4 text-center">
+        <section className="shrink-0 h-[140px] operator-panel border-b flex flex-col items-center justify-center p-4 text-center">
           <div className="flex items-center gap-2 mb-1.5">
             <Trophy className="h-5 w-5 text-yellow-400" />
             <span className="text-sm font-black uppercase tracking-widest text-white">NO ACTIVE MATCH LOADED</span>
@@ -1211,7 +1449,7 @@ export default function OperatorConsolePage() {
       <div className="flex-1 min-h-0 grid grid-cols-[290px_1fr] overflow-hidden">
 
         {/* LEFT COLUMN — MATCH CONSOLE (Spans top to bottom of remaining screen) */}
-        <aside className="flex flex-col bg-[#0c0f14] border-r border-white/10 overflow-hidden h-full">
+        <aside className="flex flex-col operator-panel border-r overflow-hidden h-full">
           <div className="flex items-center justify-between px-3 py-1.5 border-b border-white/10 shrink-0">
             <span className="text-[9px] font-black uppercase tracking-widest text-white/50">MATCH CONSOLE</span>
             <div className="flex gap-1">
@@ -1270,16 +1508,23 @@ export default function OperatorConsolePage() {
                 const found = categories.find(c => c.id === e.target.value);
                 addLog('SYSTEM', `Match Console: Category filter selected - ${found ? found.name : 'ALL'}`);
               }}
-              className="w-full text-[9px] bg-[#121620] border border-white/10 rounded px-2 py-1 text-white/80 focus:outline-none focus:border-yellow-400/50 cursor-pointer"
+              className="w-full text-[9px] bg-[#121620] border border-white/10 rounded px-2 py-1 text-white/80 focus:outline-none focus:border-yellow-400/50 cursor-pointer font-sans"
             >
-              <option value="ALL">ALL CATEGORIES ({filteredCategories.length})</option>
+              <option value="ALL">ALL CATEGORIES ({filteredCategories.length} Categories · {allBoutsFiltered.length} Bouts)</option>
               {filteredCategories.map(c => {
                 const isKata = isKataCategory(c);
                 const genderTag = c.gender === 'Male' ? ' ♂' : c.gender === 'Female' ? ' ♀' : '';
                 const ageLabel = c.min_age ? ` [Age ${c.min_age}${c.max_age && c.max_age < 99 ? `-${c.max_age}` : '+'}]` : '';
+                const cBouts = allBoutsFiltered.filter(b => b.category_id === c.id);
+                const totalB = cBouts.length;
+                const completedB = cBouts.filter(b => b.status === 'Completed').length;
+                const liveB = cBouts.filter(b => b.status === 'Running').length;
+                const statusTag = liveB > 0 ? ' [LIVE]' : totalB > 0 && completedB === totalB ? ' [DONE]' : '';
+                const boutInfo = totalB > 0 ? ` (${totalB} Bouts · ${completedB}/${totalB}${statusTag})` : ' (0 Bouts)';
+
                 return (
                   <option key={c.id} value={c.id}>
-                    {isKata ? '🥋 [KATA]' : '🥊 [KUMITE]'}{genderTag}{ageLabel} {c.name}
+                    {isKata ? '🥋 [KATA]' : '🥊 [KUMITE]'}{genderTag}{ageLabel} {c.name} — {boutInfo}
                   </option>
                 );
               })}
@@ -1374,68 +1619,182 @@ export default function OperatorConsolePage() {
                 )}
               </div>
             ) : (
-              /* MATCH LIST / BRACKET CONSOLE DETAILED RESULTS VIEW */
-              <div className="divide-y divide-white/5 font-sans overflow-y-auto" style={{ maxHeight: '170px' }}>
-                {catBouts.map(bout => {
-                  const pA = participants.find(p => p.id === bout.participant_a_id);
-                  const pB = participants.find(p => p.id === bout.participant_b_id);
-                  const cat = categories.find(c => c.id === bout.category_id);
-                  const isKata = isKataCategory(cat);
-                  const isAct = bout.id === activeBout?.id;
-                  const akaWin = bout.winner_id && bout.winner_id === bout.participant_a_id;
-                  const aoWin = bout.winner_id && bout.winner_id === bout.participant_b_id;
-                  const sb = bout.status === 'Running' ? 'bg-yellow-400/20 text-yellow-400 font-bold' : bout.status === 'Completed' ? 'bg-green-600/20 text-green-400 font-bold' : 'bg-white/5 text-white/30';
-                  return (
-                    <button key={bout.id} onClick={() => loadBout(bout)}
-                      className={`w-full text-left p-2 transition hover:bg-white/5 cursor-pointer border-l-2 ${isAct ? 'bg-yellow-400/10 border-l-yellow-400' : 'border-l-transparent'}`}>
-                      {/* Match Header */}
-                      <div className="flex items-center justify-between mb-1">
-                        <div className="flex items-center gap-1.5">
-                          <span className="text-[9px] font-black text-white/80">R{bout.round_no}B{bout.bout_no}</span>
-                          <span className={`text-[6.5px] font-black px-1 py-0.2 rounded uppercase ${isKata ? 'bg-blue-900/40 text-blue-300 border border-blue-700/30' : 'bg-red-900/40 text-red-300 border border-red-700/30'}`}>
-                            {isKata ? 'KATA' : 'KUMITE'}
-                          </span>
-                        </div>
-                        <span className={`text-[7px] font-black px-1.5 py-0.5 rounded ${sb}`}>
-                          {bout.status === 'Running' ? '● LIVE' : bout.status}
-                        </span>
-                      </div>
+              /* MATCH LIST / BRACKET CONSOLE: GROUPED BY CATEGORY WITH BOUTS */
+              <div className="divide-y divide-white/10 font-sans">
+                {groupedCategorySections.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center py-10 text-white/30 text-[10px] text-center px-4">
+                    <Trophy className="h-5 w-5 mb-1 opacity-40 text-yellow-400" />
+                    <span>No bouts scheduled for this selection</span>
+                  </div>
+                ) : (
+                  groupedCategorySections.map(({ category: cat, bouts: catBoutList, completedCount, runningCount, totalCount }) => {
+                    const isKata = isKataCategory(cat);
+                    const isCollapsed = Boolean(collapsedCategories[cat.id]);
+                    const genderTag = cat.gender === 'Male' ? ' ♂' : cat.gender === 'Female' ? ' ♀' : '';
+                    const ageLabel = cat.min_age ? ` [Age ${cat.min_age}${cat.max_age && cat.max_age < 99 ? `-${cat.max_age}` : '+'}]` : '';
 
-                      {/* AKA Competitor & Result */}
-                      <div className={`flex items-center justify-between px-1.5 py-1 rounded text-[8.5px] transition ${akaWin ? 'bg-red-950/70 border border-red-700/50 text-red-200 font-bold' : 'text-white/80'}`}>
-                        <div className="flex items-center gap-1 min-w-0">
-                          <span className="w-1.5 h-1.5 rounded-full bg-red-500 shrink-0" />
-                          <span className="truncate">{pA?.full_name || 'TBD'}</span>
-                          {bout.senshu_a && <span className="text-[6px] font-black text-yellow-400 bg-yellow-400/10 px-1 rounded border border-yellow-400/30">SENSHU</span>}
-                        </div>
-                        <div className="flex items-center gap-1 shrink-0">
-                          {akaWin && <span className="text-[6.5px] bg-red-600/50 text-white px-1 rounded font-black">WINNER</span>}
-                          <span className="font-mono text-[9px] font-black px-1 rounded bg-black/40">{bout.score_a}</span>
-                        </div>
-                      </div>
+                    return (
+                      <div key={cat.id} className="bg-black/20">
+                        {/* Category Group Header */}
+                        <div
+                          onClick={() => toggleCategoryCollapse(cat.id)}
+                          className="sticky top-0 z-10 flex items-center justify-between px-2 py-1.5 bg-[#121622] hover:bg-[#181e2e] border-y border-white/10 cursor-pointer transition select-none shadow-sm"
+                        >
+                          <div className="flex items-center gap-1.5 min-w-0 pr-1">
+                            <span className={`text-[6px] font-black px-1.5 py-0.5 rounded uppercase tracking-wider shrink-0 ${
+                              isKata
+                                ? 'bg-blue-600/30 text-blue-300 border border-blue-500/40'
+                                : 'bg-red-600/30 text-red-300 border border-red-500/40'
+                            }`}>
+                              {isKata ? '🥋 KATA' : '🥊 KUMITE'}{genderTag}
+                            </span>
+                            <span className="text-[8px] font-black text-white/90 truncate" title={`${cat.name}${ageLabel}`}>
+                              {cat.name}
+                            </span>
+                          </div>
 
-                      {/* AO Competitor & Result */}
-                      <div className={`flex items-center justify-between px-1.5 py-1 rounded mt-0.5 text-[8.5px] transition ${aoWin ? 'bg-blue-950/70 border border-blue-700/50 text-blue-200 font-bold' : 'text-white/80'}`}>
-                        <div className="flex items-center gap-1 min-w-0">
-                          <span className="w-1.5 h-1.5 rounded-full bg-blue-500 shrink-0" />
-                          <span className="truncate">{pB?.full_name || 'TBD'}</span>
-                          {bout.senshu_b && <span className="text-[6px] font-black text-yellow-400 bg-yellow-400/10 px-1 rounded border border-yellow-400/30">SENSHU</span>}
+                          <div className="flex items-center gap-1 shrink-0">
+                            {runningCount > 0 && (
+                              <span className="flex items-center gap-0.5 text-[6px] font-black bg-yellow-400/20 text-yellow-400 border border-yellow-400/40 px-1 py-0.2 rounded animate-pulse">
+                                <span className="w-1 h-1 rounded-full bg-yellow-400" /> LIVE
+                              </span>
+                            )}
+                            <span className="text-[6.5px] font-bold text-white/50 bg-white/5 px-1 py-0.5 rounded border border-white/10">
+                              {completedCount}/{totalCount}
+                            </span>
+                            {isCollapsed ? (
+                              <ChevronDown className="h-3 w-3 text-white/40" />
+                            ) : (
+                              <ChevronUp className="h-3 w-3 text-yellow-400" />
+                            )}
+                          </div>
                         </div>
-                        <div className="flex items-center gap-1 shrink-0">
-                          {aoWin && <span className="text-[6.5px] bg-blue-600/50 text-white px-1 rounded font-black">WINNER</span>}
-                          <span className="font-mono text-[9px] font-black px-1 rounded bg-black/40">{bout.score_b}</span>
-                        </div>
-                      </div>
 
-                      {/* Category Footnote */}
-                      {cat && (
-                        <div className="text-[7px] text-white/30 truncate mt-1">
-                          {cat.name}
-                        </div>
-                      )}
-                    </button>
-                  );
-                })}
+                        {/* Category Bouts List */}
+                        {!isCollapsed && (
+                          <div className="divide-y divide-white/5 bg-black/40">
+                            {catBoutList.length === 0 ? (
+                              <div className="p-2 text-center text-[8px] text-white/30 italic">
+                                No bouts generated in this category
+                              </div>
+                            ) : (
+                              catBoutList.map(bout => {
+                                const pA = participants.find(p => p.id === bout.participant_a_id);
+                                const pB = participants.find(p => p.id === bout.participant_b_id);
+                                const isAct = bout.id === activeBout?.id;
+                                const akaWin = bout.winner_id && bout.winner_id === bout.participant_a_id;
+                                const aoWin = bout.winner_id && bout.winner_id === bout.participant_b_id;
+                                const sb = bout.status === 'Running'
+                                  ? 'bg-yellow-400/20 text-yellow-400 font-bold border border-yellow-400/40'
+                                  : bout.status === 'Completed'
+                                  ? 'bg-green-600/20 text-green-400 font-bold border border-green-500/30'
+                                  : 'bg-white/5 text-white/30 border border-white/10';
+
+                                const rawScoreA = isKata
+                                  ? (bout.total_score_a !== undefined && bout.total_score_a !== null
+                                      ? bout.total_score_a
+                                      : (bout.judge_scores_a && bout.judge_scores_a.length > 0
+                                          ? bout.judge_scores_a.reduce((acc, v) => acc + v, 0)
+                                          : (bout.score_a ?? 0)))
+                                  : (bout.score_a ?? 0);
+
+                                const rawScoreB = isKata
+                                  ? (bout.total_score_b !== undefined && bout.total_score_b !== null
+                                      ? bout.total_score_b
+                                      : (bout.judge_scores_b && bout.judge_scores_b.length > 0
+                                          ? bout.judge_scores_b.reduce((acc, v) => acc + v, 0)
+                                          : (bout.score_b ?? 0)))
+                                  : (bout.score_b ?? 0);
+
+                                const displayScoreA = isKata && rawScoreA % 1 !== 0 ? rawScoreA.toFixed(2) : rawScoreA;
+                                const displayScoreB = isKata && rawScoreB % 1 !== 0 ? rawScoreB.toFixed(2) : rawScoreB;
+
+                                return (
+                                  <button
+                                    key={bout.id}
+                                    onClick={() => loadBout(bout)}
+                                    className={`w-full text-left px-2 py-1.5 transition hover:bg-white/5 cursor-pointer border-l-2 ${
+                                      isAct
+                                        ? 'bg-yellow-400/10 border-l-yellow-400 shadow-inner'
+                                        : 'border-l-transparent'
+                                    }`}
+                                  >
+                                    {/* Match Header */}
+                                    <div className="flex items-center justify-between mb-0.5">
+                                      <div className="flex items-center gap-1.5">
+                                        <span className="text-[8.5px] font-black text-white/90">
+                                          R{bout.round_no}B{bout.bout_no}
+                                        </span>
+                                        {bout.scheduled_time && (
+                                          <span className="text-[6.5px] text-white/40 font-mono">
+                                            {bout.scheduled_time}
+                                          </span>
+                                        )}
+                                      </div>
+                                      <span className={`text-[6.5px] font-black px-1.5 py-0.2 rounded uppercase ${sb}`}>
+                                        {bout.status === 'Running' ? '● LIVE' : bout.status}
+                                      </span>
+                                    </div>
+
+                                    {/* AKA Competitor & Result */}
+                                    <div className={`flex items-center justify-between px-1.5 py-0.5 rounded text-[8px] transition ${
+                                      akaWin ? 'bg-red-950/70 border border-red-700/50 text-red-200 font-bold' : 'text-white/80'
+                                    }`}>
+                                      <div className="flex items-center gap-1 min-w-0">
+                                        <span className="w-1.5 h-1.5 rounded-full bg-red-500 shrink-0" />
+                                        <span className="truncate">{pA?.full_name || 'TBD'}</span>
+                                        {bout.senshu_a && (
+                                          <span className="text-[5.5px] font-black text-yellow-400 bg-yellow-400/10 px-1 rounded border border-yellow-400/30">
+                                            SENSHU
+                                          </span>
+                                        )}
+                                      </div>
+                                      <div className="flex items-center gap-1 shrink-0">
+                                        {akaWin && (
+                                          <span className="text-[6px] bg-red-600/60 text-white px-1 rounded font-black">
+                                            WINNER
+                                          </span>
+                                        )}
+                                        <span className="font-mono text-[8.5px] font-black px-1 rounded bg-black/40">
+                                          {displayScoreA}
+                                        </span>
+                                      </div>
+                                    </div>
+
+                                    {/* AO Competitor & Result */}
+                                    <div className={`flex items-center justify-between px-1.5 py-0.5 rounded mt-0.5 text-[8px] transition ${
+                                      aoWin ? 'bg-blue-950/70 border border-blue-700/50 text-blue-200 font-bold' : 'text-white/80'
+                                    }`}>
+                                      <div className="flex items-center gap-1 min-w-0">
+                                        <span className="w-1.5 h-1.5 rounded-full bg-blue-500 shrink-0" />
+                                        <span className="truncate">{pB?.full_name || 'TBD'}</span>
+                                        {bout.senshu_b && (
+                                          <span className="text-[5.5px] font-black text-yellow-400 bg-yellow-400/10 px-1 rounded border border-yellow-400/30">
+                                            SENSHU
+                                          </span>
+                                        )}
+                                      </div>
+                                      <div className="flex items-center gap-1 shrink-0">
+                                        {aoWin && (
+                                          <span className="text-[6px] bg-blue-600/60 text-white px-1 rounded font-black">
+                                            WINNER
+                                          </span>
+                                        )}
+                                        <span className="font-mono text-[8.5px] font-black px-1 rounded bg-black/40">
+                                          {displayScoreB}
+                                        </span>
+                                      </div>
+                                    </div>
+                                  </button>
+                                );
+                              })
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })
+                )}
               </div>
             )}
           </div>
@@ -1623,7 +1982,7 @@ export default function OperatorConsolePage() {
           </div>
 
           {/* BOTTOM SECTION: PLAYER DETAILS | EXTRA TIMER | SYSTEM STATUS */}
-          <section className="h-[108px] shrink-0 bg-[#0a0c10] flex items-stretch overflow-hidden border-t border-white/10">
+          <section className="h-[108px] shrink-0 operator-panel-secondary flex items-stretch overflow-hidden border-t">
 
             {/* PLAYER DETAILS (Full Database Fields for AKA & AO) */}
             <div className="flex-1 min-w-0 border-r border-white/10 px-3 py-2 flex gap-2.5 items-center overflow-hidden h-full">
@@ -1717,8 +2076,8 @@ export default function OperatorConsolePage() {
                 <span className="text-[7px] text-yellow-400 font-bold">NEXT {nextBout ? `R${nextBout.round_no}B${nextBout.bout_no}` : '—'}</span>
               </div>
               <div className="text-xl font-mono font-black text-white text-center leading-none my-0.5 tracking-wider">{formatTimer(extraTime)}</div>
-              <div className="grid grid-cols-4 gap-1">
-                {[600, 300, 180, 120].map(t => (
+              <div className="grid grid-cols-5 gap-0.5">
+                {[600, 300, 180, 120, 60].map(t => (
                   <button key={t} onClick={() => { 
                     setExtraTime(t); 
                     setExtraRunning(false); 
@@ -2300,7 +2659,7 @@ export default function OperatorConsolePage() {
                 <button
                   onClick={() => {
                     const catIdToPrint = bracketModalCatId !== 'ALL' ? bracketModalCatId : (activeCat?.id || filteredCategories[0]?.id || '');
-                    window.open(`${basePath}/draws/print-preview?categoryId=${catIdToPrint}`, '_blank');
+                    window.open(`${basePath}/draws/print-preview?catId=${catIdToPrint}&autoPrint=true`, '_blank');
                   }}
                   className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 bg-white/10 hover:bg-white/20 border border-white/15 text-white rounded-xl text-xs font-bold transition cursor-pointer"
                   title="Print Draw Sheet"

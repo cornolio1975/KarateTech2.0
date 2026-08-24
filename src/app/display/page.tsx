@@ -4,8 +4,8 @@ import React, { useState, useEffect, useRef, useMemo, useCallback, Suspense } fr
 import { useSearchParams } from 'next/navigation';
 import { db, supabase, basePath, dbManager } from '@/db/dbClient';
 import { Bout, Participant, Category, Club, DisplayPlaylist, DisplayPlaylistSlide, TournamentDatabase, isKataCategory } from '@/db/types';
-import { ShieldAlert, Zap, Award, Trophy, Volume2, Maximize2, Minimize2, Play, Pause, SkipForward, SkipBack, Monitor, Clock, Layers, Calendar, Flag, UserSquare2, X, Users, Globe } from 'lucide-react';
-import { useTournament } from '@/context/TournamentContext';
+import { ShieldAlert, Zap, Award, Trophy, Volume2, Maximize2, Minimize2, Play, Pause, SkipForward, SkipBack, Monitor, Clock, Timer, Layers, Calendar, Flag, UserSquare2, X, Users, Globe, Palette } from 'lucide-react';
+import { useTournament, ConsoleTheme } from '@/context/TournamentContext';
 import { localStore } from '@/db/localStore';
 
 const OFFICIAL_WKF_KATAS = [
@@ -62,8 +62,9 @@ const extractSponsorsFromSource = (source: unknown): SponsorTickerItem[] => {
     .sort((a, b) => a.order - b.order);
 };
 
-const ScaleWrapper = ({ children }: { children: React.ReactNode }) => {
+const ScaleWrapper: React.FC<{ children: React.ReactNode; theme?: string }> = ({ children, theme = 'wkf-dark' }) => {
   const [scale, setScale] = useState(1);
+
   useEffect(() => {
     const handleResize = () => {
       const scaleX = window.innerWidth / 1920;
@@ -76,7 +77,7 @@ const ScaleWrapper = ({ children }: { children: React.ReactNode }) => {
   }, []);
 
   return (
-    <div className="fixed inset-0 bg-black flex items-center justify-center overflow-hidden z-0">
+    <div data-console-theme={theme} className="fixed inset-0 operator-console-root flex items-center justify-center overflow-hidden z-0">
       <div style={{ width: 1920, height: 1080, transform: `scale(${scale})`, transformOrigin: 'center center', position: 'relative' }}>
         {children}
       </div>
@@ -92,7 +93,50 @@ function SpectatorDisplayContent() {
   const forceLiveOnly = searchParams.get('liveOnly') === 'true' || Boolean(urlBoutId);
 
   const [activeBoutId, setActiveBoutId] = useState<string | null>(null);
-  const { tournamentName } = useTournament();
+  const { tournamentName, consoleTheme, refereeTheme, setRefereeTheme } = useTournament();
+  const [localTheme, setLocalTheme] = useState<ConsoleTheme>('wkf-dark');
+  const [isThemeMenuOpen, setIsThemeMenuOpen] = useState(false);
+
+  // Compute effective theme based on refereeTheme setting
+  useEffect(() => {
+    let chosenTheme: ConsoleTheme = 'wkf-dark';
+    if (refereeTheme && refereeTheme !== 'sync') {
+      chosenTheme = refereeTheme;
+    } else if (consoleTheme) {
+      chosenTheme = consoleTheme;
+    }
+    setLocalTheme(chosenTheme);
+  }, [refereeTheme, consoleTheme]);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const storedRef = localStorage.getItem('kt_referee_theme') as any;
+      const storedConsole = localStorage.getItem('kt_console_theme') as any;
+      if (storedRef && storedRef !== 'sync' && ['wkf-dark', 'arena-blue', 'tatami-green', 'dojo-gold'].includes(storedRef)) {
+        setLocalTheme(storedRef);
+      } else if (storedConsole && ['wkf-dark', 'arena-blue', 'tatami-green', 'dojo-gold'].includes(storedConsole)) {
+        setLocalTheme(storedConsole);
+      }
+
+      const themeChannel = new BroadcastChannel('kt-console-theme-sync');
+      themeChannel.onmessage = (e) => {
+        if (e.data?.type === 'REFEREE_THEME_CHANGE' && e.data.refereeTheme) {
+          if (e.data.refereeTheme === 'sync') {
+            const curConsole = (localStorage.getItem('kt_console_theme') as any) || 'wkf-dark';
+            setLocalTheme(curConsole);
+          } else {
+            setLocalTheme(e.data.refereeTheme);
+          }
+        } else if (e.data?.type === 'THEME_CHANGE' && e.data.theme) {
+          const curRef = localStorage.getItem('kt_referee_theme');
+          if (!curRef || curRef === 'sync') {
+            setLocalTheme(e.data.theme);
+          }
+        }
+      };
+      return () => themeChannel.close();
+    }
+  }, []);
 
   // Playlist Presentation Engine States
   const [playlists, setPlaylists] = useState<DisplayPlaylist[]>([]);
@@ -1100,9 +1144,10 @@ function SpectatorDisplayContent() {
   if (!mounted) return null;
 
   return (
-    <ScaleWrapper>
+    <ScaleWrapper theme={localTheme}>
     <div
-      className="h-[1080px] w-[1920px] bg-black text-white flex flex-col overflow-hidden select-none font-sans p-2 lg:p-4 relative"
+      data-console-theme={localTheme}
+      className="h-[1080px] w-[1920px] operator-console-root text-white flex flex-col overflow-hidden select-none font-sans p-2 lg:p-4 relative"
       onMouseMove={resetHideTimer}
     >
       {/* Top Controls Bar (Playlist & Fullscreen) */}
@@ -1153,18 +1198,163 @@ function SpectatorDisplayContent() {
           )}
         </div>
 
-        {/* Floating Fullscreen Button */}
-        <button
-          onClick={toggleFullscreen}
-          className={`pointer-events-auto flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-bold transition-all duration-300 cursor-pointer backdrop-blur-md border shadow-xl ${
-            isFullscreen
-              ? 'bg-white/10 border-white/20 text-white hover:bg-white/20'
-              : 'bg-yellow-400/20 border-yellow-400/40 text-yellow-400 hover:bg-yellow-400/30'
-          }`}
-        >
-          {isFullscreen ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
-          {isFullscreen ? 'Exit Fullscreen' : 'Fullscreen'}
-        </button>
+        {/* Floating Controls: Theme Switcher & Fullscreen */}
+        <div className="flex items-center gap-2 pointer-events-auto">
+          {/* Referee View Independent Theme Picker */}
+          <div className="relative">
+            <button
+              onClick={() => setIsThemeMenuOpen(!isThemeMenuOpen)}
+              className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold transition-all duration-300 cursor-pointer backdrop-blur-md border shadow-xl bg-black/60 border-white/20 text-white hover:bg-black/80"
+              title="Change Referee View Theme Tone"
+            >
+              <Palette className="h-4 w-4 text-yellow-400" />
+              <span className="capitalize text-[11px]">
+                {localTheme === 'wkf-dark' ? 'WKF Dark' : localTheme === 'arena-blue' ? 'Arena Blue' : localTheme === 'tatami-green' ? 'Tatami Green' : 'Dojo Gold'}
+              </span>
+            </button>
+
+            {isThemeMenuOpen && (
+              <>
+                <div className="fixed inset-0 z-40" onClick={() => setIsThemeMenuOpen(false)} />
+                <div className="absolute right-0 mt-2 w-64 bg-[#0d121f] border border-white/20 rounded-xl shadow-2xl z-50 p-2.5 space-y-2 text-white animate-in fade-in zoom-in-95 duration-150">
+                  <div className="flex items-center justify-between border-b border-white/10 pb-1.5">
+                    <span className="text-[10px] font-black uppercase tracking-wider text-white/60 flex items-center gap-1">
+                      <Palette className="h-3 w-3 text-yellow-400" />
+                      Referee View Tone
+                    </span>
+                    <span className="text-[9px] font-bold text-amber-400 bg-amber-400/10 px-1.5 py-0.5 rounded border border-amber-400/20">
+                      Score Locked
+                    </span>
+                  </div>
+
+                  <div className="space-y-1">
+                    {/* Sync */}
+                    <label
+                      onClick={() => { setRefereeTheme('sync'); setIsThemeMenuOpen(false); }}
+                      className={`flex items-center justify-between p-1.5 rounded-lg border cursor-pointer transition text-[11px] ${
+                        refereeTheme === 'sync'
+                          ? 'bg-sky-500/20 border-sky-400/60 text-white font-bold'
+                          : 'border-transparent hover:bg-white/5 text-white/60 hover:text-white'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="radio"
+                          name="refereeThemeRadio"
+                          checked={refereeTheme === 'sync'}
+                          onChange={() => { setRefereeTheme('sync'); setIsThemeMenuOpen(false); }}
+                          className="h-3 w-3 text-sky-400 cursor-pointer"
+                        />
+                        <span>🔗 Match Console</span>
+                      </div>
+                    </label>
+
+                    {/* WKF Dark */}
+                    <label
+                      onClick={() => { setRefereeTheme('wkf-dark'); setIsThemeMenuOpen(false); }}
+                      className={`flex items-center justify-between p-1.5 rounded-lg border cursor-pointer transition text-[11px] ${
+                        refereeTheme === 'wkf-dark' || (refereeTheme === 'sync' && localTheme === 'wkf-dark')
+                          ? 'bg-yellow-500/20 border-yellow-500/60 text-white font-bold'
+                          : 'border-transparent hover:bg-white/5 text-white/60 hover:text-white'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="radio"
+                          name="refereeThemeRadio"
+                          checked={refereeTheme === 'wkf-dark'}
+                          onChange={() => { setRefereeTheme('wkf-dark'); setIsThemeMenuOpen(false); }}
+                          className="h-3 w-3 text-yellow-500 cursor-pointer"
+                        />
+                        <span>1. WKF Dark</span>
+                      </div>
+                      <span className="w-2.5 h-2.5 rounded-full bg-yellow-400" />
+                    </label>
+
+                    {/* Arena Blue */}
+                    <label
+                      onClick={() => { setRefereeTheme('arena-blue'); setIsThemeMenuOpen(false); }}
+                      className={`flex items-center justify-between p-1.5 rounded-lg border cursor-pointer transition text-[11px] ${
+                        refereeTheme === 'arena-blue' || (refereeTheme === 'sync' && localTheme === 'arena-blue')
+                          ? 'bg-sky-500/20 border-sky-500/60 text-white font-bold'
+                          : 'border-transparent hover:bg-white/5 text-white/60 hover:text-white'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="radio"
+                          name="refereeThemeRadio"
+                          checked={refereeTheme === 'arena-blue'}
+                          onChange={() => { setRefereeTheme('arena-blue'); setIsThemeMenuOpen(false); }}
+                          className="h-3 w-3 text-sky-400 cursor-pointer"
+                        />
+                        <span>2. Arena Blue</span>
+                      </div>
+                      <span className="w-2.5 h-2.5 rounded-full bg-sky-400" />
+                    </label>
+
+                    {/* Tatami Green */}
+                    <label
+                      onClick={() => { setRefereeTheme('tatami-green'); setIsThemeMenuOpen(false); }}
+                      className={`flex items-center justify-between p-1.5 rounded-lg border cursor-pointer transition text-[11px] ${
+                        refereeTheme === 'tatami-green' || (refereeTheme === 'sync' && localTheme === 'tatami-green')
+                          ? 'bg-emerald-500/20 border-emerald-500/60 text-white font-bold'
+                          : 'border-transparent hover:bg-white/5 text-white/60 hover:text-white'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="radio"
+                          name="refereeThemeRadio"
+                          checked={refereeTheme === 'tatami-green'}
+                          onChange={() => { setRefereeTheme('tatami-green'); setIsThemeMenuOpen(false); }}
+                          className="h-3 w-3 text-emerald-400 cursor-pointer"
+                        />
+                        <span>3. Tatami Green</span>
+                      </div>
+                      <span className="w-2.5 h-2.5 rounded-full bg-emerald-400" />
+                    </label>
+
+                    {/* Dojo Gold */}
+                    <label
+                      onClick={() => { setRefereeTheme('dojo-gold'); setIsThemeMenuOpen(false); }}
+                      className={`flex items-center justify-between p-1.5 rounded-lg border cursor-pointer transition text-[11px] ${
+                        refereeTheme === 'dojo-gold' || (refereeTheme === 'sync' && localTheme === 'dojo-gold')
+                          ? 'bg-amber-500/20 border-amber-400/60 text-white font-bold'
+                          : 'border-transparent hover:bg-white/5 text-white/60 hover:text-white'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="radio"
+                          name="refereeThemeRadio"
+                          checked={refereeTheme === 'dojo-gold'}
+                          onChange={() => { setRefereeTheme('dojo-gold'); setIsThemeMenuOpen(false); }}
+                          className="h-3 w-3 text-amber-400 cursor-pointer"
+                        />
+                        <span>4. Dojo Gold</span>
+                      </div>
+                      <span className="w-2.5 h-2.5 rounded-full bg-amber-400 shadow-xs shadow-amber-400" />
+                    </label>
+                  </div>
+                </div>
+              </>
+            )}
+          </div>
+
+          {/* Floating Fullscreen Button */}
+          <button
+            onClick={toggleFullscreen}
+            className={`pointer-events-auto flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-bold transition-all duration-300 cursor-pointer backdrop-blur-md border shadow-xl ${
+              isFullscreen
+                ? 'bg-white/10 border-white/20 text-white hover:bg-white/20'
+                : 'bg-yellow-400/20 border-yellow-400/40 text-yellow-400 hover:bg-yellow-400/30'
+            }`}
+          >
+            {isFullscreen ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
+            {isFullscreen ? 'Exit Fullscreen' : 'Fullscreen'}
+          </button>
+        </div>
       </div>
 
       {/* RENDER NON-SCOREBOARD PRESENTATION SLIDES */}

@@ -5,7 +5,7 @@ import { useTournament, SystemUser, AccessibilitySettings } from '@/context/Tour
 import { db, basePath, supabase } from '@/db/dbClient';
 import { 
   Save, Trash2, ShieldAlert, UserPlus, Edit2, Check, X, 
-  Shield, Users, Eye, Accessibility, Info, Trophy 
+  Shield, Users, Eye, Accessibility, Info, Trophy, Palette, Lock
 } from 'lucide-react';
 
 export default function SettingsPage() {
@@ -16,6 +16,8 @@ export default function SettingsPage() {
     logoUrl, setLogoUrl,
     usersList, addUser, updateUser, deleteUser,
     globalAccessibility, setGlobalAccessibility,
+    consoleTheme, setConsoleTheme,
+    refereeTheme, setRefereeTheme,
     canModify
   } = useTournament();
 
@@ -592,6 +594,319 @@ export default function SettingsPage() {
                   Hides/shows the scoring history layout specifically on stream overlay setups.
                 </p>
               </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Console Theme Selection (4 Themes) */}
+        <div className="bg-card border border-border rounded-xl p-6 space-y-6 shadow-xs">
+          <div className="flex items-center justify-between border-b border-border pb-3">
+            <div className="flex items-center gap-2">
+              <Palette className="h-5 w-5 text-primary" />
+              <h2 className="text-sm font-bold uppercase tracking-wider text-foreground">KarateTech Console Themes (Operating Console & Admin)</h2>
+            </div>
+            <div className="flex items-center gap-1.5 px-2.5 py-1 bg-amber-500/10 border border-amber-500/30 rounded-lg text-[11px] font-bold text-amber-400">
+              <Lock className="h-3 w-3" />
+              <span>Scoreboard Red/Blue Locked</span>
+            </div>
+          </div>
+
+          <p className="text-xs text-muted-foreground">
+            Select the active operating theme for the KarateTech console UI. The competition scoreboard retains official 🔴 <strong>AKA (RED)</strong> and 🔵 <strong>AO (BLUE)</strong> independently in all themes.
+          </p>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 pt-1">
+            {/* 1. WKF Dark */}
+            <label
+              className={`relative flex flex-col justify-between p-4 rounded-xl border-2 cursor-pointer transition-all ${
+                consoleTheme === 'wkf-dark'
+                  ? 'border-yellow-500 bg-[#0d121f] text-white shadow-lg ring-2 ring-yellow-500/30'
+                  : 'border-border bg-card/60 hover:bg-secondary/40 text-foreground'
+              }`}
+            >
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  <input
+                    type="radio"
+                    name="consoleTheme"
+                    value="wkf-dark"
+                    checked={consoleTheme === 'wkf-dark'}
+                    onChange={() => setConsoleTheme('wkf-dark')}
+                    className="h-4 w-4 text-yellow-500 focus:ring-yellow-500 border-border cursor-pointer"
+                  />
+                  <span className="text-xs font-black uppercase tracking-wide">1. WKF Dark</span>
+                </div>
+                <span className="text-[9px] uppercase font-bold px-1.5 py-0.5 rounded bg-yellow-400/20 text-yellow-300 border border-yellow-400/30">
+                  Default
+                </span>
+              </div>
+
+              {/* Theme Preview Card */}
+              <div className="h-16 rounded-lg bg-[#090d16] border border-white/10 p-2 flex flex-col justify-between mb-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-[9px] font-mono text-yellow-400 font-bold">Obsidian & Gold</span>
+                  <span className="w-2 h-2 rounded-full bg-yellow-400" />
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <div className="h-4 flex-1 rounded bg-[#111827] border border-white/5" />
+                  <div className="h-4 w-6 rounded bg-yellow-500/30 border border-yellow-500/50" />
+                </div>
+              </div>
+
+              <p className="text-[11px] text-muted-foreground">
+                Classic tournament dark theme with deep obsidian slate and gold highlights.
+              </p>
+            </label>
+
+            {/* 2. Arena Blue */}
+            <label
+              className={`relative flex flex-col justify-between p-4 rounded-xl border-2 cursor-pointer transition-all ${
+                consoleTheme === 'arena-blue'
+                  ? 'border-sky-400 bg-[#0f2248] text-white shadow-lg ring-2 ring-sky-400/30'
+                  : 'border-border bg-card/60 hover:bg-secondary/40 text-foreground'
+              }`}
+            >
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  <input
+                    type="radio"
+                    name="consoleTheme"
+                    value="arena-blue"
+                    checked={consoleTheme === 'arena-blue'}
+                    onChange={() => setConsoleTheme('arena-blue')}
+                    className="h-4 w-4 text-sky-400 focus:ring-sky-400 border-border cursor-pointer"
+                  />
+                  <span className="text-xs font-black uppercase tracking-wide">2. Arena Blue</span>
+                </div>
+                <span className="text-[9px] uppercase font-bold px-1.5 py-0.5 rounded bg-sky-400/20 text-sky-300 border border-sky-400/30">
+                  Stadium
+                </span>
+              </div>
+
+              {/* Theme Preview Card */}
+              <div className="h-16 rounded-lg bg-[#0a1630] border border-sky-500/30 p-2 flex flex-col justify-between mb-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-[9px] font-mono text-sky-400 font-bold">Midnight Navy</span>
+                  <span className="w-2 h-2 rounded-full bg-sky-400" />
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <div className="h-4 flex-1 rounded bg-[#0f2248] border border-sky-500/20" />
+                  <div className="h-4 w-6 rounded bg-sky-500/30 border border-sky-400/50" />
+                </div>
+              </div>
+
+              <p className="text-[11px] text-muted-foreground">
+                Electric stadium atmosphere with royal midnight navy and cyan accents.
+              </p>
+            </label>
+
+            {/* 3. Tatami Green */}
+            <label
+              className={`relative flex flex-col justify-between p-4 rounded-xl border-2 cursor-pointer transition-all ${
+                consoleTheme === 'tatami-green'
+                  ? 'border-emerald-400 bg-[#0e2d1d] text-white shadow-lg ring-2 ring-emerald-400/30'
+                  : 'border-border bg-card/60 hover:bg-secondary/40 text-foreground'
+              }`}
+            >
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  <input
+                    type="radio"
+                    name="consoleTheme"
+                    value="tatami-green"
+                    checked={consoleTheme === 'tatami-green'}
+                    onChange={() => setConsoleTheme('tatami-green')}
+                    className="h-4 w-4 text-emerald-400 focus:ring-emerald-400 border-border cursor-pointer"
+                  />
+                  <span className="text-xs font-black uppercase tracking-wide">3. Tatami Green</span>
+                </div>
+                <span className="text-[9px] uppercase font-bold px-1.5 py-0.5 rounded bg-emerald-400/20 text-emerald-300 border border-emerald-400/30">
+                  Championship
+                </span>
+              </div>
+
+              {/* Theme Preview Card */}
+              <div className="h-16 rounded-lg bg-[#091f14] border border-emerald-500/30 p-2 flex flex-col justify-between mb-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-[9px] font-mono text-emerald-400 font-bold">Forest Emerald Jade</span>
+                  <span className="w-2 h-2 rounded-full bg-emerald-400" />
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <div className="h-4 flex-1 rounded bg-[#0e2d1d] border border-emerald-500/20" />
+                  <div className="h-4 w-6 rounded bg-emerald-500/30 border border-emerald-400/50" />
+                </div>
+              </div>
+
+              <p className="text-[11px] text-muted-foreground">
+                Championship tatami mat aesthetic with rich emerald jade panels.
+              </p>
+            </label>
+
+            {/* 4. Dojo Gold */}
+            <label
+              className={`relative flex flex-col justify-between p-4 rounded-xl border-2 cursor-pointer transition-all ${
+                consoleTheme === 'dojo-gold'
+                  ? 'border-amber-400 bg-[#291b05] text-white shadow-lg ring-2 ring-amber-400/30'
+                  : 'border-border bg-card/60 hover:bg-secondary/40 text-foreground'
+              }`}
+            >
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  <input
+                    type="radio"
+                    name="consoleTheme"
+                    value="dojo-gold"
+                    checked={consoleTheme === 'dojo-gold'}
+                    onChange={() => setConsoleTheme('dojo-gold')}
+                    className="h-4 w-4 text-amber-400 focus:ring-amber-400 border-border cursor-pointer"
+                  />
+                  <span className="text-xs font-black uppercase tracking-wide">4. Dojo Gold</span>
+                </div>
+                <span className="text-[9px] uppercase font-bold px-1.5 py-0.5 rounded bg-amber-400/20 text-amber-300 border border-amber-400/30">
+                  Bright Solar
+                </span>
+              </div>
+
+              {/* Theme Preview Card */}
+              <div className="h-16 rounded-lg bg-[#1c1303] border border-amber-500/40 p-2 flex flex-col justify-between mb-3 shadow-inner">
+                <div className="flex items-center justify-between">
+                  <span className="text-[9px] font-mono text-amber-400 font-bold">Championship Solar Gold</span>
+                  <span className="w-2 h-2 rounded-full bg-amber-400 shadow-xs shadow-amber-400" />
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <div className="h-4 flex-1 rounded bg-[#3d2907] border border-amber-500/30" />
+                  <div className="h-4 w-6 rounded bg-amber-500/40 border border-amber-400" />
+                </div>
+              </div>
+
+              <p className="text-[11px] text-muted-foreground">
+                High-energy bright tournament theme with radiant solar amber and championship gold atmosphere.
+              </p>
+            </label>
+          </div>
+
+          {/* SEPARATE REFEREE VIEW THEME SELECTOR */}
+          <div className="border-t border-border pt-5 space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Palette className="h-4 w-4 text-sky-400" />
+                <h3 className="text-xs font-bold uppercase tracking-wider text-foreground">Referee View Display Screen Theme (Independent Color Tone)</h3>
+              </div>
+              <span className="text-[10px] text-muted-foreground">
+                Custom tone for secondary display / projector
+              </span>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
+              {/* Sync with Console */}
+              <label
+                className={`p-3 rounded-xl border-2 cursor-pointer transition flex flex-col justify-between ${
+                  refereeTheme === 'sync'
+                    ? 'border-sky-400 bg-sky-500/10 text-foreground font-bold ring-2 ring-sky-400/30'
+                    : 'border-border bg-card/60 hover:bg-secondary/40 text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                <div className="flex items-center gap-2 mb-1.5">
+                  <input
+                    type="radio"
+                    name="refereeTheme"
+                    value="sync"
+                    checked={refereeTheme === 'sync'}
+                    onChange={() => setRefereeTheme('sync')}
+                    className="h-3.5 w-3.5 text-sky-400 focus:ring-sky-400 cursor-pointer"
+                  />
+                  <span className="text-xs font-bold">🔗 Match Console</span>
+                </div>
+                <p className="text-[10px] text-muted-foreground">Automatically mirrors the Operating Console theme.</p>
+              </label>
+
+              {/* WKF Dark */}
+              <label
+                className={`p-3 rounded-xl border-2 cursor-pointer transition flex flex-col justify-between ${
+                  refereeTheme === 'wkf-dark'
+                    ? 'border-yellow-500 bg-yellow-500/10 text-foreground font-bold ring-2 ring-yellow-500/30'
+                    : 'border-border bg-card/60 hover:bg-secondary/40 text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                <div className="flex items-center gap-2 mb-1.5">
+                  <input
+                    type="radio"
+                    name="refereeTheme"
+                    value="wkf-dark"
+                    checked={refereeTheme === 'wkf-dark'}
+                    onChange={() => setRefereeTheme('wkf-dark')}
+                    className="h-3.5 w-3.5 text-yellow-500 focus:ring-yellow-500 cursor-pointer"
+                  />
+                  <span className="text-xs font-bold">1. WKF Dark</span>
+                </div>
+                <p className="text-[10px] text-muted-foreground">Obsidian Slate & Gold.</p>
+              </label>
+
+              {/* Arena Blue */}
+              <label
+                className={`p-3 rounded-xl border-2 cursor-pointer transition flex flex-col justify-between ${
+                  refereeTheme === 'arena-blue'
+                    ? 'border-sky-400 bg-sky-500/10 text-foreground font-bold ring-2 ring-sky-400/30'
+                    : 'border-border bg-card/60 hover:bg-secondary/40 text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                <div className="flex items-center gap-2 mb-1.5">
+                  <input
+                    type="radio"
+                    name="refereeTheme"
+                    value="arena-blue"
+                    checked={refereeTheme === 'arena-blue'}
+                    onChange={() => setRefereeTheme('arena-blue')}
+                    className="h-3.5 w-3.5 text-sky-400 focus:ring-sky-400 cursor-pointer"
+                  />
+                  <span className="text-xs font-bold">2. Arena Blue</span>
+                </div>
+                <p className="text-[10px] text-muted-foreground">Midnight Navy & Cyan.</p>
+              </label>
+
+              {/* Tatami Green */}
+              <label
+                className={`p-3 rounded-xl border-2 cursor-pointer transition flex flex-col justify-between ${
+                  refereeTheme === 'tatami-green'
+                    ? 'border-emerald-400 bg-emerald-500/10 text-foreground font-bold ring-2 ring-emerald-400/30'
+                    : 'border-border bg-card/60 hover:bg-secondary/40 text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                <div className="flex items-center gap-2 mb-1.5">
+                  <input
+                    type="radio"
+                    name="refereeTheme"
+                    value="tatami-green"
+                    checked={refereeTheme === 'tatami-green'}
+                    onChange={() => setRefereeTheme('tatami-green')}
+                    className="h-3.5 w-3.5 text-emerald-400 focus:ring-emerald-400 cursor-pointer"
+                  />
+                  <span className="text-xs font-bold">3. Tatami Green</span>
+                </div>
+                <p className="text-[10px] text-muted-foreground">Emerald Forest Jade.</p>
+              </label>
+
+              {/* Dojo Gold */}
+              <label
+                className={`p-3 rounded-xl border-2 cursor-pointer transition flex flex-col justify-between ${
+                  refereeTheme === 'dojo-gold'
+                    ? 'border-amber-400 bg-amber-500/10 text-foreground font-bold ring-2 ring-amber-400/30'
+                    : 'border-border bg-card/60 hover:bg-secondary/40 text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                <div className="flex items-center gap-2 mb-1.5">
+                  <input
+                    type="radio"
+                    name="refereeTheme"
+                    value="dojo-gold"
+                    checked={refereeTheme === 'dojo-gold'}
+                    onChange={() => setRefereeTheme('dojo-gold')}
+                    className="h-3.5 w-3.5 text-amber-400 focus:ring-amber-400 cursor-pointer"
+                  />
+                  <span className="text-xs font-bold">4. Dojo Gold</span>
+                </div>
+                <p className="text-[10px] text-muted-foreground">Bright Solar Amber & Gold.</p>
+              </label>
             </div>
           </div>
         </div>

@@ -8,7 +8,7 @@ import { Zap, Play, Check, ShieldAlert, Award, ArrowRight, RefreshCw, Calendar, 
 import { useTournament } from '@/context/TournamentContext';
 
 export default function ScoreboardDashboardPage() {
-  const { tournamentName } = useTournament();
+  const { tournamentName, consoleTheme } = useTournament();
   const [mounted, setMounted] = useState(false);
   const [loading, setLoading] = useState(true);
   const [bouts, setBouts] = useState<Bout[]>([]);
@@ -132,7 +132,7 @@ export default function ScoreboardDashboardPage() {
   });
 
   return (
-    <div className="min-h-screen bg-[#07070a] text-white p-6 pb-12">
+    <div data-console-theme={consoleTheme} className="min-h-screen operator-console-root text-white p-6 pb-12">
       {/* Top Banner */}
       <div className="max-w-7xl mx-auto mb-8">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-white/10 pb-6">
