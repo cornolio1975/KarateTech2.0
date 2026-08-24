@@ -4,7 +4,7 @@ import React, { useState, useEffect, useRef, useMemo, useCallback, Suspense } fr
 import { useSearchParams } from 'next/navigation';
 import { db, supabase, basePath, dbManager } from '@/db/dbClient';
 import { Bout, Participant, Category, Club, DisplayPlaylist, DisplayPlaylistSlide, TournamentDatabase, isKataCategory } from '@/db/types';
-import { ShieldAlert, Zap, Award, Trophy, Volume2, Maximize2, Minimize2, Play, Pause, SkipForward, SkipBack, Monitor, Clock, Timer, Layers, Calendar, Flag, UserSquare2, X, Users, Globe, Palette } from 'lucide-react';
+import { ShieldAlert, Zap, Award, Trophy, Volume2, Maximize2, Minimize2, Play, Pause, SkipForward, SkipBack, Monitor, Clock, Timer, Layers, Calendar, Flag, UserSquare2, X, Users, Globe, Palette, ArrowLeft } from 'lucide-react';
 import { useTournament, ConsoleTheme } from '@/context/TournamentContext';
 import { localStore } from '@/db/localStore';
 
@@ -1957,9 +1957,20 @@ function SpectatorDisplayContent() {
                   </div>
                 </div>
 
-                <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-yellow-500/10 border border-yellow-500/30 text-yellow-300 font-black text-xs uppercase tracking-widest animate-pulse">
-                  <span className="w-2.5 h-2.5 rounded-full bg-yellow-400 animate-ping" />
-                  CATEGORY CONCLUDED • STANDBY
+                <div className="flex items-center gap-3">
+                  <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-yellow-500/10 border border-yellow-500/30 text-yellow-300 font-black text-xs uppercase tracking-widest animate-pulse">
+                    <span className="w-2.5 h-2.5 rounded-full bg-yellow-400 animate-ping" />
+                    CATEGORY CONCLUDED • STANDBY
+                  </div>
+                  {/* Exit Standby Button */}
+                  <button
+                    onClick={() => setIsIdle(false)}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/10 hover:bg-white/20 border border-white/20 hover:border-white/40 text-white/70 hover:text-white font-black text-xs uppercase tracking-widest transition-all duration-200 cursor-pointer"
+                    title="Exit Standby"
+                  >
+                    <ArrowLeft className="h-3.5 w-3.5" />
+                    BACK
+                  </button>
                 </div>
               </div>
 
