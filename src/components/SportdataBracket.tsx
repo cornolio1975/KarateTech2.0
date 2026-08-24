@@ -124,38 +124,33 @@ export const SportdataBracket: React.FC<SportdataBracketProps> = ({
             </div>
           </div>
 
-          {/* Right Side */}
+          {/* Right Side — KarateTech 2.0© Brand (matches main operator page) */}
           <div
-            className="flex items-center gap-2 mt-0.5 leading-none select-none shrink-0"
-            style={{ maxWidth: "160px" }}
+            className="flex items-center gap-2 leading-none select-none shrink-0"
+            style={{ maxWidth: "180px" }}
           >
-            <div className="h-7 w-7 rounded-full overflow-hidden border border-white/20 bg-slate-900 shrink-0">
-              <img
-                src={logoUrl || `${basePath}/karatetech-logo.png`}
-                alt="Logo"
-                className="h-full w-full object-cover"
-              />
-            </div>
+            <img
+              src={logoUrl || `${basePath}/karatetech-logo.png`}
+              alt="KarateTech Logo"
+              style={{ height: '28px', width: '28px', borderRadius: '50%', border: '1px solid rgba(255,255,255,0.2)', objectFit: 'contain', flexShrink: 0 }}
+            />
             <div className="flex flex-col items-start leading-none">
-              <span
-                className="font-extrabold text-[8px] tracking-tight text-foreground"
-                style={{ fontFamily: "'Montserrat', sans-serif" }}
-              >
-                <span style={{ color: "#b91c2e" }}>Karate</span>
-                <span style={{ color: "#38bdf8" }}>Tech</span>
-              </span>
-              <span
-                style={{
-                  fontFamily: "'Montserrat', sans-serif",
-                  fontWeight: 800,
-                  fontSize: "5px",
-                  letterSpacing: "0.01em",
-                  color: theme === "dark" ? "#818cf8" : "#1a2744",
-                  lineHeight: 1.15,
-                }}
-              >
-                SP SportData Solution
-              </span>
+              <div style={{ fontFamily: "'Montserrat', sans-serif", fontWeight: 900, fontSize: '8.5px', lineHeight: 1, letterSpacing: '0.01em' }}>
+                <span style={{ color: '#b91c2e' }}>Karate</span>
+                <span style={{ color: '#38bdf8' }}>Tech</span>
+                <span style={{ color: theme === 'dark' ? '#ffffff' : '#111827', marginLeft: '2px', fontSize: '7.5px' }}>2.0</span>
+                <span style={{ color: '#94a3b8', fontSize: '5px', marginLeft: '1px', verticalAlign: 'super' }}>©</span>
+              </div>
+              <div style={{ fontSize: '5px', color: '#64748b', fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', marginTop: '1px', lineHeight: 1 }}>
+                • PRECISION. SPEED. RESULTS. •
+              </div>
+              <div style={{ marginTop: '2px' }}>
+                <img
+                  src={`${basePath}/spsportdata-logo.jpg`}
+                  alt="SP SportData Solution"
+                  style={{ height: '12px', maxHeight: '12px', width: 'auto', objectFit: 'contain', mixBlendMode: 'multiply', background: 'transparent' }}
+                />
+              </div>
             </div>
           </div>
         </div>
@@ -684,50 +679,33 @@ export const SportdataBracket: React.FC<SportdataBracketProps> = ({
             </div>
           </div>
 
-          {/* Rebranded Logo */}
+          {/* Rebranded Logo — KarateTech 2.0© Brand (matches main operator page) */}
           <div
-            className="flex items-center gap-2 mt-0.5 leading-none select-none shrink-0"
-            style={{ maxWidth: "160px" }}
+            className="flex items-center gap-2 leading-none select-none shrink-0"
+            style={{ maxWidth: "180px" }}
           >
-            <div className="h-7 w-7 rounded-full overflow-hidden border border-white/20 bg-slate-900 shrink-0">
-              <img
-                src={logoUrl || `${basePath}/karatetech-logo.png`}
-                alt="Logo"
-                className="h-full w-full object-cover"
-              />
-            </div>
+            <img
+              src={logoUrl || `${basePath}/karatetech-logo.png`}
+              alt="KarateTech Logo"
+              style={{ height: '28px', width: '28px', borderRadius: '50%', border: '1px solid rgba(255,255,255,0.2)', objectFit: 'contain', flexShrink: 0 }}
+            />
             <div className="flex flex-col items-start leading-none">
-              <span
-                className="font-extrabold text-[8px] tracking-tight text-foreground"
-                style={{ fontFamily: "'Montserrat', sans-serif" }}
-              >
-                <span style={{ color: "#b91c2e" }}>Karate</span>
-                <span style={{ color: "#38bdf8" }}>Tech</span>
-              </span>
-              <span
-                style={{
-                  fontFamily: "'Montserrat', sans-serif",
-                  fontWeight: 800,
-                  fontSize: "5px",
-                  letterSpacing: "0.01em",
-                  color: theme === "dark" ? "#818cf8" : "#1a2744",
-                  lineHeight: 1.15,
-                }}
-              >
-                SP SportData Solution
-              </span>
-              <span
-                style={{
-                  fontFamily: "'Montserrat', sans-serif",
-                  fontWeight: 600,
-                  fontSize: "3.8px",
-                  color: "#64748b",
-                  lineHeight: 1.15,
-                  marginTop: "1px",
-                }}
-              >
-                • Precision. • Speed. • Results. •
-              </span>
+              <div style={{ fontFamily: "'Montserrat', sans-serif", fontWeight: 900, fontSize: '8.5px', lineHeight: 1, letterSpacing: '0.01em' }}>
+                <span style={{ color: '#b91c2e' }}>Karate</span>
+                <span style={{ color: '#38bdf8' }}>Tech</span>
+                <span style={{ color: theme === 'dark' ? '#ffffff' : '#111827', marginLeft: '2px', fontSize: '7.5px' }}>2.0</span>
+                <span style={{ color: '#94a3b8', fontSize: '5px', marginLeft: '1px', verticalAlign: 'super' }}>©</span>
+              </div>
+              <div style={{ fontSize: '5px', color: '#64748b', fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', marginTop: '1px', lineHeight: 1 }}>
+                • PRECISION. SPEED. RESULTS. •
+              </div>
+              <div style={{ marginTop: '2px' }}>
+                <img
+                  src={`${basePath}/spsportdata-logo.jpg`}
+                  alt="SP SportData Solution"
+                  style={{ height: '12px', maxHeight: '12px', width: 'auto', objectFit: 'contain', mixBlendMode: 'multiply', background: 'transparent' }}
+                />
+              </div>
             </div>
           </div>
         </div>

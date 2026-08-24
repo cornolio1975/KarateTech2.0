@@ -130,16 +130,27 @@ export const PrintBracketView: React.FC<PrintBracketViewProps> = ({
         <div className="flex items-center gap-2">
           <img 
             src={logoUrl || `${basePath}/karatetech-logo.png`} 
-            alt="Logo" 
-            className="h-[36px] w-[36px] object-cover rounded-full border border-gray-300"
+            alt="KarateTech Logo" 
+            className="h-[36px] w-[36px] object-contain rounded-full border border-gray-300 shadow"
           />
-          <div className="flex flex-col">
-            <div className="text-lg font-black tracking-tight leading-none">
-              <span className="text-[#b91c2e]">Karate</span>
-              <span className="text-[#0284c7]">Tech</span>
+          <div className="flex flex-col justify-center">
+            <div style={{ fontFamily: "'Montserrat', sans-serif", fontWeight: 900, fontSize: '0.85rem', lineHeight: 1, letterSpacing: '0.01em' }}>
+              <span style={{ color: '#b91c2e' }}>Karate</span>
+              <span style={{ color: '#38bdf8' }}>Tech</span>
+              <span style={{ color: '#111827', marginLeft: '3px', fontSize: '0.75rem' }}>2.0</span>
+              <span style={{ color: '#64748b', fontSize: '0.55rem', marginLeft: '2px', verticalAlign: 'super' }}>©</span>
             </div>
-            <div className="text-[9px] font-bold text-slate-900 mt-0">SP SportData Solution</div>
-            <div className="text-[8px] text-slate-500 tracking-widest mt-0">• Precision. • Speed. • Results. •</div>
+            <div style={{ fontSize: '6px', color: '#64748b', fontWeight: 700, letterSpacing: '0.15em', textTransform: 'uppercase', marginTop: '1px', lineHeight: 1 }}>
+              • PRECISION. SPEED. RESULTS. •
+            </div>
+            <div className="mt-0.5 flex items-center overflow-hidden">
+              <img 
+                src={`${basePath}/spsportdata-logo.jpg`} 
+                alt="SP SportData Solution" 
+                className="h-[14px] max-h-[14px] w-auto object-contain"
+                style={{ mixBlendMode: 'multiply', background: 'transparent' }}
+              />
+            </div>
           </div>
         </div>
         
