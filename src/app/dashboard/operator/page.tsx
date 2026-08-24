@@ -15,13 +15,14 @@ import {
   Maximize2, SlidersHorizontal, Trash2, Filter,
   Zap, RefreshCw, Wifi, WifiOff, ArrowRight, ArrowLeft, BarChart3, ExternalLink,
   ChevronUp, ChevronDown, ChevronLeft, ZoomIn, ZoomOut, Tv, GripHorizontal, BookOpen,
-  Palette, ChevronDown as ChevronDownIcon
+  Palette, Camera, ChevronDown as ChevronDownIcon
 } from 'lucide-react';
 import { KumiteScoreboardControl, ScoreboardRef } from '../control/page';
 import { KataControlPanelContent } from '../kata-control/page';
 import { SportdataBracket } from '@/components/SportdataBracket';
 import KataListModal from '@/components/KataListModal';
 import EditParticipantDrawer from '@/components/EditParticipantDrawer';
+import PlayerPhotoModal from '@/components/PlayerPhotoModal';
 
 interface KeyLogEntry {
   id: string;
@@ -75,6 +76,7 @@ export default function OperatorConsolePage() {
   const [coaches, setCoaches] = useState<Coach[]>([]);
   const [selectedProfileModal, setSelectedProfileModal] = useState<{ participant: Participant; corner: 'AKA' | 'AO' } | null>(null);
   const [editParticipantId, setEditParticipantId] = useState<string | null>(null);
+  const [photoModalParticipant, setPhotoModalParticipant] = useState<Participant | null>(null);
 
   const [activeBout, setActiveBout] = useState<Bout | null>(null);
   const [activeCat, setActiveCat] = useState<Category | null>(null);
@@ -2258,10 +2260,17 @@ export default function OperatorConsolePage() {
             <div className="grid grid-cols-12 gap-3 text-xs">
               {/* Photo & Quick Badges */}
               <div className="col-span-4 flex flex-col items-center gap-2 bg-white/5 p-3 rounded-xl border border-white/10 text-center">
-                <div className="w-20 h-24 rounded-lg bg-black/40 border border-white/15 overflow-hidden flex items-center justify-center">
+                <div
+                  className="w-20 h-24 rounded-lg bg-black/40 border border-white/15 overflow-hidden flex items-center justify-center cursor-pointer group relative"
+                  onClick={() => setPhotoModalParticipant(selectedProfileModal.participant)}
+                  title="Click to change photo"
+                >
                   {selectedProfileModal.participant.photo_url
                     ? <img src={selectedProfileModal.participant.photo_url} alt={selectedProfileModal.participant.full_name} className="w-full h-full object-cover" />
                     : <UserSquare2 className="h-10 w-10 text-white/20" />}
+                  <div className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                    <Camera className="h-5 w-5 text-white" />
+                  </div>
                 </div>
                 <span className="text-[10px] font-bold text-yellow-400">{selectedProfileModal.participant.nationality_code || 'NATIONAL'}</span>
                 <span className={`text-[8.5px] font-black px-2 py-0.5 rounded-full ${selectedProfileModal.participant.status === 'Checked In' ? 'bg-green-500/20 text-green-400 border border-green-500/40' : 'bg-white/10 text-white/60'}`}>
@@ -2344,6 +2353,23 @@ export default function OperatorConsolePage() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* PLAYER PHOTO UPLOAD / WEBCAM MODAL */}
+      {photoModalParticipant && (
+        <PlayerPhotoModal
+          participant={photoModalParticipant}
+          onClose={() => setPhotoModalParticipant(null)}
+          onSaved={(updated) => {
+            // Refresh participants list so photo shows immediately
+            setPhotoModalParticipant(null);
+            loadData();
+            // If profile modal is open for same participant, reflect update
+            if (selectedProfileModal?.participant.id === updated.id) {
+              setSelectedProfileModal(prev => prev ? { ...prev, participant: updated } : null);
+            }
+          }}
+        />
       )}
 
       {/* EDIT PARTICIPANT DRAWER */}
