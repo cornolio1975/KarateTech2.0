@@ -3,7 +3,8 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { db } from '@/db/dbClient';
 import { Participant } from '@/db/types';
-import { X, Upload, Camera, RotateCcw, Check, Trash2, ZoomIn } from 'lucide-react';
+import { X, Upload, Camera, RotateCcw, Check, Trash2, ZoomIn, Crop } from 'lucide-react';
+import Cropper, { Area } from 'react-easy-crop';
 
 interface PlayerPhotoModalProps {
   participant: Participant;
@@ -11,7 +12,7 @@ interface PlayerPhotoModalProps {
   onSaved: (updated: Participant) => void;
 }
 
-type Mode = 'choose' | 'upload' | 'webcam';
+type Mode = 'choose' | 'upload' | 'webcam' | 'crop';
 
 const compressImage = (dataUrl: string, maxWidth = 300, maxHeight = 400): Promise<string> => {
   return new Promise((resolve) => {
@@ -49,6 +50,11 @@ export default function PlayerPhotoModal({ participant, onClose, onSaved }: Play
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [cameraReady, setCameraReady] = useState(false);
+  
+  // Crop states
+  const [crop, setCrop] = useState({ x: 0, y: 0 });
+  const [zoom, setZoom] = useState(1);
+  const [croppedAreaPixels, setCroppedAreaPixels] = useState<Area | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -93,13 +99,67 @@ export default function PlayerPhotoModal({ participant, onClose, onSaved }: Play
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
     ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-    const rawDataUrl = canvas.toDataURL('image/jpeg', 0.85);
+    const rawDataUrl = canvas.toDataURL('image/jpeg', 0.9);
     
-    // Compress immediately
-    const compressed = await compressImage(rawDataUrl);
-    setCaptured(compressed);
-    setPreview(compressed);
+    setCaptured(rawDataUrl);
+    setMode('crop');
     stopCamera();
+  };
+
+  const onCropComplete = useCallback((croppedArea: Area, croppedAreaPixels: Area) => {
+    setCroppedAreaPixels(croppedAreaPixels);
+  }, []);
+
+  const generateCroppedImage = async (): Promise<string | null> => {
+    if (!captured || !croppedAreaPixels) return null;
+    const image = new Image();
+    image.src = captured;
+    await new Promise(resolve => image.onload = resolve);
+    
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return null;
+
+    canvas.width = croppedAreaPixels.width;
+    canvas.height = croppedAreaPixels.height;
+
+    ctx.drawImage(
+      image,
+      croppedAreaPixels.x,
+      croppedAreaPixels.y,
+      croppedAreaPixels.width,
+      croppedAreaPixels.height,
+      0,
+      0,
+      croppedAreaPixels.width,
+      croppedAreaPixels.height
+    );
+
+    // Compress the final cropped image
+    return compressImage(canvas.toDataURL('image/jpeg', 0.9), 300, 400);
+  };
+
+  const handleCropAndSave = async () => {
+    const croppedImage = await generateCroppedImage();
+    if (croppedImage) {
+      setCaptured(croppedImage);
+      await saveImageToDb(croppedImage);
+    }
+  };
+
+  const saveImageToDb = async (imgData: string) => {
+    try {
+      setSaving(true);
+      setError(null);
+      const updated = await db.participants.update(participant.id, { photo_url: imgData });
+      onSaved(updated);
+      onClose();
+    } catch (err: any) {
+      console.error(err);
+      setError('Failed to save photo: ' + (err.message || 'Unknown error'));
+    } finally {
+      setSaving(false);
+    }
   };
 
   const retake = () => {
@@ -117,27 +177,15 @@ export default function PlayerPhotoModal({ participant, onClose, onSaved }: Play
     const reader = new FileReader();
     reader.onload = async (ev) => {
       const result = ev.target?.result as string;
-      const compressed = await compressImage(result);
-      setPreview(compressed);
-      setCaptured(compressed);
+      setCaptured(result);
+      setMode('crop');
     };
     reader.readAsDataURL(file);
   };
 
   const handleSave = async () => {
     if (!captured) return;
-    try {
-      setSaving(true);
-      setError(null);
-      const updated = await db.participants.update(participant.id, { photo_url: captured });
-      onSaved(updated);
-      onClose();
-    } catch (err: any) {
-      console.error(err);
-      setError('Failed to save photo: ' + (err.message || 'Unknown error'));
-    } finally {
-      setSaving(false);
-    }
+    await saveImageToDb(captured);
   };
 
   const handleRemove = async () => {
@@ -312,33 +360,67 @@ export default function PlayerPhotoModal({ participant, onClose, onSaved }: Play
                   onClick={() => { stopCamera(); setMode('choose'); setCaptured(null); setPreview(participant.photo_url || null); }}
                   className="flex-1 py-2 bg-white/5 hover:bg-white/10 text-white/60 font-bold text-xs rounded-lg transition cursor-pointer"
                 >
-                  ← Back
+                  ← Cancel
                 </button>
-                {!captured ? (
-                  <button
-                    onClick={capturePhoto}
-                    disabled={!cameraReady}
-                    className="flex-1 py-2 bg-green-600 hover:bg-green-500 disabled:opacity-40 disabled:cursor-not-allowed text-white font-black text-xs rounded-lg transition cursor-pointer flex items-center justify-center gap-1.5"
-                  >
-                    <Camera className="h-3.5 w-3.5" /> Capture
-                  </button>
-                ) : (
-                  <>
-                    <button
-                      onClick={retake}
-                      className="py-2 px-3 bg-white/10 hover:bg-white/20 text-white font-bold text-xs rounded-lg transition cursor-pointer flex items-center gap-1"
-                    >
-                      <RotateCcw className="h-3.5 w-3.5" />
-                    </button>
-                    <button
-                      onClick={handleSave}
-                      disabled={saving}
-                      className="flex-1 py-2 bg-yellow-500 hover:bg-yellow-400 disabled:opacity-50 text-black font-black text-xs rounded-lg transition cursor-pointer flex items-center justify-center gap-1.5"
-                    >
-                      {saving ? 'Saving…' : <><Check className="h-3.5 w-3.5" /> Save</>}
-                    </button>
-                  </>
-                )}
+                <button
+                  onClick={capturePhoto}
+                  disabled={!cameraReady}
+                  className="flex-1 py-2 bg-green-600 hover:bg-green-500 disabled:opacity-40 disabled:cursor-not-allowed text-white font-black text-xs rounded-lg transition cursor-pointer flex items-center justify-center gap-1.5"
+                >
+                  <Camera className="h-3.5 w-3.5" /> Capture
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* ── Crop Mode ── */}
+          {mode === 'crop' && captured && (
+            <div className="space-y-4">
+              <div className="relative w-full h-[300px] bg-black rounded-xl overflow-hidden border border-white/20">
+                <Cropper
+                  image={captured}
+                  crop={crop}
+                  zoom={zoom}
+                  aspect={3 / 4}
+                  onCropChange={setCrop}
+                  onCropComplete={onCropComplete}
+                  onZoomChange={setZoom}
+                  cropShape="rect"
+                  showGrid={true}
+                />
+              </div>
+              <div className="flex items-center gap-2 px-2">
+                <span className="text-[10px] text-white/50 font-bold">ZOOM</span>
+                <input
+                  type="range"
+                  value={zoom}
+                  min={1}
+                  max={3}
+                  step={0.1}
+                  aria-labelledby="Zoom"
+                  onChange={(e) => setZoom(Number(e.target.value))}
+                  className="flex-1 h-1 bg-white/20 rounded-lg appearance-none cursor-pointer accent-yellow-400"
+                />
+              </div>
+
+              <div className="flex gap-2 pt-2">
+                <button
+                  onClick={() => {
+                    setCaptured(null);
+                    setMode('choose');
+                    setPreview(participant.photo_url || null);
+                  }}
+                  className="flex-1 py-2 bg-white/5 hover:bg-white/10 text-white/60 font-bold text-xs rounded-lg transition cursor-pointer"
+                >
+                  Discard
+                </button>
+                <button
+                  onClick={handleCropAndSave}
+                  disabled={saving}
+                  className="flex-1 py-2 bg-yellow-500 hover:bg-yellow-400 disabled:opacity-50 text-black font-black text-xs rounded-lg transition cursor-pointer flex items-center justify-center gap-1.5"
+                >
+                  {saving ? 'Saving…' : <><Crop className="h-3.5 w-3.5" /> Crop & Save</>}
+                </button>
               </div>
             </div>
           )}
