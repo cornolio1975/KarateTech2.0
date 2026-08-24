@@ -659,8 +659,16 @@ function SpectatorDisplayContent() {
         }
 
         if (data.type === 'SET_IDLE') {
-          setIsIdle(Boolean(data.isIdle));
-          if (data.isIdle) {
+          const nextIdle = Boolean(data.isIdle);
+          setIsIdle(nextIdle);
+          try {
+            if (nextIdle) {
+              localStorage.setItem('kt_display_idle', 'true');
+            } else {
+              localStorage.removeItem('kt_display_idle');
+            }
+          } catch (e) {}
+          if (nextIdle) {
             setWinnerSide(null);
             setResultConfirmed(false);
             setActiveBoutId(null);
@@ -671,7 +679,9 @@ function SpectatorDisplayContent() {
         }
 
         if (data.type === 'SHOW_RESULT' || data.type === 'REFRESH_DISPLAY' || data.type === 'SYNC_MATCH_STATE') {
-          setIsIdle(false);
+          if (data.isIdle !== undefined) {
+            setIsIdle(Boolean(data.isIdle));
+          }
           setShowPlayerDetails(false);
           setShowExtraTimer(false);
           if (data.boutId && data.boutId !== activeBoutId) {
@@ -700,7 +710,9 @@ function SpectatorDisplayContent() {
         }
 
         if (data.boutId) {
-          setIsIdle(false);
+          if (data.isIdle !== undefined) {
+            setIsIdle(Boolean(data.isIdle));
+          }
           // If the controller shifted to a new match, update our active target boutId
           if (data.boutId !== activeBoutId) {
             setActiveBoutId(data.boutId);

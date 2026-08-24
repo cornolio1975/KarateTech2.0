@@ -542,7 +542,6 @@ export const KataControlPanelContent = React.forwardRef<ScoreboardRef, { boutId?
 
       if (updated) {
         setCurrentBout(updated);
-        await loadData();
         if (onLogEvent) onLogEvent('SYSTEM', isFinished ? `Kata Match R${currentBout.round_no}B${currentBout.bout_no} Saved & Completed (${finalTotalA} - ${finalTotalB})` : `Result saved`);
       }
 
@@ -555,9 +554,10 @@ export const KataControlPanelContent = React.forwardRef<ScoreboardRef, { boutId?
         const winnerSide = winnerId === currentBout.participant_a_id ? 'aka' : winnerId === currentBout.participant_b_id ? 'ao' : null;
 
         broadcastChannelRef.current.postMessage({
-          type: isFinished ? 'MATCH_FINISHED' : 'BOUT_UPDATED',
+          type: isFinished ? 'SHOW_RESULT' : 'BOUT_UPDATED',
           boutId: currentBout.id,
           isKata: true,
+          isIdle: false,
           akaName: participantA?.full_name || 'AKA',
           akaClub: clubA?.name || 'Senshi Club',
           aoName: participantB?.full_name || 'AO',
@@ -570,11 +570,83 @@ export const KataControlPanelContent = React.forwardRef<ScoreboardRef, { boutId?
           judgeScoresB: finalJudgeScoresB,
           panelSize,
           scoringMethod,
+          winnerSide: winnerSide,
           winner: winnerSide,
           winMethod: winMtd || (winnerSide === 'aka' ? 'AKA WIN' : winnerSide === 'ao' ? 'AO WIN' : 'TIE'),
           penaltyH,
           resultConfirmed: isFinished
         });
+      }
+
+      // ── Auto-load next match in category after save ──
+      if (isFinished) {
+        const freshBouts = await db.bouts.list();
+        const sameCatBouts = freshBouts
+          .filter(b => b.category_id === currentBout.category_id && b.id !== currentBout.id)
+          .sort((a, b) => (a.round_no ?? 0) - (b.round_no ?? 0) || (a.bout_no ?? 0) - (b.bout_no ?? 0));
+        const nextPending = sameCatBouts.find(b => b.status !== 'Completed' && b.status !== 'Walkover');
+
+        if (nextPending) {
+          // Reload full data then auto-select next bout
+          const [bList, pList, catList, clList] = await Promise.all([
+            db.bouts.list(), db.participants.list(), db.categories.list(), db.clubs.list()
+          ]);
+          setBouts(bList);
+          setParticipants(pList);
+          setCategories(catList);
+          setClubs(clList);
+          const nextBout = bList.find(b => b.id === nextPending.id);
+          if (nextBout) {
+            setCurrentBout(nextBout);
+            setSelectedBoutId(nextBout.id);
+            setSelectedCatId(nextBout.category_id);
+            setIsWinnerRevealed(!!nextBout.winner_id);
+            setSelectedWinnerId(nextBout.winner_id || null);
+            setKataA(nextBout.kata_a || 'Suparinpei');
+            setKataB(nextBout.kata_b || 'Anan Dai');
+            const defA = nextBout.judge_scores_a?.length ? nextBout.judge_scores_a : Array(panelSize).fill(8.0);
+            const defB = nextBout.judge_scores_b?.length ? nextBout.judge_scores_b : Array(panelSize).fill(8.0);
+            setJudgeScoresA(defA);
+            setJudgeScoresB(defB);
+            setPenaltyH(null);
+            // Broadcast next match to display
+            const pA = pList.find(p => p.id === nextBout.participant_a_id);
+            const pB = pList.find(p => p.id === nextBout.participant_b_id);
+            const cA = clList.find(c => c.id === pA?.club_id);
+            const cB = clList.find(c => c.id === pB?.club_id);
+            if (broadcastChannelRef.current) {
+              broadcastChannelRef.current.postMessage({
+                type: 'SYNC_MATCH_STATE',
+                boutId: nextBout.id,
+                isKata: true,
+                isIdle: false,
+                akaName: pA?.full_name || 'AKA',
+                akaClub: cA?.name || '',
+                aoName: pB?.full_name || 'AO',
+                aoClub: cB?.name || '',
+                scoreAka: nextBout.total_score_a ?? 0,
+                scoreAo: nextBout.total_score_b ?? 0,
+                kataA: nextBout.kata_a || '',
+                kataB: nextBout.kata_b || '',
+                judgeScoresA: defA,
+                judgeScoresB: defB,
+                panelSize,
+                scoringMethod,
+                resultConfirmed: false
+              });
+            }
+            if (onLogEvent) onLogEvent('SYSTEM', `Auto-loaded next Kata match R${nextBout.round_no}B${nextBout.bout_no}`);
+          }
+        } else {
+          // No remaining bouts in category → broadcast Arena Standby
+          await loadData();
+          if (broadcastChannelRef.current) {
+            broadcastChannelRef.current.postMessage({ type: 'SET_IDLE', isIdle: true });
+          }
+          if (onLogEvent) onLogEvent('SYSTEM', 'All Kata bouts in category completed — display set to Arena Standby');
+        }
+      } else {
+        await loadData();
       }
     } catch (err) {
       console.error('Error saving result:', err);
@@ -632,8 +704,6 @@ export const KataControlPanelContent = React.forwardRef<ScoreboardRef, { boutId?
       const updatedBout = await db.bouts.updateBoutState(currentBout.id, updates);
       setCurrentBout(updatedBout);
       
-      // Refresh list
-      await loadData();
       if (onLogEvent) onLogEvent('SYSTEM', `Match completed and bracket advanced (${finalTotalA} - ${finalTotalB})`);
 
       // Broadcast completion & winner reveal to spectator view and operator bracket
@@ -645,9 +715,10 @@ export const KataControlPanelContent = React.forwardRef<ScoreboardRef, { boutId?
         const winnerSide = winner === currentBout.participant_a_id ? 'aka' : winner === currentBout.participant_b_id ? 'ao' : null;
 
         broadcastChannelRef.current.postMessage({
-          type: 'MATCH_FINISHED',
+          type: 'SHOW_RESULT',
           boutId: currentBout.id,
           isKata: true,
+          isIdle: false,
           akaName: participantA?.full_name || 'AKA',
           akaClub: clubA?.name || 'Senshi Club',
           aoName: participantB?.full_name || 'AO',
@@ -660,18 +731,79 @@ export const KataControlPanelContent = React.forwardRef<ScoreboardRef, { boutId?
           judgeScoresB: finalJudgeScoresB,
           panelSize,
           scoringMethod,
+          winnerSide: winnerSide,
           winner: winnerSide,
           winMethod: winMtd || (winnerSide === 'aka' ? 'AKA WIN' : winnerSide === 'ao' ? 'AO WIN' : 'TIE'),
           penaltyH,
           resultConfirmed: true
         });
       }
-      
-      // Auto-navigate back to Match Console Hub (Kata) to easily start the next match
-      if (onClose) {
-        onClose();
+
+      // ── Auto-load next match in category ──
+      const freshBouts = await db.bouts.list();
+      const sameCatBouts = freshBouts
+        .filter(b => b.category_id === currentBout.category_id && b.id !== currentBout.id)
+        .sort((a, b) => (a.round_no ?? 0) - (b.round_no ?? 0) || (a.bout_no ?? 0) - (b.bout_no ?? 0));
+      const nextPending = sameCatBouts.find(b => b.status !== 'Completed' && b.status !== 'Walkover');
+
+      if (nextPending) {
+        const [bList, pList, catList, clList] = await Promise.all([
+          db.bouts.list(), db.participants.list(), db.categories.list(), db.clubs.list()
+        ]);
+        setBouts(bList);
+        setParticipants(pList);
+        setCategories(catList);
+        setClubs(clList);
+        const nextBout = bList.find(b => b.id === nextPending.id);
+        if (nextBout) {
+          setCurrentBout(nextBout);
+          setSelectedBoutId(nextBout.id);
+          setSelectedCatId(nextBout.category_id);
+          setIsWinnerRevealed(!!nextBout.winner_id);
+          setSelectedWinnerId(nextBout.winner_id || null);
+          setKataA(nextBout.kata_a || 'Suparinpei');
+          setKataB(nextBout.kata_b || 'Anan Dai');
+          const defA = nextBout.judge_scores_a?.length ? nextBout.judge_scores_a : Array(panelSize).fill(8.0);
+          const defB = nextBout.judge_scores_b?.length ? nextBout.judge_scores_b : Array(panelSize).fill(8.0);
+          setJudgeScoresA(defA);
+          setJudgeScoresB(defB);
+          setPenaltyH(null);
+          // Broadcast next match to display
+          const pA = pList.find(p => p.id === nextBout.participant_a_id);
+          const pB = pList.find(p => p.id === nextBout.participant_b_id);
+          const cA = clList.find(c => c.id === pA?.club_id);
+          const cB = clList.find(c => c.id === pB?.club_id);
+          if (broadcastChannelRef.current) {
+            broadcastChannelRef.current.postMessage({
+              type: 'SYNC_MATCH_STATE',
+              boutId: nextBout.id,
+              isKata: true,
+              isIdle: false,
+              akaName: pA?.full_name || 'AKA',
+              akaClub: cA?.name || '',
+              aoName: pB?.full_name || 'AO',
+              aoClub: cB?.name || '',
+              scoreAka: nextBout.total_score_a ?? 0,
+              scoreAo: nextBout.total_score_b ?? 0,
+              kataA: nextBout.kata_a || '',
+              kataB: nextBout.kata_b || '',
+              judgeScoresA: defA,
+              judgeScoresB: defB,
+              panelSize,
+              scoringMethod,
+              resultConfirmed: false
+            });
+          }
+          if (onLogEvent) onLogEvent('SYSTEM', `Auto-loaded next Kata match R${nextBout.round_no}B${nextBout.bout_no}`);
+        }
       } else {
-        router.push(`/dashboard/kata-scoreboard`);
+        // All bouts in category complete → Arena Standby
+        await loadData();
+        if (broadcastChannelRef.current) {
+          broadcastChannelRef.current.postMessage({ type: 'SET_IDLE', isIdle: true });
+        }
+        if (onLogEvent) onLogEvent('SYSTEM', 'All Kata bouts completed — display set to Arena Standby');
+        // Stay on console — no nav away; operator can manually start new category
       }
     } catch (err) {
       console.error('Error completing Kata bout:', err);
