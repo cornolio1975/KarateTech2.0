@@ -21,6 +21,7 @@ import { KumiteScoreboardControl, ScoreboardRef } from '../control/page';
 import { KataControlPanelContent } from '../kata-control/page';
 import { SportdataBracket } from '@/components/SportdataBracket';
 import KataListModal from '@/components/KataListModal';
+import EditParticipantDrawer from '@/components/EditParticipantDrawer';
 
 interface KeyLogEntry {
   id: string;
@@ -73,6 +74,7 @@ export default function OperatorConsolePage() {
   const [clubs, setClubs] = useState<Club[]>([]);
   const [coaches, setCoaches] = useState<Coach[]>([]);
   const [selectedProfileModal, setSelectedProfileModal] = useState<{ participant: Participant; corner: 'AKA' | 'AO' } | null>(null);
+  const [editParticipantId, setEditParticipantId] = useState<string | null>(null);
 
   const [activeBout, setActiveBout] = useState<Bout | null>(null);
   const [activeCat, setActiveCat] = useState<Category | null>(null);
@@ -2325,15 +2327,36 @@ export default function OperatorConsolePage() {
               </div>
             )}
 
-            {/* Footer button */}
-            <div className="pt-2">
-              <button onClick={() => setSelectedProfileModal(null)} className="w-full py-2 bg-white/10 hover:bg-white/20 text-white font-bold rounded-lg text-xs transition cursor-pointer">
-                CLOSE PROFILE
+            {/* Footer buttons */}
+            <div className="pt-2 flex gap-2">
+              <button
+                onClick={() => {
+                  setEditParticipantId(selectedProfileModal.participant.id);
+                  setSelectedProfileModal(null);
+                }}
+                className="flex-1 py-2 bg-yellow-500/20 hover:bg-yellow-500/30 text-yellow-300 font-black rounded-lg text-xs transition cursor-pointer flex items-center justify-center gap-1.5 border border-yellow-500/30"
+              >
+                ✏️ EDIT PROFILE
+              </button>
+              <button onClick={() => setSelectedProfileModal(null)} className="flex-1 py-2 bg-white/10 hover:bg-white/20 text-white font-bold rounded-lg text-xs transition cursor-pointer">
+                CLOSE
               </button>
             </div>
           </div>
         </div>
       )}
+
+      {/* EDIT PARTICIPANT DRAWER */}
+      {editParticipantId && (
+        <EditParticipantDrawer
+          participantId={editParticipantId}
+          onClose={() => {
+            setEditParticipantId(null);
+            loadData();
+          }}
+        />
+      )}
+
 
       {/* MATCH NOTES MODAL */}
       {isNotesModalOpen && (
