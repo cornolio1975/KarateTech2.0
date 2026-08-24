@@ -657,7 +657,8 @@ export default function ParticipantsPage() {
                   </th>
                   <th className="p-3 w-20 font-bold text-muted-foreground text-center">Kumite</th>
                   <th className="p-3 w-20 font-bold text-muted-foreground text-center">Kata</th>
-                  <th className="p-3 w-32 font-bold text-muted-foreground">Category Assigned</th>
+                  <th className="p-3 w-40 font-bold text-muted-foreground">Kumite Category</th>
+                  <th className="p-3 w-40 font-bold text-muted-foreground">Kata Category</th>
                   <th className="p-3 w-28 font-bold text-muted-foreground">Date of Birth</th>
                   <th className="p-3 w-16 font-bold text-muted-foreground cursor-pointer select-none" onClick={() => handleSort('dob')}>
                     <div className="flex items-center gap-1">Age <ArrowUpDown className="h-3 w-3" /></div>
@@ -670,7 +671,7 @@ export default function ParticipantsPage() {
               <tbody className="divide-y divide-border/60">
                 {loading ? (
                   <tr>
-                    <td colSpan={13} className="text-center py-12 text-xs text-muted-foreground">
+                    <td colSpan={14} className="text-center py-12 text-xs text-muted-foreground">
                       <div className="flex items-center justify-center gap-2">
                         <RefreshCw className="h-4 w-4 animate-spin text-primary" />
                         <span>Loading athlete records...</span>
@@ -679,7 +680,7 @@ export default function ParticipantsPage() {
                   </tr>
                 ) : paginatedParticipants.length === 0 ? (
                   <tr>
-                    <td colSpan={13} className="text-center py-12 text-xs text-muted-foreground">
+                    <td colSpan={14} className="text-center py-12 text-xs text-muted-foreground">
                       No participants match the selected filter/search parameters.
                     </td>
                   </tr>
@@ -689,8 +690,10 @@ export default function ParticipantsPage() {
                     const clubName = clubs.find(c => c.id === p.club_id)?.name || 'Independent';
                     
                     // Category Mapping client-side lookup
-                    const catId = mappings.find((m: any) => m.participant_id === p.id)?.category_id;
-                    const cat = categories.find(c => c.id === catId);
+                    const pMappings = mappings.filter((m: any) => m.participant_id === p.id);
+                    const assignedCats = pMappings.map(m => categories.find(c => c.id === m.category_id)).filter(Boolean) as Category[];
+                    const kumiteCat = assignedCats.find(c => isKumiteCategory(c));
+                    const kataCat = assignedCats.find(c => isKataCategory(c));
 
                     return (
                       <tr
@@ -759,7 +762,10 @@ export default function ParticipantsPage() {
                           />
                         </td>
                         <td className="p-3 font-semibold text-primary hover:underline">
-                          {cat ? cat.name : 'Unassigned'}
+                          {kumiteCat ? kumiteCat.name : <span className="text-muted-foreground/40 font-normal">—</span>}
+                        </td>
+                        <td className="p-3 font-semibold text-primary hover:underline">
+                          {kataCat ? kataCat.name : <span className="text-muted-foreground/40 font-normal">—</span>}
                         </td>
                         <td className="p-3 text-muted-foreground font-mono">{p.dob}</td>
                         <td className="p-3 text-muted-foreground font-semibold font-mono">{getAge(p.dob)}</td>
