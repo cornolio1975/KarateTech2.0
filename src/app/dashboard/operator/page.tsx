@@ -7,7 +7,7 @@ import { db, basePath } from '@/db/dbClient';
 import { Bout, Participant, Category, Club, Coach, isKumiteCategory, isKataCategory } from '@/db/types';
 import { useTournament } from '@/context/TournamentContext';
 import {
-  Trophy, List, Users, UserSquare2, Timer, FileText,
+  Trophy, List, Users, UserSquare2, Timer, Clock, FileText,
   ChevronRight, FolderOpen, ClipboardList, Users2,
   Flag, Undo2, LockOpen, CheckCircle2, Save, Printer,
   Monitor, Radio, Lock, Cpu, Settings, MoreHorizontal,
@@ -1048,6 +1048,17 @@ export default function OperatorConsolePage() {
           });
           addLog('SYSTEM', 'Function Dock: Opened Referee & Spectator Screen in Modal');
         }
+      } 
+    },
+    { id: 'standby',         icon: Clock,          label: 'STANDBY',        color: 'yellow', action: () => {
+        if (typeof window !== 'undefined') {
+          try {
+            const channel = new BroadcastChannel('wkf-scoreboard-sync');
+            channel.postMessage({ type: 'SET_IDLE', isIdle: true });
+            channel.close();
+          } catch (err) {}
+        }
+        addLog('SYSTEM', 'Function Dock: Display screen set to Arena Standby / Live Real-Time Clock Mode');
       } 
     },
     { id: 'notes',           icon: FileText,       label: 'NOTES',          color: 'blue',   action: () => {
