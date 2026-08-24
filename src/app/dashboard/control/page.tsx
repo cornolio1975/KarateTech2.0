@@ -1450,7 +1450,14 @@ export const KumiteScoreboardControl = React.forwardRef<ScoreboardRef, { boutId?
           resultConfirmed: true,
           winnerSide: side,
           winner: side,
-          winMethod: method
+          winMethod: method,
+          akaName: competitorAka?.full_name || 'AKA Red',
+          akaClub: competitorAka?.club_id ? 'Senshi Karate Academy' : 'Senshi Club',
+          aoName: competitorAo?.full_name || 'AO Blue',
+          aoClub: competitorAo?.club_id ? 'Goju-Ryu Karate Club' : 'Goju-Ryu Club',
+          scoreAka,
+          scoreAo,
+          boutId
         });
         channel.close();
       } catch (err) {}
@@ -2435,7 +2442,14 @@ export const KumiteScoreboardControl = React.forwardRef<ScoreboardRef, { boutId?
                           resultConfirmed: true,
                           winnerSide: winnerSide,
                           winner: winnerSide,
-                          winMethod: winMethod
+                          winMethod: winMethod,
+                          akaName: competitorAka?.full_name || 'AKA Red',
+                          akaClub: competitorAka?.club_id ? 'Senshi Karate Academy' : 'Senshi Club',
+                          aoName: competitorAo?.full_name || 'AO Blue',
+                          aoClub: competitorAo?.club_id ? 'Goju-Ryu Karate Club' : 'Goju-Ryu Club',
+                          scoreAka,
+                          scoreAo,
+                          boutId
                         });
                         channel.close();
                       } catch (err) {}

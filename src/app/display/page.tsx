@@ -655,13 +655,17 @@ function SpectatorDisplayContent() {
           return;
         }
 
-        if (data.type === 'SHOW_RESULT' || data.type === 'REFRESH_DISPLAY') {
+        if (data.type === 'SHOW_RESULT' || data.type === 'REFRESH_DISPLAY' || data.type === 'SYNC_MATCH_STATE') {
           setIsIdle(false);
           setShowPlayerDetails(false);
           setShowExtraTimer(false);
           if (data.boutId && data.boutId !== activeBoutId) {
             setActiveBoutId(data.boutId);
           }
+          if (data.akaName !== undefined && data.akaName !== null) setAkaName(data.akaName);
+          if (data.akaClub !== undefined && data.akaClub !== null) setAkaClub(data.akaClub);
+          if (data.aoName !== undefined && data.aoName !== null) setAoName(data.aoName);
+          if (data.aoClub !== undefined && data.aoClub !== null) setAoClub(data.aoClub);
           if (data.scoreAka !== undefined) setScoreAka(data.scoreAka);
           if (data.scoreAo !== undefined) setScoreAo(data.scoreAo);
           if (data.senshuAka !== undefined) setSenshuAka(data.senshuAka);
@@ -671,13 +675,12 @@ function SpectatorDisplayContent() {
           if (data.winnerSide !== undefined || data.winner !== undefined) {
             setWinnerSide(data.winnerSide || data.winner);
           }
-          if (data.winMethod !== undefined) {
+          if (data.winMethod !== undefined && data.winMethod !== null) {
             setWinMethod(data.winMethod);
           }
           if (data.resultConfirmed !== undefined) {
             setResultConfirmed(data.resultConfirmed);
           }
-          fetchBout();
           return;
         }
 
