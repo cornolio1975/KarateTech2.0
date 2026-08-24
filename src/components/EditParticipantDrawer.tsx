@@ -7,7 +7,8 @@ import {
   Club, Coach, Country, Category, Participant, 
   Payment, MedicalRecord, Document, ActivityLog, AuditLog 
 } from '@/db/types';
-import { X, Save, FileText, CheckCircle2, History, CreditCard, Shield, BadgeAlert, Paperclip, Trash2, RefreshCw } from 'lucide-react';
+import { X, Save, FileText, CheckCircle2, History, CreditCard, Shield, BadgeAlert, Paperclip, Trash2, RefreshCw, Camera, UserSquare2 } from 'lucide-react';
+import PlayerPhotoModal from './PlayerPhotoModal';
 
 interface EditParticipantDrawerProps {
   participantId: string | null;
@@ -30,6 +31,7 @@ export default function EditParticipantDrawer({ participantId, onClose }: EditPa
 
   // Local state form fields
   const [participant, setParticipant] = useState<Participant | null>(null);
+  const [isPhotoModalOpen, setIsPhotoModalOpen] = useState(false);
   const [fullName, setFullName] = useState('');
   const [gender, setGender] = useState<'Male' | 'Female'>('Male');
   const [dob, setDob] = useState('');
@@ -374,8 +376,28 @@ export default function EditParticipantDrawer({ participantId, onClose }: EditPa
                 <h4 className="text-xs font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-1">
                   <FileText className="h-4 w-4" /> Personal Information
                 </h4>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
+                
+                <div className="flex flex-col sm:flex-row gap-6 items-start">
+                  {/* Photo Frame */}
+                  <div className="flex flex-col items-center gap-2">
+                    <div 
+                      className="w-24 h-32 rounded-xl bg-black/40 border-2 border-white/10 overflow-hidden flex items-center justify-center cursor-pointer group relative shadow-lg hover:border-white/30 transition-colors"
+                      onClick={() => setIsPhotoModalOpen(true)}
+                    >
+                      {participant?.photo_url
+                        ? <img src={participant.photo_url} alt={fullName} className="w-full h-full object-cover" />
+                        : <UserSquare2 className="h-12 w-12 text-white/10 group-hover:text-white/20 transition-colors" />
+                      }
+                      <div className="absolute inset-0 bg-black/60 flex flex-col items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                        <Camera className="h-6 w-6 text-white mb-1" />
+                        <span className="text-[9px] font-black text-white uppercase tracking-widest">Change</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Personal Info Grid */}
+                  <div className="flex-1 w-full grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
                     <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider block mb-1">Full Name</label>
                     <input
                       type="text"
@@ -446,6 +468,7 @@ export default function EditParticipantDrawer({ participantId, onClose }: EditPa
                       className="w-full px-3 py-2 bg-secondary border border-border rounded-lg text-xs text-foreground focus:outline-none"
                     />
                   </div>
+                </div>
                 </div>
 
                 <hr className="border-border" />
@@ -890,6 +913,18 @@ export default function EditParticipantDrawer({ participantId, onClose }: EditPa
           </form>
         )}
       </div>
+
+      {isPhotoModalOpen && participant && (
+        <PlayerPhotoModal
+          participant={participant}
+          onClose={() => setIsPhotoModalOpen(false)}
+          onSaved={(updated) => {
+            setParticipant(updated);
+            // Refresh to ensure any sibling components or views know about the change
+            triggerRefresh();
+          }}
+        />
+      )}
     </div>
   );
 }
