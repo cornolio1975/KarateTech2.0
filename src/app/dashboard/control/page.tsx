@@ -1428,7 +1428,10 @@ export const KumiteScoreboardControl = React.forwardRef<ScoreboardRef, { boutId?
         setWinnerSide(result.side);
         setWinMethod(result.method);
       } else {
-        alert('Cannot confirm result: no winner can be determined automatically.\nUse the Override Winner option (press Enter) to set a winner manually (Hantei / Kiken).');
+        // No automatic winner determined (tied score / 0-0 without Senshu)
+        // Bring up manual decision modal for operator to select winner (Hantei / Kiken / Hansoku)
+        setWinMethod('Hantei');
+        setShowFinishModal(true);
         return;
       }
     }
@@ -1976,9 +1979,12 @@ export const KumiteScoreboardControl = React.forwardRef<ScoreboardRef, { boutId?
                       </span>
                     </div>
                   ) : (
-                    <div className="bg-yellow-500 text-black font-black text-xs md:text-sm px-3.5 py-1.5 rounded-xl uppercase border-2 border-yellow-400 shadow-[0_0_20px_rgba(234,179,8,0.5)] tracking-wider text-center flex items-center justify-center gap-1.5 w-full animate-pulse">
-                      <span>⚖️ DECISION: HANTEI (TIED — REFEREE VOTE REQUIRED)</span>
-                    </div>
+                    <button
+                      onClick={handleConfirmResult}
+                      className="bg-yellow-500 hover:bg-yellow-400 text-black font-black text-xs md:text-sm px-3.5 py-1.5 rounded-xl uppercase border-2 border-yellow-400 shadow-[0_0_20px_rgba(234,179,8,0.5)] tracking-wider text-center flex items-center justify-center gap-1.5 w-full animate-pulse cursor-pointer transition active:scale-95"
+                    >
+                      <span>⚖️ DECISION: HANTEI (TIED) — CLICK TO CHOOSE WINNER</span>
+                    </button>
                   )}
                 </div>
               )}
