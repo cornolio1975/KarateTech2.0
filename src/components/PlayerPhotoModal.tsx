@@ -13,6 +13,35 @@ interface PlayerPhotoModalProps {
 
 type Mode = 'choose' | 'upload' | 'webcam';
 
+const compressImage = (dataUrl: string, maxWidth = 300, maxHeight = 400): Promise<string> => {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => {
+      let width = img.width;
+      let height = img.height;
+      
+      // Calculate new dimensions keeping aspect ratio
+      if (width > maxWidth || height > maxHeight) {
+        const ratio = Math.min(maxWidth / width, maxHeight / height);
+        width = Math.round(width * ratio);
+        height = Math.round(height * ratio);
+      }
+      
+      const canvas = document.createElement('canvas');
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext('2d');
+      if (ctx) {
+        ctx.drawImage(img, 0, 0, width, height);
+        resolve(canvas.toDataURL('image/jpeg', 0.6));
+      } else {
+        resolve(dataUrl);
+      }
+    };
+    img.src = dataUrl;
+  });
+};
+
 export default function PlayerPhotoModal({ participant, onClose, onSaved }: PlayerPhotoModalProps) {
   const [mode, setMode] = useState<Mode>('choose');
   const [preview, setPreview] = useState<string | null>(participant.photo_url || null);
@@ -55,7 +84,7 @@ export default function PlayerPhotoModal({ participant, onClose, onSaved }: Play
     return () => stopCamera();
   }, [mode]);
 
-  const capturePhoto = () => {
+  const capturePhoto = async () => {
     if (!videoRef.current || !canvasRef.current) return;
     const video = videoRef.current;
     const canvas = canvasRef.current;
@@ -64,9 +93,12 @@ export default function PlayerPhotoModal({ participant, onClose, onSaved }: Play
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
     ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-    const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
-    setCaptured(dataUrl);
-    setPreview(dataUrl);
+    const rawDataUrl = canvas.toDataURL('image/jpeg', 0.85);
+    
+    // Compress immediately
+    const compressed = await compressImage(rawDataUrl);
+    setCaptured(compressed);
+    setPreview(compressed);
     stopCamera();
   };
 
@@ -83,10 +115,11 @@ export default function PlayerPhotoModal({ participant, onClose, onSaved }: Play
     if (file.size > 5 * 1024 * 1024) { setError('Image must be under 5MB.'); return; }
     setError(null);
     const reader = new FileReader();
-    reader.onload = (ev) => {
+    reader.onload = async (ev) => {
       const result = ev.target?.result as string;
-      setPreview(result);
-      setCaptured(result);
+      const compressed = await compressImage(result);
+      setPreview(compressed);
+      setCaptured(compressed);
     };
     reader.readAsDataURL(file);
   };
@@ -99,8 +132,9 @@ export default function PlayerPhotoModal({ participant, onClose, onSaved }: Play
       const updated = await db.participants.update(participant.id, { photo_url: captured });
       onSaved(updated);
       onClose();
-    } catch {
-      setError('Failed to save photo. Please try again.');
+    } catch (err: any) {
+      console.error(err);
+      setError('Failed to save photo: ' + (err.message || 'Unknown error'));
     } finally {
       setSaving(false);
     }
