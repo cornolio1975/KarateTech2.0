@@ -1264,7 +1264,15 @@ export default function OperatorConsolePage() {
             <span className="text-white/20">|</span>
             <span>BOUT #{activeBout?.bout_no || '-'}</span>
             <span className="text-white/20">|</span>
-            <span className={`px-2 py-0.5 rounded border text-[9px] font-black ${statusColor}`}>
+            <span className={`px-2 py-0.5 rounded border text-[9px] font-black ${
+              activeBout?.status === 'Running'
+                ? 'text-emerald-400 bg-emerald-950/40 border-emerald-500/40 animate-pulse'
+                : activeBout?.status === 'Completed'
+                ? 'text-blue-400 bg-blue-950/40 border-blue-500/40'
+                : activeBout?.status === 'Scheduled'
+                ? 'text-yellow-400 bg-yellow-950/40 border-yellow-500/40'
+                : 'text-white/50 bg-white/5 border-white/10'
+            }`}>
               {activeBout?.status?.toUpperCase() || 'IDLE'}
             </span>
           </div>

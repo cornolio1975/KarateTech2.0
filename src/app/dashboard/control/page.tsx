@@ -6,7 +6,7 @@ import { useSearchParams, useRouter } from 'next/navigation';
 import { db, basePath } from '@/db/dbClient';
 import { Bout, Participant } from '@/db/types';
 import {
-  Zap, Play, Square, RotateCcw, X, Award, Timer,
+  Zap, Play, Square, RotateCcw, X, Award, Timer, Clock,
   ChevronLeft, Volume2, VolumeX, RefreshCw, Undo, Save, Check, Award as MedalIcon, Tv, Maximize2, Minimize2, List, MonitorPlay, ExternalLink, LayoutDashboard, ArrowRight, Trophy
 } from 'lucide-react';
 import { useTournament } from '@/context/TournamentContext';
@@ -1469,6 +1469,16 @@ export const KumiteScoreboardControl = React.forwardRef<ScoreboardRef, { boutId?
     setHasTimerRun(false);
     setShowFinishModal(false);
     setHistory([]);
+
+    // Broadcast IDLE / Standby state to spectator screen
+    if (typeof window !== 'undefined') {
+      try {
+        const channel = new BroadcastChannel('wkf-scoreboard-sync');
+        channel.postMessage({ type: 'SET_IDLE', isIdle: true });
+        channel.close();
+      } catch (err) {}
+    }
+
     if (onClose) {
       onClose();
     } else {
@@ -2189,6 +2199,24 @@ export const KumiteScoreboardControl = React.forwardRef<ScoreboardRef, { boutId?
         </div>
 
         <div className="flex gap-1.5 items-center ml-auto flex-wrap justify-end">
+          {/* Standby / Idle Screen Toggle */}
+          <button
+            onClick={() => {
+              if (typeof window !== 'undefined') {
+                try {
+                  const channel = new BroadcastChannel('wkf-scoreboard-sync');
+                  channel.postMessage({ type: 'SET_IDLE', isIdle: true });
+                  channel.close();
+                } catch (err) {}
+              }
+              if (onLogEvent) onLogEvent('SYSTEM', 'Standby screen activated on spectator display');
+            }}
+            title="Display Idle / Standby Screen on Spectator Display"
+            className="flex items-center gap-1 px-2.5 py-1 bg-yellow-500/10 hover:bg-yellow-500/20 text-yellow-400 font-black text-[10px] uppercase tracking-wider rounded-lg transition cursor-pointer active:scale-95 border border-yellow-500/20"
+          >
+            <Clock className="h-3 w-3" /> Standby
+          </button>
+
           {/* Clear All Result */}
           <button
             onClick={handleClearAllResult}
