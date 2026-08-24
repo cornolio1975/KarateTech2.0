@@ -66,6 +66,7 @@ export default function OperatorConsolePage() {
 
   const [mounted, setMounted] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [isStandby, setIsStandby] = useState(false);
   const [bouts, setBouts] = useState<Bout[]>([]);
   const [participants, setParticipants] = useState<Participant[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
@@ -1052,16 +1053,20 @@ export default function OperatorConsolePage() {
         }
       } 
     },
-    { id: 'standby',         icon: Clock,          label: 'STANDBY',        color: 'yellow', action: () => {
+    { id: 'standby', icon: Clock, label: isStandby ? 'EXIT STANDBY' : 'STANDBY', color: isStandby ? 'red' : 'yellow', action: () => {
+        const nextStandby = !isStandby;
+        setIsStandby(nextStandby);
         if (typeof window !== 'undefined') {
           try {
             const channel = new BroadcastChannel('wkf-scoreboard-sync');
-            channel.postMessage({ type: 'SET_IDLE', isIdle: true });
+            channel.postMessage({ type: 'SET_IDLE', isIdle: nextStandby });
             channel.close();
           } catch (err) {}
         }
-        addLog('SYSTEM', 'Function Dock: Display screen set to Arena Standby / Live Real-Time Clock Mode');
-      } 
+        addLog('SYSTEM', nextStandby
+          ? 'Function Dock: Display set to Arena Standby'
+          : 'Function Dock: Standby dismissed — returning to live display');
+      }
     },
     { id: 'notes',           icon: FileText,       label: 'NOTES',          color: 'blue',   action: () => {
         if (isNotesModalOpen) {
