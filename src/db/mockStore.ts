@@ -932,40 +932,50 @@ export const mockStore = {
 
       return list[idx];
     },
-    autoAssignCategory: (p: Participant): Category | null => {
+    autoAssignCategory: (p: Participant): Category[] => {
       const categories = mockStore.categories.list();
       const age = mockStore.helpers.calculateAge(p.dob);
       const pGenderNorm = (p.gender || '').toLowerCase().startsWith('f') ? 'Female' : (p.gender || '').toLowerCase().startsWith('m') ? 'Male' : 'Mixed';
 
-      // Find matching category based on age, weight, and gender
-      const matched = categories.find(c => {
+      // Find ALL matching categories based on age, weight, gender, and selected disciplines
+      const matchedCategories = categories.filter(c => {
         const cGenderNorm = c.gender || 'Male';
         const genderMatches = cGenderNorm === 'Mixed' || cGenderNorm === pGenderNorm;
+        
+        // Age validation
         const ageMatches = age >= c.min_age && age <= c.max_age;
-        const isKataOrOpenWeight = (c.min_weight === 0 && (c.max_weight === 0 || c.max_weight >= 100)) || c.name.toLowerCase().includes('kata');
+        
+        // Discipline validation
+        const isKataCat = c.discipline === 'Kata' || c.name.toLowerCase().includes('kata');
+        const isKumiteCat = c.discipline === 'Kumite' || (!isKataCat && !c.name.toLowerCase().includes('team'));
+        
+        const disciplineMatches = (p.isKata && isKataCat) || (p.isKumite && isKumiteCat);
+        if (!disciplineMatches && (p.isKata !== undefined || p.isKumite !== undefined)) return false;
+
+        // Weight validation (Kata has no weight limits usually, or open weight)
+        const isKataOrOpenWeight = (c.min_weight === 0 && (c.max_weight === 0 || c.max_weight >= 100)) || isKataCat;
         const weightMatches = isKataOrOpenWeight || (p.weight >= c.min_weight && p.weight <= c.max_weight);
 
         return genderMatches && ageMatches && weightMatches && c.status !== 'Closed';
       });
 
-      if (matched) {
-        // Save mapping
-        const mappings = getStoreData('ts_participant_categories', SEED_PARTICIPANT_CATEGORIES);
-        // Remove previous mapping if exists
-        const filtered = mappings.filter(m => m.participant_id !== p.id);
-        
-        filtered.push({
-          id: `pc-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
-          participant_id: p.id,
-          category_id: matched.id,
-          manual_override: false,
-          assigned_at: new Date().toISOString()
-        });
+      // Clear previous mappings
+      const mappings = getStoreData('ts_participant_categories', SEED_PARTICIPANT_CATEGORIES);
+      const filtered = mappings.filter(m => m.participant_id !== p.id);
 
+      if (matchedCategories.length > 0) {
+        matchedCategories.forEach(matched => {
+          filtered.push({
+            id: `pc-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
+            participant_id: p.id,
+            category_id: matched.id,
+            manual_override: false,
+            assigned_at: new Date().toISOString()
+          });
+        });
         saveStoreData('ts_participant_categories', filtered);
-        return matched;
       }
-      return null;
+      return matchedCategories;
     },
     assignCategoryManually: (participantId: string, categoryId: string, operator = 'Admin'): void => {
       const mappings = getStoreData('ts_participant_categories', SEED_PARTICIPANT_CATEGORIES);
@@ -1924,8 +1934,10 @@ export const mockStore = {
 
   // Helper utility functions
   helpers: {
-    calculateAge: (dobString: string): number => {
+    calculateAge: (dobString?: string): number => {
+      if (!dobString) return 0;
       const dob = new Date(dobString);
+      if (isNaN(dob.getTime())) return 0;
       const today = new Date();
       const age = today.getFullYear() - dob.getFullYear();
       return age;

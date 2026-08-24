@@ -626,34 +626,42 @@ export const dbOriginal = {
       }
       return mockStore.participants.restore(id, operator);
     },
-    autoAssignCategory: async (p: Participant): Promise<Category | null> => {
+    autoAssignCategory: async (p: Participant): Promise<Category[]> => {
       if (supabase) {
         const categories = await db.categories.list();
         const age = mockStore.helpers.calculateAge(p.dob);
         const pGenderNorm = (p.gender || '').toLowerCase().startsWith('f') ? 'Female' : (p.gender || '').toLowerCase().startsWith('m') ? 'Male' : 'Mixed';
 
-        const matched = categories.find(c => {
+        const matchedCategories = categories.filter(c => {
           const cGenderNorm = c.gender || 'Male';
           const genderMatches = cGenderNorm === 'Mixed' || cGenderNorm === pGenderNorm;
+          
           const ageMatches = age >= c.min_age && age <= c.max_age;
-          const isKataOrOpenWeight = (c.min_weight === 0 && (c.max_weight === 0 || c.max_weight >= 100)) || c.name.toLowerCase().includes('kata');
+          
+          const isKataCat = c.discipline === 'Kata' || c.name.toLowerCase().includes('kata');
+          const isKumiteCat = c.discipline === 'Kumite' || (!isKataCat && !c.name.toLowerCase().includes('team'));
+          
+          const disciplineMatches = (p.isKata && isKataCat) || (p.isKumite && isKumiteCat);
+          if (!disciplineMatches && (p.isKata !== undefined || p.isKumite !== undefined)) return false;
+
+          const isKataOrOpenWeight = (c.min_weight === 0 && (c.max_weight === 0 || c.max_weight >= 100)) || isKataCat;
           const weightMatches = isKataOrOpenWeight || (p.weight >= c.min_weight && p.weight <= c.max_weight);
 
           return genderMatches && ageMatches && weightMatches && c.status !== 'Closed';
         });
 
-        if (matched) {
+        if (matchedCategories.length > 0) {
           // Remove old mapping
           await supabase.from('participant_categories').delete().eq('participant_id', p.id);
-          // Insert new mapping
-          await supabase.from('participant_categories').insert([{
+          // Insert new mappings
+          const inserts = matchedCategories.map(matched => ({
             participant_id: p.id,
             category_id: matched.id,
             manual_override: false
-          }]);
-          return matched;
+          }));
+          await supabase.from('participant_categories').insert(inserts);
         }
-        return null;
+        return matchedCategories;
       }
       return mockStore.participants.autoAssignCategory(p);
     },
