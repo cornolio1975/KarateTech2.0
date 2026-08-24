@@ -2100,17 +2100,43 @@ function SpectatorDisplayContent() {
               </span>
             </div>
 
-            {/* Bottom Area: Status & Warnings */}
-            <div className="mb-4 flex flex-col items-center gap-4 relative z-10 h-24 justify-end">
-              {Math.abs(scoreAka - scoreAo) >= 8 && (
-                <div className="bg-red-500/20 text-red-500 border border-red-500/30 px-5 py-2.5 rounded-full font-black text-sm uppercase tracking-widest animate-bounce">
+            {/* Bottom Area: Status, Decisions & Warnings */}
+            <div className="mb-4 flex flex-col items-center gap-3 relative z-10 min-h-[96px] justify-end w-full px-2">
+              {/* 1. Timer Expired Decision Announcement Banner on Live Board */}
+              {timeLeft === 0 && !timerActive && (
+                <div className="w-full flex justify-center animate-in fade-in zoom-in-95 duration-200">
+                  {winnerSide === 'aka' ? (
+                    <div className="bg-red-600 text-white font-black text-xs md:text-sm lg:text-base px-5 py-2 rounded-2xl animate-pulse uppercase border-2 border-red-400 shadow-[0_0_30px_rgba(239,68,68,0.8)] tracking-wider text-center flex items-center justify-center gap-1.5 w-full max-w-sm">
+                      <span>🏆 DECISION: AKA</span>
+                      <span className="text-white/80 font-extrabold text-[10px] md:text-xs">
+                        ({winMethod === 'SENSHU' ? 'SENSHU ADVANTAGE' : winMethod === 'Superior Points' ? 'SUPERIOR POINTS' : winMethod === 'Points' ? 'POINTS' : winMethod || 'POINTS'})
+                      </span>
+                    </div>
+                  ) : winnerSide === 'ao' ? (
+                    <div className="bg-blue-600 text-white font-black text-xs md:text-sm lg:text-base px-5 py-2 rounded-2xl animate-pulse uppercase border-2 border-blue-400 shadow-[0_0_30px_rgba(59,130,246,0.8)] tracking-wider text-center flex items-center justify-center gap-1.5 w-full max-w-sm">
+                      <span>🏆 DECISION: AO</span>
+                      <span className="text-white/80 font-extrabold text-[10px] md:text-xs">
+                        ({winMethod === 'SENSHU' ? 'SENSHU ADVANTAGE' : winMethod === 'Superior Points' ? 'SUPERIOR POINTS' : winMethod === 'Points' ? 'POINTS' : winMethod || 'POINTS'})
+                      </span>
+                    </div>
+                  ) : (
+                    <div className="bg-yellow-500 text-black font-black text-xs md:text-sm lg:text-base px-5 py-2 rounded-2xl animate-pulse uppercase border-2 border-yellow-400 shadow-[0_0_30px_rgba(234,179,8,0.8)] tracking-wider text-center flex items-center justify-center gap-1.5 w-full max-w-sm">
+                      <span>⚖️ DECISION: HANTEI (REFEREE VOTE)</span>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {Math.abs(scoreAka - scoreAo) >= 8 && timeLeft > 0 && (
+                <div className="bg-red-500/20 text-red-500 border border-red-500/30 px-5 py-2 rounded-full font-black text-sm uppercase tracking-widest animate-bounce">
                   8-Point Gap Decision
                 </div>
               )}
-              <div className="flex flex-col items-center gap-2">
+
+              <div className="flex flex-col items-center gap-1.5">
                 <span className={`w-4 h-4 lg:w-5 lg:h-5 rounded-full ${timerActive ? 'bg-green-500 animate-ping shadow-[0_0_20px_rgba(34,197,94,0.6)]' : 'bg-red-500 shadow-[0_0_10px_rgba(239,68,68,0.6)]'}`} />
-                <span className="text-xs lg:text-sm font-black uppercase text-white/50 tracking-[0.2em] mt-1">
-                  {timerActive ? 'RUNNING' : 'PAUSED'}
+                <span className="text-xs lg:text-sm font-black uppercase text-white/50 tracking-[0.2em]">
+                  {timerActive ? 'RUNNING' : timeLeft === 0 ? 'TIME EXPIRED' : 'PAUSED'}
                 </span>
               </div>
             </div>
