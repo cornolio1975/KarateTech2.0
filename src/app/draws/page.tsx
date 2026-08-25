@@ -1175,6 +1175,9 @@ export default function DrawsPage() {
               <thead className="bg-secondary/30">
                 <tr>
                   <th className="p-3 font-bold text-muted-foreground uppercase text-[10px] tracking-wider rounded-tl-lg">Club / Dojo</th>
+                  <th className="p-3 font-bold text-muted-foreground uppercase text-[10px] tracking-wider text-center">Male</th>
+                  <th className="p-3 font-bold text-muted-foreground uppercase text-[10px] tracking-wider text-center">Female</th>
+                  <th className="p-3 font-bold text-muted-foreground uppercase text-[10px] tracking-wider text-center border-r border-border/50">Total Athletes</th>
                   <th className="p-3 font-bold text-muted-foreground uppercase text-[10px] tracking-wider text-center">Kumite Entries</th>
                   <th className="p-3 font-bold text-muted-foreground uppercase text-[10px] tracking-wider text-center">Kata Entries</th>
                   <th className="p-3 font-bold text-primary uppercase text-[10px] tracking-wider text-center rounded-tr-lg">Total Entries</th>
@@ -1190,19 +1193,29 @@ export default function DrawsPage() {
                   
                   const kumiteCount = clubParticipants.filter(p => p.isKumite).length;
                   const kataCount = clubParticipants.filter(p => p.isKata).length;
+                  
+                  const maleCount = clubParticipants.filter(p => p.gender?.toLowerCase().startsWith('m')).length;
+                  const femaleCount = clubParticipants.filter(p => p.gender?.toLowerCase().startsWith('f')).length;
+                  const totalAthletes = clubParticipants.length;
 
                   return {
                     clubName: club.name,
+                    male: maleCount,
+                    female: femaleCount,
+                    athletes: totalAthletes,
                     kumite: kumiteCount,
                     kata: kataCount,
                     total: kumiteCount + kataCount
                   };
                 })
-                .filter(stat => stat.total > 0)
-                .sort((a, b) => b.total - a.total)
+                .filter(stat => stat.athletes > 0)
+                .sort((a, b) => b.athletes - a.athletes)
                 .map((stat, idx) => (
                   <tr key={idx} className="hover:bg-secondary/20 transition-colors">
                     <td className="p-3 font-bold text-foreground">{stat.clubName}</td>
+                    <td className="p-3 font-medium text-muted-foreground text-center">{stat.male}</td>
+                    <td className="p-3 font-medium text-muted-foreground text-center">{stat.female}</td>
+                    <td className="p-3 font-bold text-foreground text-center border-r border-border/50">{stat.athletes}</td>
                     <td className="p-3 font-medium text-muted-foreground text-center">{stat.kumite}</td>
                     <td className="p-3 font-medium text-muted-foreground text-center">{stat.kata}</td>
                     <td className="p-3 font-black text-primary text-center bg-primary/5">{stat.total}</td>
