@@ -30,7 +30,8 @@ export default function TopBar({ onImportClick, onMenuToggle }: TopBarProps) {
     consoleTheme,
     setConsoleTheme,
     tournamentName,
-    triggerRefresh
+    triggerRefresh,
+    canModify
   } = useTournament();
 
   const [isBulkOpen, setIsBulkOpen] = useState(false);
@@ -88,16 +89,18 @@ export default function TopBar({ onImportClick, onMenuToggle }: TopBarProps) {
         >
           <Menu className="h-5 w-5" />
         </button>
-        <a
-          href="https://tournamentdisplay.spsportdatasolution.org/"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="flex items-center gap-1.5 px-3 py-1.5 border border-amber-500/20 bg-amber-950/20 hover:bg-amber-900/40 rounded-lg text-xs font-bold transition text-amber-300 hover:text-white cursor-pointer"
-          title="Open Tournament Live Display"
-        >
-          <Tv className="h-3.5 w-3.5 text-amber-400" />
-          <span className="hidden md:inline">T-LiveDisplay</span>
-        </a>
+        {canModify && (
+          <a
+            href="https://tournamentdisplay.spsportdatasolution.org/"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-1.5 px-3 py-1.5 border border-amber-500/20 bg-amber-950/20 hover:bg-amber-900/40 rounded-lg text-xs font-bold transition text-amber-300 hover:text-white cursor-pointer"
+            title="Open Tournament Live Display"
+          >
+            <Tv className="h-3.5 w-3.5 text-amber-400" />
+            <span className="hidden md:inline">T-LiveDisplay</span>
+          </a>
+        )}
         <a
           href="https://spsportdatasolution.org/karatetech/"
           target="_blank"
