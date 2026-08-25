@@ -48,6 +48,7 @@ export default function DrawsPage() {
   const [unlockPassword, setUnlockPassword] = useState('');
   const [unlockError, setUnlockError] = useState('');
   const [pendingAction, setPendingAction] = useState<'clear' | 'regenerate' | null>(null);
+  const [isClubStatsOpen, setIsClubStatsOpen] = useState(false);
 
   useEffect(() => {
     if (isPrinting) {
@@ -726,6 +727,16 @@ export default function DrawsPage() {
                 <span>Generate All Brackets</span>
               </button>
             )}
+            {canModify && (
+              <button
+                onClick={() => setIsClubStatsOpen(true)}
+                className="flex items-center gap-1.5 px-3.5 py-2 bg-indigo-500/10 text-indigo-500 hover:bg-indigo-500/20 border border-indigo-500/20 rounded-lg text-xs font-bold transition shadow-sm cursor-pointer"
+                title="View club participant assignment statistics"
+              >
+                <Award className="h-4 w-4" />
+                <span>Club Stats</span>
+              </button>
+            )}
             {canModify && bouts.length > 0 && (
               <button
                 onClick={handleClearAllDraws}
@@ -1143,6 +1154,77 @@ export default function DrawsPage() {
         </div>
       )}
     </div>
+
+    {/* ======================================================= */}
+    {/* CLUB STATS MODAL                                        */}
+    {/* ======================================================= */}
+    {isClubStatsOpen && canModify && (
+      <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-background/80 backdrop-blur-sm animate-in fade-in duration-200">
+        <div className="bg-card w-full max-w-2xl border border-border shadow-2xl rounded-2xl overflow-hidden flex flex-col max-h-[85vh]">
+          <div className="p-4 border-b border-border bg-secondary/15 flex items-center justify-between">
+            <h3 className="font-extrabold text-sm uppercase tracking-wider flex items-center gap-2 text-foreground">
+              <Award className="h-4 w-4 text-primary" /> Club Registration Statistics
+            </h3>
+            <button onClick={() => setIsClubStatsOpen(false)} className="p-1 hover:bg-secondary rounded-md text-muted-foreground transition">
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+          
+          <div className="p-4 overflow-y-auto">
+            <table className="w-full text-sm text-left whitespace-nowrap">
+              <thead className="bg-secondary/30">
+                <tr>
+                  <th className="p-3 font-bold text-muted-foreground uppercase text-[10px] tracking-wider rounded-tl-lg">Club / Dojo</th>
+                  <th className="p-3 font-bold text-muted-foreground uppercase text-[10px] tracking-wider text-center">Kumite Entries</th>
+                  <th className="p-3 font-bold text-muted-foreground uppercase text-[10px] tracking-wider text-center">Kata Entries</th>
+                  <th className="p-3 font-bold text-primary uppercase text-[10px] tracking-wider text-center rounded-tr-lg">Total Entries</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border/50">
+                {clubs.map(club => {
+                  const clubParticipants = participants.filter(p => p.club_id === club.id);
+                  const pIds = clubParticipants.map(p => p.id);
+                  const clubMappings = participantCategories.filter(pc => pIds.includes(pc.participant_id));
+                  
+                  let kumiteCount = 0;
+                  let kataCount = 0;
+                  
+                  clubMappings.forEach(mapping => {
+                    const cat = categories.find(c => c.id === mapping.category_id);
+                    if (cat) {
+                      if (isKumiteCategory(cat)) kumiteCount++;
+                      if (isKataCategory(cat)) kataCount++;
+                    }
+                  });
+
+                  return {
+                    clubName: club.name,
+                    kumite: kumiteCount,
+                    kata: kataCount,
+                    total: kumiteCount + kataCount
+                  };
+                })
+                .filter(stat => stat.total > 0)
+                .sort((a, b) => b.total - a.total)
+                .map((stat, idx) => (
+                  <tr key={idx} className="hover:bg-secondary/20 transition-colors">
+                    <td className="p-3 font-bold text-foreground">{stat.clubName}</td>
+                    <td className="p-3 font-medium text-muted-foreground text-center">{stat.kumite}</td>
+                    <td className="p-3 font-medium text-muted-foreground text-center">{stat.kata}</td>
+                    <td className="p-3 font-black text-primary text-center bg-primary/5">{stat.total}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <div className="p-4 border-t border-border bg-secondary/10 flex justify-end">
+            <button onClick={() => setIsClubStatsOpen(false)} className="px-5 py-2 bg-primary text-primary-foreground hover:bg-primary/95 rounded-lg text-xs font-bold cursor-pointer">
+              Close
+            </button>
+          </div>
+        </div>
+      </div>
+    )}
 
     {/* ======================================================= */}
     {/* HIDDEN PRINT AREA — rendered for @media print only      */}
