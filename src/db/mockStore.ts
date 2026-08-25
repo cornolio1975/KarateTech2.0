@@ -1197,6 +1197,37 @@ export const mockStore = {
         throw new Error('Cannot generate draws: No active participants in this category.');
       }
 
+      // --- SMART SEEDING: Club Separation & Weight Balancing ---
+      // 1. Sort all athletes by weight ascending (for 'closed weight' pairing logic)
+      let sortedAthletes = [...athletes].sort((a, b) => (a.weight || 0) - (b.weight || 0));
+
+      // 2. Group by club
+      const clubGroups: Record<string, Participant[]> = {};
+      sortedAthletes.forEach(p => {
+        const clubId = p.club_id || 'independent';
+        if (!clubGroups[clubId]) clubGroups[clubId] = [];
+        clubGroups[clubId].push(p);
+      });
+
+      // 3. Sort clubs by size (descending) so we distribute the largest clubs first
+      const sortedClubIds = Object.keys(clubGroups).sort((a, b) => clubGroups[b].length - clubGroups[a].length);
+
+      // 4. Distribute athletes round-robin across clubs
+      const distributedAthletes: Participant[] = [];
+      let totalRemaining = sortedAthletes.length;
+      while (totalRemaining > 0) {
+        for (const cid of sortedClubIds) {
+          if (clubGroups[cid].length > 0) {
+            distributedAthletes.push(clubGroups[cid].shift()!);
+            totalRemaining--;
+          }
+        }
+      }
+      
+      // Replace athletes array with our optimally distributed array
+      athletes = distributedAthletes;
+      // ---------------------------------------------------------
+
       mockStore.bouts.clearDraw(catId);
 
       const generatedBouts: Bout[] = [];
