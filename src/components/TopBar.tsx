@@ -37,6 +37,7 @@ export default function TopBar({ onImportClick, onMenuToggle }: TopBarProps) {
   const [isBulkOpen, setIsBulkOpen] = useState(false);
   const [isThemeOpen, setIsThemeOpen] = useState(false);
   const isParticipantsPage = pathname === '/participants';
+  const isControllerPage = pathname?.includes('/operator') || pathname?.includes('/kata-control') || pathname?.includes('/dashboard/control');
 
   // Handler for bulk action execution
   const handleBulkAction = async (action: string) => {
@@ -89,7 +90,7 @@ export default function TopBar({ onImportClick, onMenuToggle }: TopBarProps) {
         >
           <Menu className="h-5 w-5" />
         </button>
-        {canModify && (
+        {canModify && !isControllerPage && (
           <a
             href="https://tournamentdisplay.spsportdatasolution.org/"
             target="_blank"
