@@ -650,9 +650,10 @@ export const dbOriginal = {
           return genderMatches && ageMatches && weightMatches && c.status !== 'Closed';
         });
 
+        // Remove old mapping ALWAYS
+        await supabase.from('participant_categories').delete().eq('participant_id', p.id);
+        
         if (matchedCategories.length > 0) {
-          // Remove old mapping
-          await supabase.from('participant_categories').delete().eq('participant_id', p.id);
           // Insert new mappings
           const inserts = matchedCategories.map(matched => ({
             participant_id: p.id,

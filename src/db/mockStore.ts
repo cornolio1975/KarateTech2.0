@@ -959,7 +959,7 @@ export const mockStore = {
         return genderMatches && ageMatches && weightMatches && c.status !== 'Closed';
       });
 
-      // Clear previous mappings
+      // Clear previous mappings ALWAYS
       const mappings = getStoreData('ts_participant_categories', SEED_PARTICIPANT_CATEGORIES);
       const filtered = mappings.filter(m => m.participant_id !== p.id);
 
@@ -973,8 +973,9 @@ export const mockStore = {
             assigned_at: new Date().toISOString()
           });
         });
-        saveStoreData('ts_participant_categories', filtered);
       }
+      
+      saveStoreData('ts_participant_categories', filtered);
       return matchedCategories;
     },
     assignCategoryManually: (participantId: string, categoryId: string, operator = 'Admin'): void => {
