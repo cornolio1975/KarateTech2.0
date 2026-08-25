@@ -31,6 +31,7 @@ export default function ParticipantsPage() {
   const [isImportOpen, setIsImportOpen] = useState(false);
   const [isClearConfirmOpen, setIsClearConfirmOpen] = useState(false);
   const [isClearing, setIsClearing] = useState(false);
+  const [isClubStatsOpen, setIsClubStatsOpen] = useState(false);
   
   const [participants, setParticipants] = useState<Participant[]>([]);
   const [clubs, setClubs] = useState<Club[]>([]);
@@ -453,6 +454,16 @@ export default function ParticipantsPage() {
             <p className="text-xs text-muted-foreground">Manage status, search school/club squads, and verify weights.</p>
           </div>
           <div className="flex items-center gap-2">
+            {canModify && (
+              <button
+                onClick={() => setIsClubStatsOpen(true)}
+                className="px-4 py-2 bg-indigo-500/10 text-indigo-500 hover:bg-indigo-500/20 border border-indigo-500/20 rounded-lg text-xs font-bold shadow-sm flex items-center gap-1.5 cursor-pointer transition-colors"
+                title="View club participant assignment statistics"
+              >
+                <Award className="h-3.5 w-3.5" />
+                <span>Club Stats</span>
+              </button>
+            )}
             {canModify && (
               <button
                 onClick={() => setIsImportOpen(true)}
@@ -906,6 +917,107 @@ export default function ParticipantsPage() {
                 ) : (
                   <><Trash2 className="h-3.5 w-3.5" /> Yes, Delete All</>
                 )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ======================================================= */}
+      {/* CLUB STATS MODAL                                        */}
+      {/* ======================================================= */}
+      {isClubStatsOpen && canModify && (
+        <div className="fixed inset-0 z-[100] p-4 bg-background/80 backdrop-blur-sm animate-in fade-in duration-200 overflow-y-auto flex items-start justify-center">
+          <div className="bg-card w-full max-w-3xl border border-border shadow-2xl rounded-2xl flex flex-col shrink-0 my-auto mt-8 mb-8">
+            <div className="p-4 border-b border-border bg-secondary/15 flex items-center justify-between sticky top-0 bg-card z-10 rounded-t-2xl">
+              <h3 className="font-extrabold text-sm uppercase tracking-wider flex items-center gap-2 text-foreground">
+                <Award className="h-4 w-4 text-primary" /> Club Registration Statistics
+              </h3>
+              <button onClick={() => setIsClubStatsOpen(false)} className="p-1 hover:bg-secondary rounded-md text-muted-foreground transition">
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+            
+            <div className="p-4">
+              <table className="w-full text-sm text-left whitespace-nowrap">
+                <thead className="bg-secondary/30">
+                  <tr>
+                    <th className="p-3 font-bold text-muted-foreground uppercase text-[10px] tracking-wider rounded-tl-lg">Club / Dojo</th>
+                    <th className="p-3 font-bold text-muted-foreground uppercase text-[10px] tracking-wider text-center">Male</th>
+                    <th className="p-3 font-bold text-muted-foreground uppercase text-[10px] tracking-wider text-center">Female</th>
+                    <th className="p-3 font-bold text-muted-foreground uppercase text-[10px] tracking-wider text-center border-r border-border/50">Total Athletes</th>
+                    <th className="p-3 font-bold text-muted-foreground uppercase text-[10px] tracking-wider text-center">Kumite Entries</th>
+                    <th className="p-3 font-bold text-muted-foreground uppercase text-[10px] tracking-wider text-center">Kata Entries</th>
+                    <th className="p-3 font-bold text-primary uppercase text-[10px] tracking-wider text-center rounded-tr-lg">Total Entries</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border/50">
+                  {(() => {
+                    const stats = [...clubs, { id: '', name: 'Independent (No Club)' }].map(club => {
+                      const clubParticipants = participants.filter(p => 
+                        (club.id === '' ? !p.club_id : p.club_id === club.id) && 
+                        p.status !== 'Cancelled' && 
+                        !p.deleted_at
+                      );
+                      
+                      const kumiteCount = clubParticipants.filter(p => p.isKumite).length;
+                      const kataCount = clubParticipants.filter(p => p.isKata).length;
+                      
+                      const maleCount = clubParticipants.filter(p => p.gender?.toLowerCase().startsWith('m')).length;
+                      const femaleCount = clubParticipants.filter(p => p.gender?.toLowerCase().startsWith('f')).length;
+                      const totalAthletes = clubParticipants.length;
+
+                      return {
+                        clubName: club.name,
+                        male: maleCount,
+                        female: femaleCount,
+                        athletes: totalAthletes,
+                        kumite: kumiteCount,
+                        kata: kataCount,
+                        total: kumiteCount + kataCount
+                      };
+                    })
+                    .filter(stat => stat.athletes > 0)
+                    .sort((a, b) => b.athletes - a.athletes);
+
+                    const totalMale = stats.reduce((sum, stat) => sum + stat.male, 0);
+                    const totalFemale = stats.reduce((sum, stat) => sum + stat.female, 0);
+                    const totalAthletes = stats.reduce((sum, stat) => sum + stat.athletes, 0);
+                    const totalKumite = stats.reduce((sum, stat) => sum + stat.kumite, 0);
+                    const totalKata = stats.reduce((sum, stat) => sum + stat.kata, 0);
+                    const totalEntries = stats.reduce((sum, stat) => sum + stat.total, 0);
+
+                    return (
+                      <>
+                        {stats.map((stat, idx) => (
+                          <tr key={idx} className="hover:bg-secondary/20 transition-colors">
+                            <td className="p-3 font-bold text-foreground">{stat.clubName}</td>
+                            <td className="p-3 font-medium text-muted-foreground text-center">{stat.male}</td>
+                            <td className="p-3 font-medium text-muted-foreground text-center">{stat.female}</td>
+                            <td className="p-3 font-bold text-foreground text-center border-r border-border/50">{stat.athletes}</td>
+                            <td className="p-3 font-medium text-muted-foreground text-center">{stat.kumite}</td>
+                            <td className="p-3 font-medium text-muted-foreground text-center">{stat.kata}</td>
+                            <td className="p-3 font-black text-primary text-center bg-primary/5">{stat.total}</td>
+                          </tr>
+                        ))}
+                        <tr className="bg-secondary/40 border-t-2 border-border font-black text-foreground">
+                          <td className="p-3 text-right uppercase tracking-wider text-xs">Total</td>
+                          <td className="p-3 text-center">{totalMale}</td>
+                          <td className="p-3 text-center">{totalFemale}</td>
+                          <td className="p-3 text-center border-r border-border/50">{totalAthletes}</td>
+                          <td className="p-3 text-center">{totalKumite}</td>
+                          <td className="p-3 text-center">{totalKata}</td>
+                          <td className="p-3 text-center text-primary bg-primary/10">{totalEntries}</td>
+                        </tr>
+                      </>
+                    );
+                  })()}
+                </tbody>
+              </table>
+            </div>
+            <div className="p-4 border-t border-border bg-secondary/10 flex justify-end sticky bottom-0 bg-card rounded-b-2xl">
+              <button onClick={() => setIsClubStatsOpen(false)} className="px-5 py-2 bg-primary text-primary-foreground hover:bg-primary/95 rounded-lg text-xs font-bold cursor-pointer">
+                Close
               </button>
             </div>
           </div>
