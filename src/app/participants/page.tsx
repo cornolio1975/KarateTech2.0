@@ -755,7 +755,10 @@ export default function ParticipantsPage() {
                             type="checkbox" 
                             checked={p.isKumite || false}
                             onChange={async (e) => {
-                              await db.participants.update(p.id, { isKumite: e.target.checked }, 'Inline Edit');
+                              const checked = e.target.checked;
+                              const updated = { ...p, isKumite: checked };
+                              await db.participants.update(p.id, { isKumite: checked }, 'Inline Edit');
+                              await db.participants.autoAssignCategory(updated);
                               triggerRefresh();
                             }}
                             className="rounded border-border text-primary cursor-pointer accent-primary"
@@ -766,7 +769,10 @@ export default function ParticipantsPage() {
                             type="checkbox" 
                             checked={p.isKata || false}
                             onChange={async (e) => {
-                              await db.participants.update(p.id, { isKata: e.target.checked }, 'Inline Edit');
+                              const checked = e.target.checked;
+                              const updated = { ...p, isKata: checked };
+                              await db.participants.update(p.id, { isKata: checked }, 'Inline Edit');
+                              await db.participants.autoAssignCategory(updated);
                               triggerRefresh();
                             }}
                             className="rounded border-border text-primary cursor-pointer accent-primary"
