@@ -1159,9 +1159,9 @@ export default function DrawsPage() {
     {/* CLUB STATS MODAL                                        */}
     {/* ======================================================= */}
     {isClubStatsOpen && canModify && (
-      <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-background/80 backdrop-blur-sm animate-in fade-in duration-200">
-        <div className="bg-card w-full max-w-2xl border border-border shadow-2xl rounded-2xl overflow-hidden flex flex-col max-h-[85vh]">
-          <div className="p-4 border-b border-border bg-secondary/15 flex items-center justify-between">
+      <div className="fixed inset-0 z-[100] p-4 bg-background/80 backdrop-blur-sm animate-in fade-in duration-200 overflow-y-auto flex items-start justify-center">
+        <div className="bg-card w-full max-w-3xl border border-border shadow-2xl rounded-2xl flex flex-col shrink-0 my-auto mt-8 mb-8">
+          <div className="p-4 border-b border-border bg-secondary/15 flex items-center justify-between sticky top-0 bg-card z-10 rounded-t-2xl">
             <h3 className="font-extrabold text-sm uppercase tracking-wider flex items-center gap-2 text-foreground">
               <Award className="h-4 w-4 text-primary" /> Club Registration Statistics
             </h3>
@@ -1170,7 +1170,7 @@ export default function DrawsPage() {
             </button>
           </div>
           
-          <div className="p-4 overflow-y-auto">
+          <div className="p-4">
             <table className="w-full text-sm text-left whitespace-nowrap">
               <thead className="bg-secondary/30">
                 <tr>
