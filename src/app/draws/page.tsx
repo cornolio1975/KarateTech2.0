@@ -1181,21 +1181,15 @@ export default function DrawsPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-border/50">
-                {clubs.map(club => {
-                  const clubParticipants = participants.filter(p => p.club_id === club.id);
-                  const pIds = clubParticipants.map(p => p.id);
-                  const clubMappings = participantCategories.filter(pc => pIds.includes(pc.participant_id));
+                {[...clubs, { id: '', name: 'Independent (No Club)' }].map(club => {
+                  const clubParticipants = participants.filter(p => 
+                    (club.id === '' ? !p.club_id : p.club_id === club.id) && 
+                    p.status !== 'Cancelled' && 
+                    !p.deleted_at
+                  );
                   
-                  let kumiteCount = 0;
-                  let kataCount = 0;
-                  
-                  clubMappings.forEach(mapping => {
-                    const cat = categories.find(c => c.id === mapping.category_id);
-                    if (cat) {
-                      if (isKumiteCategory(cat)) kumiteCount++;
-                      if (isKataCategory(cat)) kataCount++;
-                    }
-                  });
+                  const kumiteCount = clubParticipants.filter(p => p.isKumite).length;
+                  const kataCount = clubParticipants.filter(p => p.isKata).length;
 
                   return {
                     clubName: club.name,
