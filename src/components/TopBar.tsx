@@ -88,8 +88,8 @@ export default function TopBar({ onImportClick, onMenuToggle }: TopBarProps) {
         >
           <Menu className="h-5 w-5" />
         </button>
-        <Link
-          href="/dashboard/scoreboard"
+        <a
+          href="https://tournamentdisplay.spsportdatasolution.org/"
           target="_blank"
           rel="noopener noreferrer"
           className="flex items-center gap-1.5 px-3 py-1.5 border border-amber-500/20 bg-amber-950/20 hover:bg-amber-900/40 rounded-lg text-xs font-bold transition text-amber-300 hover:text-white cursor-pointer"
@@ -97,7 +97,7 @@ export default function TopBar({ onImportClick, onMenuToggle }: TopBarProps) {
         >
           <Tv className="h-3.5 w-3.5 text-amber-400" />
           <span className="hidden md:inline">T-LiveDisplay</span>
-        </Link>
+        </a>
         <a
           href="https://spsportdatasolution.org/karatetech/"
           target="_blank"
