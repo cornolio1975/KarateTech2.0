@@ -777,17 +777,9 @@ export const KumiteScoreboardControl = React.forwardRef<ScoreboardRef, { boutId?
       timerRef.current = setInterval(() => {
         setTimeLeft((prev) => {
           if (prev <= 1) {
-            setTimerActive(false);
-            triggerBuzzer();
-            if (onLogEvent) onLogEvent('TIMER', 'Match time expired (00:00) — Buzzer sounded');
             return 0;
           }
-          const nextVal = prev - 1;
-          if (nextVal === 150) {
-            triggerBeep();
-            if (onLogEvent) onLogEvent('TIMER', '15s warning (Atoshibaraku)');
-          }
-          return nextVal;
+          return prev - 1;
         });
       }, 100);
     } else if (timerRef.current) {
@@ -796,7 +788,23 @@ export const KumiteScoreboardControl = React.forwardRef<ScoreboardRef, { boutId?
     return () => {
       if (timerRef.current) clearInterval(timerRef.current);
     };
-  }, [timerActive, autoDetermineWinner, onLogEvent]);
+  }, [timerActive]);
+
+  useEffect(() => {
+    if (!timerActive) return;
+
+    if (timeLeft === 0) {
+      setTimerActive(false);
+      triggerBuzzer();
+      if (onLogEvent) onLogEvent('TIMER', 'Match time expired (00:00) — Buzzer sounded');
+      return;
+    }
+
+    if (timeLeft === 150) {
+      triggerBeep();
+      if (onLogEvent) onLogEvent('TIMER', '15s warning (Atoshibaraku)');
+    }
+  }, [timeLeft, timerActive, onLogEvent, triggerBeep, triggerBuzzer]);
 
   // Save current state to history for undo operations
   const pushHistory = (
@@ -2323,88 +2331,88 @@ export const KumiteScoreboardControl = React.forwardRef<ScoreboardRef, { boutId?
 
       {/* Save Result / Finish Match Modal */}
       {showFinishModal && (
-        <div className="fixed inset-0 bg-black/85 backdrop-blur-md flex items-center justify-center z-50 p-4 animate-in fade-in duration-200">
-          <div className={`bg-[#0d0d12] border max-w-md w-full rounded-3xl p-6 shadow-2xl transition-all duration-300 ${
+        <div className="fixed inset-0 bg-black/85 backdrop-blur-md flex items-center justify-center z-50 p-4 md:p-6 animate-in fade-in duration-200">
+          <div className={`bg-[#0d0d12] border w-[98vw] max-w-[1100px] rounded-[32px] p-8 md:p-10 shadow-2xl transition-all duration-300 ${
             winMethod === 'Superior Points'
-              ? 'border-green-500 shadow-[0_0_40px_rgba(34,197,94,0.35)]'
+              ? 'border-green-500 shadow-[0_0_55px_rgba(34,197,94,0.45)]'
               : winnerSide === 'aka'
-              ? 'border-red-500/50 shadow-[0_0_40px_rgba(239,68,68,0.25)]'
+              ? 'border-red-500/60 shadow-[0_0_55px_rgba(239,68,68,0.32)]'
               : winnerSide === 'ao'
-              ? 'border-blue-500/50 shadow-[0_0_40px_rgba(59,130,246,0.25)]'
-              : 'border-yellow-500/50 shadow-[0_0_40px_rgba(234,179,8,0.25)]'
+              ? 'border-blue-500/60 shadow-[0_0_55px_rgba(59,130,246,0.32)]'
+              : 'border-yellow-500/60 shadow-[0_0_55px_rgba(234,179,8,0.35)]'
           }`}>
-            <div className="flex justify-between items-start mb-4">
-              <div className="flex items-center gap-2">
-                <MedalIcon className="h-5 w-5 text-yellow-400" />
+            <div className="flex justify-between items-start mb-8">
+              <div className="flex items-center gap-4">
+                <MedalIcon className="h-9 w-9 text-yellow-400" />
                 <div>
-                  <h3 className="text-base font-black tracking-tight text-white uppercase">Confirm Match Result</h3>
-                  <p className="text-[10px] text-white/50 font-bold uppercase tracking-wider">WKF Official Kumite Decision</p>
+                  <h3 className="text-6xl md:text-7xl font-black tracking-tight text-white uppercase">Confirm Match Result</h3>
+                  <p className="text-[14px] md:text-[15px] text-white/50 font-bold uppercase tracking-wider">WKF Official Kumite Decision</p>
                 </div>
               </div>
               <button
                 onClick={() => setShowFinishModal(false)}
-                className="p-1 hover:bg-white/5 rounded-lg text-gray-400 hover:text-white cursor-pointer"
+                className="p-3 hover:bg-white/5 rounded-xl text-gray-400 hover:text-white cursor-pointer"
               >
-                <X className="h-5 w-5" />
+                <X className="h-6 w-6" />
               </button>
             </div>
 
-            <div className="space-y-3.5">
+            <div className="space-y-7 md:space-y-8">
               {/* Decision Announcement Banner */}
               {winnerSide ? (
-                <div className={`border rounded-2xl p-3 text-xs font-black text-center tracking-wider uppercase flex flex-col items-center gap-1 ${
+                <div className={`border rounded-2xl p-6 md:p-7 text-xs font-black text-center tracking-wider uppercase flex flex-col items-center gap-2 ${
                   winnerSide === 'aka'
                     ? 'bg-red-500/15 border-red-500/40 text-red-300'
                     : 'bg-blue-500/15 border-blue-500/40 text-blue-300'
                 }`}>
-                  <span className="text-[10px] text-white/60 tracking-widest font-extrabold">PROJECTED WINNER</span>
-                  <span className="text-base font-black">
+                  <span className="text-[13px] md:text-[14px] text-white/60 tracking-widest font-extrabold">PROJECTED WINNER</span>
+                  <span className="text-4xl md:text-5xl font-black">
                     🏆 {winnerSide === 'aka' ? 'AKA' : 'AO'} — {winnerSide === 'aka' ? competitorAka?.full_name : competitorAo?.full_name}
                   </span>
-                  <span className="text-[9.5px] px-2.5 py-0.5 rounded-full bg-white/10 text-yellow-400 font-extrabold mt-0.5">
+                  <span className="text-[13px] md:text-[14px] px-4 py-2 rounded-full bg-white/10 text-yellow-400 font-extrabold mt-0.5">
                     DECISION: {winMethod === 'Points' ? 'POINTS ADVANTAGE' : winMethod === 'SENSHU' ? 'SENSHU ADVANTAGE (FIRST SCORE)' : winMethod === 'Superior Points' ? 'SUPERIOR POINTS' : winMethod === 'Hantei' ? 'HANTEI DECISION' : winMethod === 'HANSOKU' ? 'HANSOKU DISQUALIFICATION' : winMethod || 'POINTS ADVANTAGE'}
                   </span>
                 </div>
               ) : (
-                <div className="bg-yellow-500/15 border border-yellow-500/40 text-yellow-400 rounded-2xl p-3 text-xs font-black text-center tracking-wider uppercase animate-pulse">
+                <div className="bg-yellow-500/15 border border-yellow-500/40 text-yellow-400 rounded-2xl p-6 md:p-7 text-3xl md:text-4xl font-black text-center tracking-wider uppercase animate-pulse">
                   ⚖️ TIED SCORE ({scoreAka} - {scoreAo}) — HANTEI (REFEREE VOTE) REQUIRED
                 </div>
               )}
 
               <div>
-                <label className="block text-[10px] uppercase font-bold text-gray-400 mb-1.5">Select / Confirm Winner</label>
-                <div className="grid grid-cols-2 gap-2.5">
+                <label className="block text-[13px] md:text-[14px] uppercase font-bold text-gray-400 mb-3">Select / Confirm Winner</label>
+                <div className="grid grid-cols-2 gap-5 md:gap-6">
                   <button
                     onClick={() => { setWinnerSide('aka'); setWinnerConfirmed(true); }}
-                    className={`py-2.5 px-3 rounded-xl border text-xs font-black transition cursor-pointer flex flex-col items-center justify-center ${
+                    className={`py-6 px-6 rounded-2xl border text-2xl md:text-3xl font-black transition cursor-pointer flex flex-col items-center justify-center ${
                       winnerSide === 'aka'
                         ? 'bg-red-600 text-white border-red-500 shadow-lg shadow-red-950/40'
                         : 'bg-transparent text-white/50 border-white/10 hover:border-white/20'
                     }`}
                   >
                     <span>AKA ({competitorAka?.full_name?.split(' ')[0] || 'Red'})</span>
-                    <span className="text-[8.5px] font-bold text-red-300/80 mt-0.5 uppercase tracking-widest">{competitorAka?.club_id ? 'Senshi Karate Academy' : 'Senshi Club'}</span>
+                    <span className="text-[10px] md:text-[11px] font-bold text-red-300/80 mt-1 uppercase tracking-widest">{competitorAka?.club_id ? 'Senshi Karate Academy' : 'Senshi Club'}</span>
                   </button>
                   <button
                     onClick={() => { setWinnerSide('ao'); setWinnerConfirmed(true); }}
-                    className={`py-2.5 px-3 rounded-xl border text-xs font-black transition cursor-pointer flex flex-col items-center justify-center ${
+                    className={`py-6 px-6 rounded-2xl border text-2xl md:text-3xl font-black transition cursor-pointer flex flex-col items-center justify-center ${
                       winnerSide === 'ao'
                         ? 'bg-blue-600 text-white border-blue-500 shadow-lg shadow-blue-950/40'
                         : 'bg-transparent text-white/50 border-white/10 hover:border-white/20'
                     }`}
                   >
                     <span>AO ({competitorAo?.full_name?.split(' ')[0] || 'Blue'})</span>
-                    <span className="text-[8.5px] font-bold text-blue-300/80 mt-0.5 uppercase tracking-widest">{competitorAo?.club_id ? 'Goju-Ryu Karate Club' : 'Goju-Ryu Club'}</span>
+                    <span className="text-[10px] md:text-[11px] font-bold text-blue-300/80 mt-1 uppercase tracking-widest">{competitorAo?.club_id ? 'Goju-Ryu Karate Club' : 'Goju-Ryu Club'}</span>
                   </button>
                 </div>
               </div>
 
               <div>
-                <label className="block text-[10px] uppercase font-bold text-gray-400 mb-1.5">Winning Decision Method</label>
+                <label className="block text-[13px] md:text-[14px] uppercase font-bold text-gray-400 mb-3">Winning Decision Method</label>
                 <select
                   value={winMethod}
                   onChange={e => setWinMethod(e.target.value)}
-                  className="w-full bg-[#101015] border border-white/10 rounded-xl px-3 py-2.5 text-xs text-white focus:outline-none focus:border-yellow-400 transition cursor-pointer font-sans"
+                  className="w-full bg-[#101015] border border-white/10 rounded-xl px-4 py-4 text-2xl md:text-3xl text-white focus:outline-none focus:border-yellow-400 transition cursor-pointer font-sans"
                 >
                   <option value="Points">Points Advantage (Lead Differential)</option>
                   <option value="SENSHU">Senshu Advantage (First Uncontested Score)</option>
@@ -2415,9 +2423,9 @@ export const KumiteScoreboardControl = React.forwardRef<ScoreboardRef, { boutId?
                 </select>
               </div>
 
-              <div className="bg-[#121218] rounded-xl p-2.5 border border-white/5 flex items-center justify-between text-xs font-bold">
+              <div className="bg-[#121218] rounded-xl p-5 md:p-6 border border-white/5 flex items-center justify-between text-2xl md:text-3xl font-bold">
                 <span className="text-gray-400">Final Match Score</span>
-                <span className="font-mono text-sm tracking-widest text-yellow-400">
+                <span className="font-mono text-4xl md:text-5xl tracking-widest text-yellow-400">
                   {scoreAka} - {scoreAo}
                 </span>
               </div>
@@ -2458,9 +2466,9 @@ export const KumiteScoreboardControl = React.forwardRef<ScoreboardRef, { boutId?
                     if (onLogEvent) onLogEvent('SYSTEM', `Match Result Confirmed — Winner: ${winnerSide.toUpperCase()} (${winMethod})`);
                   }}
                   disabled={saving || !winnerSide}
-                  className="py-2.5 bg-emerald-500 hover:bg-emerald-400 disabled:opacity-40 text-black text-[11px] font-black uppercase tracking-wider rounded-xl transition cursor-pointer flex items-center justify-center gap-1.5 shadow-md shadow-emerald-500/20"
+                  className="py-4 bg-emerald-500 hover:bg-emerald-400 disabled:opacity-40 text-black text-[14px] md:text-[16px] font-black uppercase tracking-wider rounded-xl transition cursor-pointer flex items-center justify-center gap-2 shadow-md shadow-emerald-500/20"
                 >
-                  <Trophy className="h-3.5 w-3.5" /> Confirm Result
+                  <Trophy className="h-5 w-5" /> Confirm Result
                 </button>
                 <button
                   onClick={() => {
@@ -2471,18 +2479,18 @@ export const KumiteScoreboardControl = React.forwardRef<ScoreboardRef, { boutId?
                     handleSaveResult();
                   }}
                   disabled={saving || !winnerSide}
-                  className="py-2.5 bg-yellow-500 hover:bg-yellow-400 disabled:opacity-40 text-black text-[11px] font-black uppercase tracking-wider rounded-xl transition cursor-pointer flex items-center justify-center gap-1.5 shadow-md shadow-yellow-500/20"
+                  className="py-4 bg-yellow-500 hover:bg-yellow-400 disabled:opacity-40 text-black text-[14px] md:text-[16px] font-black uppercase tracking-wider rounded-xl transition cursor-pointer flex items-center justify-center gap-2 shadow-md shadow-yellow-500/20"
                 >
                   {saving ? (
-                    <><RefreshCw className="h-3.5 w-3.5 animate-spin" /> Saving...</>
+                    <><RefreshCw className="h-5 w-5 animate-spin" /> Saving...</>
                   ) : (
-                    <><Check className="h-3.5 w-3.5" /> Confirm & Save</>
+                    <><Check className="h-5 w-5" /> Confirm & Save</>
                   )}
                 </button>
               </div>
               <button
                 onClick={() => setShowFinishModal(false)}
-                className="w-full py-2 bg-white/5 hover:bg-white/10 text-white/70 hover:text-white border border-white/10 text-[10px] font-bold uppercase tracking-wider rounded-xl transition cursor-pointer"
+                className="w-full py-3 bg-white/5 hover:bg-white/10 text-white/70 hover:text-white border border-white/10 text-sm md:text-base font-black uppercase tracking-wider rounded-xl transition cursor-pointer"
               >
                 Cancel / Adjust Scores
               </button>
