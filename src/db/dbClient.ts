@@ -1524,8 +1524,8 @@ export const dbOriginal = {
       return await pcActions.registerPC(pcIdentifier, pcName, tournamentId, tatami, userId, username);
     },
 
-    heartbeat: async (pcId: string): Promise<{ is_admin_controlled: boolean } | void> => {
-      return await pcActions.heartbeat(pcId);
+    heartbeat: async (pcId: string, currentCategoryId?: string, currentMatchId?: string): Promise<{ is_admin_controlled: boolean } | void> => {
+      return await pcActions.heartbeat(pcId, currentCategoryId, currentMatchId);
     },
 
     setAdminControlled: async (tournamentId: string, tatami: string, isControlled: boolean): Promise<void> => {

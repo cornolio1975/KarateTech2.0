@@ -190,7 +190,7 @@ export default function AdminDashboard() {
       }
     };
 
-    const interval = setInterval(refreshPcsAndLocks, 10000);
+    const interval = setInterval(refreshPcsAndLocks, 2000);
 
     let channel: any = null;
     if (supabase) {
@@ -209,6 +209,40 @@ export default function AdminDashboard() {
       }
     };
   }, [activeTournamentId]);
+
+  // Listen to BroadcastChannels & storage events for live updates from Tatami 1 & Tatami 2
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    const hbChannel = new BroadcastChannel('kt-tatami-heartbeats');
+    hbChannel.onmessage = (event) => {
+      const data = event.data;
+      if (data?.type === 'CATEGORY_ASSIGNED' || data?.type === 'CATEGORY_RELEASED') {
+        loadData();
+      }
+    };
+
+    const sbChannel = new BroadcastChannel('wkf-scoreboard-sync');
+    sbChannel.onmessage = (event) => {
+      const data = event.data;
+      if (data?.type === 'LOAD_BOUT' || data?.type === 'MATCH_FINISHED') {
+        loadData();
+      }
+    };
+
+    const handleStorage = (e: StorageEvent) => {
+      if (e.key?.startsWith('kt_active_bout_id') || e.key?.startsWith('ts_active_bout_id') || e.key === 'ts_cat_tatami_map') {
+        loadData();
+      }
+    };
+    window.addEventListener('storage', handleStorage);
+
+    return () => {
+      hbChannel.close();
+      sbChannel.close();
+      window.removeEventListener('storage', handleStorage);
+    };
+  }, [loadData]);
 
   const handleForceCloudSync = async () => {
     setSyncingCloud(true);
@@ -239,15 +273,23 @@ export default function AdminDashboard() {
   // Derive tatami heartbeats and statuses
   const getTatamiStatus = (tNum: 1 | 2) => {
     let localTele: any = null;
+    let localActiveBoutId: string | null = null;
     if (typeof window !== 'undefined') {
       try {
         const stored = localStorage.getItem(`kt_tatami_telemetry_${tNum}`);
         if (stored) localTele = JSON.parse(stored);
+        localActiveBoutId = localStorage.getItem(`kt_active_bout_id_${tNum}`) || (tNum === 1 ? localStorage.getItem('kt_active_bout_id') : null);
       } catch (e) {}
     }
 
     const tele = tatamiTelemetry[tNum] || localTele;
-    const pc = pcs.find(p => p.tatami === `Tatami ${tNum}` || p.pc_identifier === `tatami_${tNum}`);
+    const pc = pcs.find(p => 
+      p.tatami === `Tatami ${tNum}` || 
+      p.tatami === `${tNum}` || 
+      p.pc_identifier === `tatami_${tNum}` || 
+      p.pc_identifier?.startsWith(`tatami_${tNum}`) ||
+      p.username === `tatami_${tNum}@spsportdatasolution.org`
+    );
     
     let lastSeen = 0;
     let latestStatus = 'disconnected';
@@ -259,7 +301,7 @@ export default function AdminDashboard() {
     if (pc) {
       const rawDate = pc.last_heartbeat || pc.updated_at;
       const dateStr = (rawDate.endsWith('Z') || rawDate.includes('+')) ? rawDate : rawDate + 'Z';
-      candidates.push({ time: new Date(dateStr).getTime(), status: pc.status, data: { isDbPc: true, categoryId: pc.current_category_id } });
+      candidates.push({ time: new Date(dateStr).getTime(), status: pc.status, data: { isDbPc: true, categoryId: pc.current_category_id, matchId: pc.current_match_id } });
     }
 
     if (candidates.length > 0) {
@@ -280,26 +322,72 @@ export default function AdminDashboard() {
     else timeAgoStr = `${Math.floor(secondsAgo / 60)}m ${secondsAgo % 60}s ago`;
 
     // Find active category for this tatami
-    const assignedCat = categories.find(c => (c as any).assigned_tatami === `Tatami ${tNum}`);
-    const activeLock = locks.find(l => l.tatami === `Tatami ${tNum}` && l.is_active);
+    const assignedCat = categories.find(c => (c as any).assigned_tatami === `Tatami ${tNum}` || (c as any).assigned_tatami === `${tNum}`);
+    const activeLock = locks.find(l => (l.tatami === `Tatami ${tNum}` || l.username === `tatami_${tNum}@spsportdatasolution.org`) && l.is_active);
     
-    let lockedCat = activeLock ? categories.find(c => c.id === activeLock.category_id) : null;
+    let lockedCat = activeLock ? categories.find(c => String(c.id) === String(activeLock.category_id)) : null;
     if (!lockedCat && mostRecentData?.isDbPc && mostRecentData.categoryId) {
-      lockedCat = categories.find(c => c.id === mostRecentData.categoryId);
+      lockedCat = categories.find(c => String(c.id) === String(mostRecentData.categoryId));
     }
     
-    const telemetryCatName = mostRecentData?.isDbPc ? null : mostRecentData?.currentCategoryName;
-    const activeCategoryName = telemetryCatName || lockedCat?.name || assignedCat?.name || 'No active category assigned';
+    const cleanStr = (s?: string | null) => (s || '').toLowerCase().replace(/\[.*?\]/g, '').replace(/[^a-z0-9]/g, '');
 
-    // Find active bout for this tatami
-    const activeBout = bouts.find(b => b.tatami === `Tatami ${tNum}` && b.status === 'Running') ||
-                       bouts.find(b => (b.category_id === assignedCat?.id || b.category_id === lockedCat?.id) && b.status === 'Running');
+    const directCategory = (tele?.currentCategoryId ? categories.find(c => String(c.id) === String(tele.currentCategoryId)) : null) ||
+                           (localTele?.currentCategoryId ? categories.find(c => String(c.id) === String(localTele.currentCategoryId)) : null) ||
+                           (tele?.currentCategoryName ? categories.find(c => c.name?.toLowerCase().trim() === tele.currentCategoryName?.toLowerCase().trim()) : null) ||
+                           (localTele?.currentCategoryName ? categories.find(c => c.name?.toLowerCase().trim() === localTele.currentCategoryName?.toLowerCase().trim()) : null) ||
+                           lockedCat ||
+                           assignedCat;
+
+    // Telemetry Category Name (check tele/localTele first)
+    const telemetryCatName = tele?.currentCategoryName || localTele?.currentCategoryName || (mostRecentData?.isDbPc ? null : mostRecentData?.currentCategoryName);
+    const activeCategoryName = telemetryCatName || directCategory?.name || lockedCat?.name || assignedCat?.name || 'No active category assigned';
+
+    // If directCategory was not matched, try fuzzy name matching against activeCategoryName
+    const targetCategoryClean = cleanStr(activeCategoryName);
+    const activeCategory = directCategory || (targetCategoryClean ? categories.find(c => {
+      const cClean = cleanStr(c.name);
+      return cClean === targetCategoryClean || cClean.includes(targetCategoryClean) || targetCategoryClean.includes(cClean);
+    }) : null);
+
+    // Find active bout for this tatami:
+    const currentMatchId = tele?.currentMatchId || localTele?.currentMatchId || localActiveBoutId || pc?.current_match_id || mostRecentData?.matchId;
+    const loadedBout = currentMatchId ? bouts.find(b => String(b.id) === String(currentMatchId)) : null;
     
-    const telemetryMatchCode = mostRecentData?.isDbPc ? null : mostRecentData?.currentMatchCode;
-    const matchCode = telemetryMatchCode || (activeBout ? `R${activeBout.round_no}B${activeBout.bout_no}` : 'Waiting for Match');
+    const tatamiBouts = bouts.filter(b => 
+      b.tatami === `Tatami ${tNum}` || 
+      b.tatami === `${tNum}` || 
+      (activeCategory && String(b.category_id) === String(activeCategory.id))
+    );
+
+    const runningBout = tatamiBouts.find(b => b.status === 'Running');
     
-    const telemetryScreenState = mostRecentData?.isDbPc ? null : mostRecentData?.currentScreenState;
-    const screenState = telemetryScreenState || (activeBout ? 'Kumite Scoreboard (Live)' : 'Operator Console 2.0');
+    const catBouts = activeCategory ? bouts.filter(b => String(b.category_id) === String(activeCategory.id) && b.status !== 'Walkover') : [];
+    const sortedCatBouts = [...catBouts].sort((a, b) => (Number(a.round_no || 0) - Number(b.round_no || 0)) || (Number(a.bout_no || 0) - Number(b.bout_no || 0)));
+    const upcomingCatBout = sortedCatBouts.find(b => b.status === 'Running') ||
+                            sortedCatBouts.find(b => b.status === 'Scheduled') ||
+                            sortedCatBouts.find(b => b.status !== 'Completed') ||
+                            sortedCatBouts[0];
+
+    const activeBout = runningBout || loadedBout || upcomingCatBout;
+    
+    // Match Code Resolution: Prioritize explicit telemetry or active/loaded bout
+    const rawTelemetryMatchCode = tele?.currentMatchCode || localTele?.currentMatchCode || (mostRecentData?.isDbPc ? null : mostRecentData?.currentMatchCode);
+    const telemetryMatchCode = (rawTelemetryMatchCode && rawTelemetryMatchCode !== 'Waiting for Match') ? rawTelemetryMatchCode : null;
+    let matchCode = telemetryMatchCode;
+    
+    if (!matchCode && activeBout) {
+      matchCode = `R${activeBout.round_no}B${activeBout.bout_no}`;
+    }
+    if (!matchCode && catBouts.length > 0) {
+      matchCode = `R${catBouts[0].round_no}B${catBouts[0].bout_no}`;
+    }
+    if (!matchCode) {
+      matchCode = 'Waiting for Match';
+    }
+    
+    const telemetryScreenState = tele?.currentScreenState || localTele?.currentScreenState || (mostRecentData?.isDbPc ? null : mostRecentData?.currentScreenState);
+    const screenState = telemetryScreenState || (runningBout ? 'Kumite Scoreboard (Live)' : (loadedBout || upcomingCatBout) ? 'Operator Console 2.0 (Match Loaded)' : 'Operator Console 2.0');
 
     return {
       tNum,
@@ -532,7 +620,7 @@ export default function AdminDashboard() {
                 )}
 
                 <Link
-                  href="/dashboard/operator"
+                  href="/dashboard/operator?tatami=1"
                   className="flex items-center gap-1 px-3.5 py-2.5 bg-secondary hover:bg-secondary/80 text-foreground rounded-xl text-xs font-bold transition border border-border"
                 >
                   <ExternalLink className="w-3.5 h-3.5" />
@@ -643,7 +731,7 @@ export default function AdminDashboard() {
                 )}
 
                 <Link
-                  href="/dashboard/operator"
+                  href="/dashboard/operator?tatami=2"
                   className="flex items-center gap-1 px-3.5 py-2.5 bg-secondary hover:bg-secondary/80 text-foreground rounded-xl text-xs font-bold transition border border-border"
                 >
                   <ExternalLink className="w-3.5 h-3.5" />

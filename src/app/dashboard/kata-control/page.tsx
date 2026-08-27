@@ -34,7 +34,7 @@ export const KataControlPanelContent = React.forwardRef<ScoreboardRef, { boutId?
   const router = useRouter();
   const boutId = propBoutId || searchParams.get('boutId');
   const catId = searchParams.get('catId');
-  const { tournamentName, acquireLock, releaseLock, activeTournamentId, activeLocks, tatamiId } = useTournament();
+  const { tournamentName, acquireLock, releaseLock, activeTournamentId, activeLocks, tatamiId, updateTatamiTelemetry, userEmail, takeoverTatami } = useTournament();
   
   const spectatorWindowRef = React.useRef<Window | null>(null);
   const broadcastChannelRef = React.useRef<BroadcastChannel | null>(null);
@@ -371,8 +371,16 @@ export const KataControlPanelContent = React.forwardRef<ScoreboardRef, { boutId?
   // Broadcast state updates in real-time for spectator display
   const broadcastKataState = React.useCallback(() => {
     if (!broadcastChannelRef.current || !currentBout) return;
+    const effectiveTatami = (takeoverTatami || tatamiId || (userEmail === 'tatami_2@spsportdatasolution.org' ? 2 : userEmail === 'tatami_1@spsportdatasolution.org' ? 1 : (currentBout?.tatami === 'Tatami 2' ? 2 : 1))) as 1 | 2;
+
     broadcastChannelRef.current.postMessage({
+      type: 'SYNC_MATCH_STATE',
       boutId: currentBout.id,
+      categoryId: currentBout.category_id,
+      tatami: `Tatami ${effectiveTatami}`,
+      roundNo: currentBout.round_no,
+      boutNo: currentBout.bout_no,
+      matchCode: `R${currentBout.round_no}B${currentBout.bout_no}`,
       isKata: true,
       akaName: participantA?.full_name || 'AKA',
       akaClub: clubA?.name || 'Senshi Club',
@@ -393,13 +401,32 @@ export const KataControlPanelContent = React.forwardRef<ScoreboardRef, { boutId?
       timerActive: isTimerRunning,
       resultConfirmed: currentBout?.status === 'Completed'
     });
-  }, [currentBout, participantA, participantB, clubA, clubB, totalScoreA, totalScoreB, kataA, kataB, judgeScoresA, judgeScoresB, scoringMethod, isWinnerRevealed, selectedWinnerId, penaltyH, timeLeft, isTimerRunning]);
+  }, [currentBout, participantA, participantB, clubA, clubB, totalScoreA, totalScoreB, kataA, kataB, judgeScoresA, judgeScoresB, scoringMethod, isWinnerRevealed, selectedWinnerId, penaltyH, timeLeft, isTimerRunning, takeoverTatami, tatamiId, userEmail]);
 
   useEffect(() => {
     if (mounted && currentBout) {
       broadcastKataState();
+
+      const effectiveTatami = (takeoverTatami || tatamiId || (userEmail === 'tatami_2@spsportdatasolution.org' ? 2 : userEmail === 'tatami_1@spsportdatasolution.org' ? 1 : (currentBout?.tatami === 'Tatami 2' ? 2 : 1))) as 1 | 2;
+
+      try {
+        localStorage.setItem(`kt_active_bout_id_${effectiveTatami}`, currentBout.id);
+        localStorage.setItem(`ts_active_bout_id_${effectiveTatami}`, currentBout.id);
+        localStorage.setItem('kt_active_bout_id', currentBout.id);
+        localStorage.setItem('ts_active_bout_id', currentBout.id);
+      } catch (e) {}
+
+      updateTatamiTelemetry({
+        tatamiId: effectiveTatami,
+        currentCategoryId: currentBout.category_id,
+        currentMatchId: currentBout.id,
+        currentMatchCode: `R${currentBout.round_no}B${currentBout.bout_no}`,
+        currentBoutNo: currentBout.bout_no,
+        currentScreenState: 'Kata Scoreboard (Live)',
+        status: 'online'
+      });
     }
-  }, [mounted, currentBout, judgeScoresA, judgeScoresB, kataA, kataB, panelSize, scoringMethod, totalScoreA, totalScoreB, isWinnerRevealed, selectedWinnerId, timeLeft, isTimerRunning, broadcastKataState]);
+  }, [mounted, currentBout, judgeScoresA, judgeScoresB, kataA, kataB, panelSize, scoringMethod, totalScoreA, totalScoreB, isWinnerRevealed, selectedWinnerId, timeLeft, isTimerRunning, broadcastKataState, takeoverTatami, tatamiId, userEmail, updateTatamiTelemetry]);
 
   useEffect(() => {
     const channel = broadcastChannelRef.current;

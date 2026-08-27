@@ -24,7 +24,7 @@ export const KumiteScoreboardControl = React.forwardRef<ScoreboardRef, { boutId?
   const searchParams = useSearchParams();
   const boutId = propBoutId || searchParams.get('boutId');
   const catId = searchParams.get('catId'); // passed from categories page
-  const { tournamentName, acquireLock, releaseLock, activeTournamentId, activeLocks, tatamiId } = useTournament();
+  const { tournamentName, acquireLock, releaseLock, activeTournamentId, activeLocks, tatamiId, updateTatamiTelemetry, userEmail, takeoverTatami } = useTournament();
 
   const [isPlaylistModalOpen, setIsPlaylistModalOpen] = useState(false);
 
@@ -507,8 +507,16 @@ export const KumiteScoreboardControl = React.forwardRef<ScoreboardRef, { boutId?
   // Broadcast function to sync displays
   const broadcastState = useCallback(() => {
     if (!broadcastChannelRef.current) return;
+    const effectiveTatami = (takeoverTatami || tatamiId || (userEmail === 'tatami_2@spsportdatasolution.org' ? 2 : userEmail === 'tatami_1@spsportdatasolution.org' ? 1 : (bout?.tatami === 'Tatami 2' ? 2 : 1))) as 1 | 2;
+
     broadcastChannelRef.current.postMessage({
+      type: 'SYNC_MATCH_STATE',
       boutId,
+      categoryId: bout?.category_id,
+      tatami: `Tatami ${effectiveTatami}`,
+      roundNo: bout?.round_no,
+      boutNo: bout?.bout_no,
+      matchCode: bout ? `R${bout.round_no}B${bout.bout_no}` : undefined,
       akaName: competitorAka?.full_name || 'TBD Red',
       akaClub: competitorAka?.club_id ? 'Senshi Karate Academy' : 'Senshi Club',
       aoName: competitorAo?.full_name || 'TBD Blue',
@@ -541,7 +549,8 @@ export const KumiteScoreboardControl = React.forwardRef<ScoreboardRef, { boutId?
     senshuAka, senshuAo, firstScorer,
     c1Aka, c1Ao,
     pointsAka, pointsAo, eventsAka, eventsAo, showPointHistory,
-    timeLeft, timerActive, winnerSide, winMethod, matchDuration, winnerConfirmed, resultConfirmed, bout
+    timeLeft, timerActive, winnerSide, winMethod, matchDuration, winnerConfirmed, resultConfirmed, bout,
+    takeoverTatami, tatamiId, userEmail
   ]);
 
   // Broadcast state updates in real-time
@@ -549,10 +558,30 @@ export const KumiteScoreboardControl = React.forwardRef<ScoreboardRef, { boutId?
     if (mounted && bout) {
       broadcastState();
 
+      const effectiveTatami = (takeoverTatami || tatamiId || (userEmail === 'tatami_2@spsportdatasolution.org' ? 2 : userEmail === 'tatami_1@spsportdatasolution.org' ? 1 : (bout?.tatami === 'Tatami 2' ? 2 : 1))) as 1 | 2;
+      
+      try {
+        localStorage.setItem(`kt_active_bout_id_${effectiveTatami}`, bout.id);
+        localStorage.setItem(`ts_active_bout_id_${effectiveTatami}`, bout.id);
+        localStorage.setItem('kt_active_bout_id', bout.id);
+        localStorage.setItem('ts_active_bout_id', bout.id);
+      } catch (e) {}
+
+      updateTatamiTelemetry({
+        tatamiId: effectiveTatami,
+        currentCategoryId: bout.category_id,
+        currentMatchId: bout.id,
+        currentMatchCode: `R${bout.round_no}B${bout.bout_no}`,
+        currentBoutNo: bout.bout_no,
+        currentScreenState: 'Kumite Scoreboard (Live)',
+        status: 'online'
+      });
+
       const saveDraft = async () => {
         try {
           await db.bouts.updateBoutState(boutId!, {
             status: bout?.status === 'Completed' ? 'Completed' : 'Running',
+            tatami: `Tatami ${effectiveTatami}`,
             score_a: scoreAka,
             score_b: scoreAo,
             senshu_a: senshuAka,
@@ -580,7 +609,8 @@ export const KumiteScoreboardControl = React.forwardRef<ScoreboardRef, { boutId?
     scoreAka, scoreAo, senshuAka, senshuAo,
     c1Aka, c1Ao,
     pointsAka, pointsAo, eventsAka, eventsAo,
-    timeLeft, timerActive, winnerSide, winMethod, mounted, bout, broadcastState, boutId
+    timeLeft, timerActive, winnerSide, winMethod, mounted, bout, broadcastState, boutId,
+    takeoverTatami, tatamiId, userEmail, updateTatamiTelemetry
   ]);
 
   // Sound generator

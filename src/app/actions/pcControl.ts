@@ -44,16 +44,20 @@ async function resolvePcId(pcIdentifierOrId: string): Promise<string> {
   return data?.id || pcIdentifierOrId;
 }
 
-export async function heartbeat(pcId: string): Promise<{ is_admin_controlled: boolean } | void> {
+export async function heartbeat(pcId: string, currentCategoryId?: string, currentMatchId?: string): Promise<{ is_admin_controlled: boolean } | void> {
   if (!supabase) return;
   const actualPcId = await resolvePcId(pcId);
+  const updatePayload: any = { 
+    last_heartbeat: new Date().toISOString(),
+    status: 'online',
+    updated_at: new Date().toISOString()
+  };
+  if (currentCategoryId !== undefined) updatePayload.current_category_id = currentCategoryId || null;
+  if (currentMatchId !== undefined) updatePayload.current_match_id = currentMatchId || null;
+
   const { data } = await supabase
     .from('tournament_pcs')
-    .update({ 
-      last_heartbeat: new Date().toISOString(),
-      status: 'online',
-      updated_at: new Date().toISOString()
-    })
+    .update(updatePayload)
     .eq('id', actualPcId)
     .select('is_admin_controlled')
     .single();

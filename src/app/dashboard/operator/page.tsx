@@ -73,6 +73,20 @@ export default function OperatorConsolePage() {
   } = useTournament();
 
   const [isThemeMenuOpen, setIsThemeMenuOpen] = useState(false);
+  const [localTatamiParam, setLocalTatamiParam] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const urlParams = new URLSearchParams(window.location.search);
+      const tParam = urlParams.get('tatami') || urlParams.get('tatamiId');
+      if (tParam) {
+        const parsed = parseInt(tParam.replace(/\D/g, ''), 10);
+        if (parsed === 1 || parsed === 2) {
+          setLocalTatamiParam(parsed);
+        }
+      }
+    }
+  }, []);
 
   const isLockedOutByAdmin = userRole !== 'Admin' && takeoverTatami === tatamiId;
 
@@ -606,9 +620,26 @@ export default function OperatorConsolePage() {
     setAoFighter(pArr.find(p => p.id === bout.participant_b_id) || null);
     setActiveCat(cArr.find(c => c.id === bout.category_id) || null);
 
+    // Resolve which tatami this bout belongs to
+    let catTatami: string | null = null;
+    if (typeof window !== 'undefined') {
+      try {
+        const rawMap = localStorage.getItem('ts_cat_tatami_map');
+        if (rawMap) {
+          const parsedMap = JSON.parse(rawMap);
+          catTatami = parsedMap[String(bout.category_id)];
+        }
+      } catch (e) {}
+    }
+    const assignedTatami = bout.tatami || (boutCat as any)?.assigned_tatami || catTatami;
+    const boutTatamiNum = (assignedTatami === 'Tatami 2' || assignedTatami === '2') ? 2 : (assignedTatami === 'Tatami 1' || assignedTatami === '1') ? 1 : null;
+    const effectiveTatami = (takeoverTatami || tatamiId || localTatamiParam || boutTatamiNum || 1) as 1 | 2;
+
     try {
       localStorage.setItem('kt_active_bout_id', bout.id);
       localStorage.setItem('ts_active_bout_id', bout.id);
+      localStorage.setItem(`kt_active_bout_id_${effectiveTatami}`, bout.id);
+      localStorage.setItem(`ts_active_bout_id_${effectiveTatami}`, bout.id);
     } catch (e) {}
 
     if (shouldBroadcastDisplay && typeof window !== 'undefined') {
@@ -638,20 +669,19 @@ export default function OperatorConsolePage() {
       } catch (e) {}
     }
  
-    const effectiveTatami = takeoverTatami || tatamiId || (bout.tatami === 'Tatami 2' ? 2 : 1);
     updateTatamiTelemetry({
-      tatamiId: effectiveTatami as 1 | 2,
+      tatamiId: effectiveTatami,
       currentCategoryId: bout.category_id,
       currentCategoryName: cArr.find(c => c.id === bout.category_id)?.name || null,
       currentMatchId: bout.id,
       currentMatchCode: `R${bout.round_no}B${bout.bout_no}`,
       currentBoutNo: bout.bout_no,
       currentScreenState: shouldBroadcastDisplay ? (isKumiteCategory(boutCat) ? 'Kumite Scoreboard' : 'Kata Scoreboard') : 'Operator Console 2.0',
-      isAdminControlled: takeoverTatami === tatamiId
+      isAdminControlled: takeoverTatami === effectiveTatami
     });
 
-    addLog('SYSTEM', `Match R${bout.round_no}B${bout.bout_no} loaded to Current Match`);
-  }, [categories, guardVrMatchTransition, participants, takeoverTatami, tatamiId, updateTatamiTelemetry, vrRecordingActive, addLog]);
+    addLog('SYSTEM', `Match R${bout.round_no}B${bout.bout_no} loaded to Current Match (Tatami ${effectiveTatami})`);
+  }, [categories, guardVrMatchTransition, participants, takeoverTatami, tatamiId, localTatamiParam, updateTatamiTelemetry, vrRecordingActive, addLog]);
 
   const loadData = useCallback(async () => {
     try {
@@ -668,12 +698,22 @@ export default function OperatorConsolePage() {
       setCategories(catList);
       setClubs(clList);
       setCoaches(coList);
+      
+      const currentTatamiNum = takeoverTatami || tatamiId || localTatamiParam || 1;
+      const myTatami = `Tatami ${currentTatamiNum}`;
       const running = bList.find(b => {
         if (b.status !== 'Running') return false;
-        const myTatami = `Tatami ${takeoverTatami || tatamiId || 1}`;
         return b.tatami === myTatami;
       });
-      if (running) loadBout(running, pList, catList, false);
+      if (running) {
+        loadBout(running, pList, catList, false);
+      } else if (typeof window !== 'undefined') {
+        const storedBoutId = localStorage.getItem(`kt_active_bout_id_${currentTatamiNum}`) || (currentTatamiNum === 1 ? localStorage.getItem('kt_active_bout_id') : null);
+        if (storedBoutId) {
+          const savedBout = bList.find(b => b.id === storedBoutId);
+          if (savedBout) loadBout(savedBout, pList, catList, false);
+        }
+      }
       addLog('SYSTEM', 'Data refreshed');
     } catch {
       setDbStatus('LOCAL');
@@ -681,7 +721,7 @@ export default function OperatorConsolePage() {
     } finally {
       setLoading(false);
     }
-  }, [loadBout, addLog, takeoverTatami, tatamiId]);
+  }, [loadBout, addLog, takeoverTatami, tatamiId, localTatamiParam]);
 
   useEffect(() => {
     const onOnline = () => { setIsOnline(true); setDbStatus('CONNECTED'); addLog('SYSTEM', 'Cloud connected'); };
@@ -936,7 +976,7 @@ export default function OperatorConsolePage() {
     }
     const matchCode = activeBout ? `R${activeBout.round_no}B${activeBout.bout_no}` : 'N/A';
     const catName = activeCat?.name || 'All Categories';
-    const tatamiLabel = `Tatami ${takeoverTatami || tatamiId || 1}`;
+    const tatamiLabel = `Tatami ${takeoverTatami || tatamiId || localTatamiParam || 1}`;
     const printWindow = window.open('', '_blank', 'width=800,height=900');
     if (!printWindow) {
       alert('Please allow popups to print the Key Log audit sheet.');
@@ -1694,7 +1734,7 @@ export default function OperatorConsolePage() {
           </div>
           <div className="h-5 w-px bg-white/10" />
           <div className="flex items-center gap-2 text-[11px] font-bold text-white/60">
-            <span>TATAMI 1</span>
+            <span>TATAMI {takeoverTatami || tatamiId || localTatamiParam || (activeBout?.tatami === 'Tatami 2' ? 2 : (activeCat as any)?.assigned_tatami === 'Tatami 2' ? 2 : 1)}</span>
             <span className="text-white/20">|</span>
             <span className="max-w-[160px] truncate text-white/80">{activeCat?.name || 'SELECT MATCH'}</span>
             <span className="text-white/20">|</span>
@@ -3236,7 +3276,7 @@ export default function OperatorConsolePage() {
                   const completedBouts = catBoutsList.filter(b => b.status === 'Completed').length;
                   const isExpanded = expandedCatId === cat.id;
 
-                  const myTatami = `Tatami ${takeoverTatami || tatamiId || 1}`;
+                  const myTatami = `Tatami ${takeoverTatami || tatamiId || localTatamiParam || 1}`;
                   const isLockedByOther = false;
 
                   return (

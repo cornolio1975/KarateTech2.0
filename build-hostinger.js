@@ -24,15 +24,52 @@ cleanNextCache();
 
 let buildError = null;
 
-try {
-  // If a previous run left _api_temp, restore it first
+function moveApiDirForBuild() {
   if (fs.existsSync(tempApiDir) && !fs.existsSync(apiDir)) {
     fs.renameSync(tempApiDir, apiDir);
+    return;
   }
 
-  if (fs.existsSync(apiDir)) {
-    fs.renameSync(apiDir, tempApiDir);
+  if (!fs.existsSync(apiDir)) {
+    return;
   }
+
+  try {
+    fs.renameSync(apiDir, tempApiDir);
+    return;
+  } catch (error) {
+    if (error && (error.code === 'EPERM' || error.code === 'EACCES')) {
+      console.warn('  ⚠ Rename blocked by Windows file lock; using copy-and-remove fallback.');
+      fs.cpSync(apiDir, tempApiDir, { recursive: true, force: true });
+      fs.rmSync(apiDir, { recursive: true, force: true });
+      return;
+    }
+    throw error;
+  }
+}
+
+function restoreApiDir() {
+  if (!fs.existsSync(tempApiDir)) {
+    return;
+  }
+
+  try {
+    if (fs.existsSync(apiDir)) {
+      fs.rmSync(apiDir, { recursive: true, force: true });
+    }
+    fs.renameSync(tempApiDir, apiDir);
+  } catch (error) {
+    console.warn('  ⚠ Could not restore API directory with rename; copying back instead.', error.message);
+    if (fs.existsSync(apiDir)) {
+      fs.rmSync(apiDir, { recursive: true, force: true });
+    }
+    fs.cpSync(tempApiDir, apiDir, { recursive: true, force: true });
+    fs.rmSync(tempApiDir, { recursive: true, force: true });
+  }
+}
+
+try {
+  moveApiDirForBuild();
 
   execSync('npx next build', {
     stdio: 'inherit',
@@ -61,16 +98,7 @@ try {
   buildError = error;
   console.error('Build failed:', error);
 } finally {
-  if (fs.existsSync(tempApiDir)) {
-    try {
-      if (fs.existsSync(apiDir)) {
-        fs.rmSync(apiDir, { recursive: true, force: true });
-      }
-      fs.renameSync(tempApiDir, apiDir);
-    } catch (e) {
-      console.warn('Warning restoring API directory:', e.message);
-    }
-  }
+  restoreApiDir();
   if (buildError) {
     process.exit(1);
   }
