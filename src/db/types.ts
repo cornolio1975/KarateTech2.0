@@ -183,6 +183,11 @@ export interface Bout {
   timer_seconds?: number;
   timer_active?: boolean;
   notes?: string;
+  vr_file_url?: string;
+  vr_metadata?: Record<string, any> | null;
+  vr_recorded_at?: string;
+  vr_duration_seconds?: number;
+  vr_camera_label?: string;
   kata_a?: string;
   kata_b?: string;
   judge_scores_a?: number[];

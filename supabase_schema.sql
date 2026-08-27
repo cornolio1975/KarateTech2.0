@@ -180,7 +180,12 @@ CREATE TABLE IF NOT EXISTS bouts (
     penalties_a TEXT DEFAULT '',
     penalties_b TEXT DEFAULT '',
     timer_seconds INT DEFAULT 180,
-    timer_active BOOLEAN DEFAULT FALSE
+    timer_active BOOLEAN DEFAULT FALSE,
+    vr_file_url TEXT,
+    vr_metadata JSONB DEFAULT '{}'::jsonb,
+    vr_recorded_at TIMESTAMPTZ,
+    vr_duration_seconds INT DEFAULT 0,
+    vr_camera_label TEXT
 );
 
 -- Seed Initial Data with Static UUIDs for references

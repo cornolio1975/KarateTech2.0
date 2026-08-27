@@ -5,7 +5,7 @@ import { useTournament, SystemUser, AccessibilitySettings } from '@/context/Tour
 import { db, basePath, supabase } from '@/db/dbClient';
 import { 
   Save, Trash2, ShieldAlert, UserPlus, Edit2, Check, X, 
-  Shield, Users, Eye, Accessibility, Info, Trophy, Palette, Lock
+  Shield, Users, Eye, Accessibility, Info, Trophy, Palette, Lock, Camera
 } from 'lucide-react';
 
 export default function SettingsPage() {
@@ -532,6 +532,81 @@ export default function SettingsPage() {
             />
             <p className="text-[10px] text-muted-foreground">
               Provide an iframe-friendly embed URL (e.g. <code>https://www.youtube.com/embed/dQw4w9WgXcQ</code>).
+            </p>
+          </div>
+        </div>
+
+        {/* VR Recording Settings */}
+        <div className="bg-card border border-border rounded-xl p-6 space-y-4 shadow-xs">
+          <div className="flex items-center justify-between border-b border-border pb-3">
+            <h2 className="text-sm font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+              <Camera className="h-4 w-4 text-primary" />
+              VR Recording
+            </h2>
+            <button
+              type="button"
+              onClick={async () => {
+                if (typeof navigator !== 'undefined' && navigator.mediaDevices?.enumerateDevices) {
+                  try {
+                    const devices = await navigator.mediaDevices.enumerateDevices();
+                    const cams = devices.filter(device => device.kind === 'videoinput');
+                    const nextIds = cams.map(device => ({ deviceId: device.deviceId || 'camera', label: device.label || 'Camera' }));
+                    setMessage({ type: 'success', text: nextIds.length ? `Detected ${nextIds.length} webcam device(s).` : 'No webcam detected. Please connect a webcam before starting VR.' });
+                  } catch {
+                    setMessage({ type: 'error', text: 'Unable to refresh webcam list.' });
+                  }
+                }
+              }}
+              className="px-3 py-1.5 border border-border rounded-lg text-[10px] font-bold uppercase tracking-wider hover:bg-secondary transition cursor-pointer"
+            >
+              Refresh Camera List
+            </button>
+          </div>
+
+          <div className="space-y-3">
+            <label className="text-xs font-medium text-foreground block">Camera Device</label>
+            <select
+              value={localStorage.getItem('kt_vr_settings') ? JSON.parse(localStorage.getItem('kt_vr_settings') || '{}')?.cameraDeviceId || '' : ''}
+              onChange={(e) => {
+                const current = JSON.parse(localStorage.getItem('kt_vr_settings') || '{}');
+                localStorage.setItem('kt_vr_settings', JSON.stringify({ ...current, cameraDeviceId: e.target.value }));
+                window.location.reload();
+              }}
+              className="w-full px-3 py-2 bg-secondary border border-border rounded-lg text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary"
+            >
+              <option value="">Default camera</option>
+              <option value="camera-default">System default</option>
+            </select>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div>
+                <label className="text-xs font-medium text-foreground block">Video Resolution</label>
+                <select
+                  value={'1280x720'}
+                  className="w-full px-3 py-2 bg-secondary border border-border rounded-lg text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary"
+                  onChange={() => undefined}
+                >
+                  <option value="640x480">640×480</option>
+                  <option value="1280x720">1280×720</option>
+                  <option value="1920x1080">1920×1080</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="text-xs font-medium text-foreground block">Frame Rate</label>
+                <select
+                  value={30}
+                  className="w-full px-3 py-2 bg-secondary border border-border rounded-lg text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary"
+                  onChange={() => undefined}
+                >
+                  <option value={30}>30 FPS</option>
+                  <option value={60}>60 FPS</option>
+                </select>
+              </div>
+            </div>
+
+            <p className="text-[10px] text-muted-foreground">
+              No webcam detected. Please connect a webcam before starting VR.
             </p>
           </div>
         </div>

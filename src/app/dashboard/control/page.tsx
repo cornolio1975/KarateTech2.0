@@ -1848,10 +1848,10 @@ export const KumiteScoreboardControl = React.forwardRef<ScoreboardRef, { boutId?
         )}
 
         {/* ROW 1: Visual Displays & Controls (3-Column Layout: AKA | TIMER | AO) */}
-        <div className="grid grid-cols-2 xl:grid-cols-12 gap-1 lg:gap-2 flex-1 min-h-0">
+        <div className="grid grid-cols-3 gap-1 lg:gap-2 flex-1 min-h-0">
           
           {/* AKA Display & Control Panel */}
-          <section className={`col-span-1 xl:col-span-4 order-2 xl:order-1 border rounded-xl p-1.5 lg:p-3 flex flex-col justify-between items-center transition-all duration-500 overflow-hidden flex-1 min-h-0 ${
+          <section className={`col-span-1 order-1 border rounded-xl p-1.5 lg:p-3 flex flex-col justify-between items-center transition-all duration-500 overflow-hidden flex-1 min-h-0 ${
             winnerSide === 'aka'
               ? 'bg-red-950/80 border-red-500 shadow-[inset_0_0_80px_rgba(239,68,68,0.3),0_0_40px_rgba(239,68,68,0.6)]'
               : 'bg-gradient-to-b from-red-950/20 via-red-950/5 to-transparent border-red-900/30'
@@ -1973,22 +1973,22 @@ export const KumiteScoreboardControl = React.forwardRef<ScoreboardRef, { boutId?
           </section>
 
           {/* TIMER Display & Control Panel (Middle Column) */}
-          <section className="col-span-2 xl:col-span-4 order-1 xl:order-2 bg-white/[0.02] border border-white/5 rounded-xl p-1.5 lg:p-3 flex flex-col justify-between items-center text-center overflow-hidden flex-1 min-h-0">
-            <span className="text-xs md:text-sm lg:text-xl uppercase font-black text-white/80 tracking-[0.3em] shrink-0 mb-0.5 lg:mb-0">MATCH TIMER</span>
+          <section className="col-span-1 order-2 bg-white/[0.02] border border-white/5 rounded-xl p-1.5 lg:p-3 flex flex-col justify-between items-center text-center overflow-hidden flex-1 min-h-0">
+            <span className="text-sm md:text-base lg:text-2xl uppercase font-black text-white/90 tracking-[0.25em] shrink-0 mb-0.5 lg:mb-0">MATCH TIMER</span>
             
             {/* Giant Timer */}
             <div className="flex-1 flex flex-col items-center justify-center w-full min-h-0 py-0.5">
-              <div className={`font-din text-[70px] lg:text-[90px] xl:text-[110px] font-black leading-none select-none flex items-baseline justify-center tracking-tight ${
+              <div className={`font-din text-[62px] lg:text-[92px] xl:text-[116px] font-black leading-none select-none flex items-baseline justify-center tracking-[-0.08em] ${
                 timeLeft <= 150 && timeLeft > 0 ? 'text-red-500 animate-pulse drop-shadow-[0_0_35px_rgba(239,68,68,0.85)]' : 'text-white drop-shadow-[0_0_30px_rgba(255,255,255,0.5)]'
               }`}>
                 <span>{formatMainTime(timeLeft)}</span>
-                <span className={`font-din text-[32px] lg:text-[42px] xl:text-[54px] font-black ml-1 ${
+                <span className={`font-din text-[24px] lg:text-[38px] xl:text-[44px] font-black ml-1 ${
                   timeLeft <= 150 && timeLeft > 0 ? 'text-red-500/70' : 'text-white/75'
                 }`}>{formatDecsTime(timeLeft)}</span>
               </div>
               <div className="flex items-center justify-center gap-2 mt-1">
                 <span className={`w-3 h-3 rounded-full ${timerActive ? 'bg-green-500 animate-ping' : 'bg-red-500'}`} />
-                <span className="text-xs md:text-sm font-black uppercase text-white/70 tracking-wider">
+                <span className="text-xs md:text-sm font-black uppercase text-white/80 tracking-[0.2em]">
                   {timerActive ? 'ACTIVE RUNNING' : timeLeft === 0 ? 'IDLE' : 'PAUSED'}
                 </span>
               </div>
@@ -2022,60 +2022,72 @@ export const KumiteScoreboardControl = React.forwardRef<ScoreboardRef, { boutId?
             </div>
 
             {/* Integrated Controls */}
-            <div className="w-full flex flex-col gap-1.5 pt-1.5 border-t border-white/10 shrink-0 pb-1">
+            <div className="w-full flex flex-col gap-1 pt-1 border-t border-white/10 shrink-0 pb-0.5">
               {/* Primary Controls */}
-              <div className="grid grid-cols-4 gap-1 w-full">
-                <div className="col-span-2">
-                  {timerActive ? (
+              <div className="w-full flex flex-col gap-1">
+                <div className="flex items-stretch justify-center gap-1.5 w-full">
+                  <div className="flex-1 max-w-[240px]">
+                    {timerActive ? (
+                      <button
+                        onClick={handleStopTimer}
+                        disabled={bout.status === 'Completed'}
+                        className="w-full h-full py-3.5 lg:py-5 bg-red-600 hover:bg-red-500 text-white disabled:opacity-40 rounded-xl font-black text-[15px] sm:text-[17px] lg:text-[22px] uppercase tracking-[0.14em] flex items-center justify-center gap-1.5 transition cursor-pointer shadow-lg shadow-red-950/40 border border-red-400/40"
+                      >
+                        <Square className="h-5 w-5 lg:h-6 lg:w-6 fill-white" /> Stop Timer
+                      </button>
+                    ) : (
+                      <button
+                        onClick={handleStartTimer}
+                        disabled={timeLeft === 0 || bout.status === 'Completed'}
+                        className="w-full h-full py-3.5 lg:py-5 bg-green-600 hover:bg-green-500 text-white disabled:opacity-40 rounded-xl font-black text-[15px] sm:text-[17px] lg:text-[22px] uppercase tracking-[0.14em] flex items-center justify-center gap-1.5 transition cursor-pointer shadow-lg shadow-green-950/40 border border-green-400/40"
+                      >
+                        <Play className="h-5 w-5 lg:h-6 lg:w-6 fill-white" /> Start Timer
+                      </button>
+                    )}
+                  </div>
+
+                  <div className="flex w-[100px] flex-col gap-1.5">
                     <button
-                      onClick={handleStopTimer}
-                      disabled={bout.status === 'Completed'}
-                      className="w-full h-full py-3 lg:py-5 bg-red-600 hover:bg-red-500 text-white disabled:opacity-40 rounded-lg font-black text-sm lg:text-xl uppercase tracking-widest flex items-center justify-center gap-2 transition cursor-pointer shadow-md shadow-red-950/40"
+                      onClick={() => handleAdjustTime(1)}
+                      disabled={timerActive || bout.status === 'Completed'}
+                      className="w-full h-full bg-white/10 hover:bg-white/20 disabled:opacity-40 text-white rounded-xl font-black text-[13px] sm:text-[14px] lg:text-lg uppercase tracking-[0.12em] transition cursor-pointer border border-white/20 shadow-sm"
                     >
-                      <Square className="h-5 w-5 lg:h-7 lg:w-7 fill-white" /> Stop Timer
+                      +1s
                     </button>
-                  ) : (
                     <button
-                      onClick={handleStartTimer}
-                      disabled={timeLeft === 0 || bout.status === 'Completed'}
-                      className="w-full h-full py-3 lg:py-5 bg-green-600 hover:bg-green-500 text-white disabled:opacity-40 rounded-lg font-black text-sm lg:text-xl uppercase tracking-widest flex items-center justify-center gap-2 transition cursor-pointer shadow-md shadow-green-950/40"
+                      onClick={() => handleAdjustTime(-1)}
+                      disabled={timerActive || bout.status === 'Completed'}
+                      className="w-full h-full bg-white/10 hover:bg-white/20 disabled:opacity-40 text-white rounded-xl font-black text-[13px] sm:text-[14px] lg:text-lg uppercase tracking-[0.12em] transition cursor-pointer border border-white/20 shadow-sm"
                     >
-                      <Play className="h-5 w-5 lg:h-7 lg:w-7 fill-white" /> Start Timer
+                      -1s
                     </button>
-                  )}
+                  </div>
                 </div>
-                
-                <button
-                  onClick={handleResetTimer}
-                  disabled={timerActive || bout.status === 'Completed'}
-                  className="w-full h-full py-3 lg:py-5 bg-white/5 hover:bg-white/10 text-white disabled:opacity-30 rounded-lg font-black text-xs lg:text-base uppercase tracking-wider flex items-center justify-center gap-1.5 transition cursor-pointer border border-white/10"
-                >
-                  <RotateCcw className="h-4 w-4 lg:h-5 lg:w-5" /> Reset
-                </button>
-                
-                <div className="grid grid-rows-2 gap-1 w-full h-full">
+
+                <div className="grid grid-cols-2 gap-1 w-full">
                   <button
-                    onClick={() => handleAdjustTime(1)}
+                    onClick={handleResetTimer}
                     disabled={timerActive || bout.status === 'Completed'}
-                    className="w-full h-full bg-white/10 hover:bg-white/20 disabled:opacity-40 text-white rounded font-black text-xs lg:text-sm uppercase transition cursor-pointer border border-white/20"
+                    className="w-full h-full py-2 lg:py-2.5 bg-white/5 hover:bg-white/10 text-white disabled:opacity-30 rounded-lg font-black text-[10px] lg:text-xs uppercase tracking-wider flex items-center justify-center gap-1 transition cursor-pointer border border-white/10"
                   >
-                    +1s
+                    <RotateCcw className="h-3.5 w-3.5 lg:h-4 lg:w-4" /> Reset
                   </button>
+
                   <button
-                    onClick={() => handleAdjustTime(-1)}
-                    disabled={timerActive || bout.status === 'Completed'}
-                    className="w-full h-full bg-white/10 hover:bg-white/20 disabled:opacity-40 text-white rounded font-black text-xs lg:text-sm uppercase transition cursor-pointer border border-white/20"
+                    onClick={handleUndo}
+                    disabled={history.length <= 1}
+                    className="w-full h-full py-2 lg:py-2.5 bg-yellow-500/10 hover:bg-yellow-500/20 text-yellow-500 disabled:opacity-30 border border-yellow-500/20 rounded-lg font-black text-[10px] lg:text-xs uppercase transition cursor-pointer flex items-center justify-center gap-1"
                   >
-                    -1s
+                    <RotateCcw className="h-3.5 w-3.5 lg:h-4 lg:w-4" /> Undo Action
                   </button>
                 </div>
               </div>
 
               {/* Secondary Match Actions */}
-              <div className="grid grid-cols-2 gap-2 w-full mt-1">
+              <div className="w-full mt-0.5">
                 <div className="flex flex-col h-full">
-                  <label className="block text-[9px] lg:text-xs uppercase font-bold text-gray-400 mb-1 text-left">Match Duration</label>
-                  <div className="grid grid-cols-4 gap-1 w-full h-full">
+                  <label className="block text-[8px] lg:text-[9px] uppercase font-bold text-gray-400 mb-0.5 text-left">Match Duration</label>
+                  <div className="grid grid-cols-4 gap-1.5 w-full h-full">
                     {[
                       { val: 60, label: '1:00' },
                       { val: 90, label: '1:30' },
@@ -2086,10 +2098,10 @@ export const KumiteScoreboardControl = React.forwardRef<ScoreboardRef, { boutId?
                         key={opt.val}
                         onClick={() => handleSetMatchDuration(opt.val)}
                         disabled={timerActive || bout.status === 'Completed'}
-                        className={`flex items-center justify-center rounded border text-[10px] lg:text-xs font-black transition cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed ${
+                        className={`flex items-center justify-center rounded-lg border text-[12px] sm:text-[13px] lg:text-base font-black transition cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed min-h-[34px] ${
                           matchDuration === opt.val
                             ? 'bg-yellow-500 text-black border-yellow-400 shadow-[0_0_8px_rgba(234,179,8,0.4)]'
-                            : 'bg-white/5 text-white/50 border-white/10 hover:bg-white/10 hover:text-white'
+                            : 'bg-white/5 text-white/60 border-white/10 hover:bg-white/10 hover:text-white'
                         }`}
                       >
                         {opt.label}
@@ -2097,21 +2109,12 @@ export const KumiteScoreboardControl = React.forwardRef<ScoreboardRef, { boutId?
                     ))}
                   </div>
                 </div>
-                <div className="flex flex-col h-full justify-end">
-                  <button
-                    onClick={handleUndo}
-                    disabled={history.length <= 1}
-                    className="w-full h-full py-2 lg:py-3 bg-yellow-500/10 hover:bg-yellow-500/20 text-yellow-500 disabled:opacity-30 border border-yellow-500/20 rounded-lg font-black text-xs lg:text-sm uppercase transition cursor-pointer flex items-center justify-center gap-1.5"
-                  >
-                    <RotateCcw className="h-4 w-4 lg:h-5 lg:w-5" /> Undo Action
-                  </button>
-                </div>
               </div>
             </div>
           </section>
 
           {/* AO Display & Control Panel */}
-          <section className={`col-span-1 xl:col-span-4 order-3 xl:order-3 border rounded-xl p-1.5 lg:p-3 flex flex-col justify-between items-center transition-all duration-500 overflow-hidden flex-1 min-h-0 ${
+          <section className={`col-span-1 order-3 border rounded-xl p-1.5 lg:p-3 flex flex-col justify-between items-center transition-all duration-500 overflow-hidden flex-1 min-h-0 ${
             winnerSide === 'ao'
               ? 'bg-blue-950/80 border-blue-500 shadow-[inset_0_0_80px_rgba(59,130,246,0.3),0_0_40px_rgba(59,130,246,0.6)]'
               : 'bg-gradient-to-b from-blue-950/20 via-blue-950/5 to-transparent border-blue-900/30'

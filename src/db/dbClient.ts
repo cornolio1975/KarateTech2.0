@@ -1144,8 +1144,10 @@ export const dbOriginal = {
           const { data, error } = await supabase.from('bouts').update(updates).eq('id', id).select().single();
           
           if (error) {
-            // Schema fallback: if custom columns fail, update core fields
+            // Schema fallback: update core fields first, then retry the VR-specific columns separately
+            // so older databases continue to work without blocking the feature.
             const coreUpdates: Record<string, any> = {};
+            const vrUpdates: Record<string, any> = {};
             if (updates.score_a !== undefined) coreUpdates.score_a = updates.score_a;
             if (updates.score_b !== undefined) coreUpdates.score_b = updates.score_b;
             if (updates.status !== undefined) coreUpdates.status = updates.status;
@@ -1153,10 +1155,29 @@ export const dbOriginal = {
             if (updates.victory_method !== undefined) coreUpdates.victory_method = updates.victory_method;
             if (updates.tatami !== undefined) coreUpdates.tatami = updates.tatami;
             if (updates.scheduled_time !== undefined) coreUpdates.scheduled_time = updates.scheduled_time;
-            
+            if (updates.vr_file_url !== undefined) vrUpdates.vr_file_url = updates.vr_file_url;
+            if (updates.vr_metadata !== undefined) vrUpdates.vr_metadata = updates.vr_metadata;
+            if (updates.vr_recorded_at !== undefined) vrUpdates.vr_recorded_at = updates.vr_recorded_at;
+            if (updates.vr_duration_seconds !== undefined) vrUpdates.vr_duration_seconds = updates.vr_duration_seconds;
+            if (updates.vr_camera_label !== undefined) vrUpdates.vr_camera_label = updates.vr_camera_label;
+
             const { data: coreData, error: coreErr } = await supabase.from('bouts').update(coreUpdates).eq('id', id).select().single();
             if (coreErr) throw coreErr;
-            if (coreData) updatedBout = { ...coreData, ...updates } as Bout;
+
+            if (Object.keys(vrUpdates).length > 0) {
+              try {
+                const { data: vrData, error: vrErr } = await supabase.from('bouts').update(vrUpdates).eq('id', id).select().single();
+                if (!vrErr && vrData) {
+                  updatedBout = { ...coreData, ...vrData, ...updates } as Bout;
+                } else {
+                  updatedBout = { ...coreData, ...updates } as Bout;
+                }
+              } catch {
+                updatedBout = { ...coreData, ...updates } as Bout;
+              }
+            } else if (coreData) {
+              updatedBout = { ...coreData, ...updates } as Bout;
+            }
           } else if (data) {
             updatedBout = data as Bout;
           }

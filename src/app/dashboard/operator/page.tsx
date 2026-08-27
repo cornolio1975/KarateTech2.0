@@ -7,6 +7,16 @@ import { db, basePath } from '@/db/dbClient';
 import { Bout, Participant, Category, Club, Coach, isKumiteCategory, isKataCategory } from '@/db/types';
 import { useTournament } from '@/context/TournamentContext';
 import {
+  DEFAULT_VR_SETTINGS,
+  buildVrPath,
+  buildVideoConstraints,
+  getMatchCode,
+  getResolutionDimensions,
+  resolveCameraSelection,
+  sanitizeFileSystemName,
+  type VrRecordingSettings,
+} from '@/lib/vr';
+import {
   Trophy, List, Users, UserSquare2, Timer, Clock, FileText,
   ChevronRight, FolderOpen, ClipboardList, Users2,
   Flag, Undo2, LockOpen, CheckCircle2, Save, Printer,
@@ -141,12 +151,401 @@ export default function OperatorConsolePage() {
   const [draggedDockId, setDraggedDockId] = useState<string | null>(null);
   const [dragOverDockId, setDragOverDockId] = useState<string | null>(null);
 
+  const [vrSettings, setVrSettings] = useState<VrRecordingSettings>(DEFAULT_VR_SETTINGS);
+  const [vrDevices, setVrDevices] = useState<Array<{ deviceId: string; label: string }>>([]);
+  const [vrRecordingActive, setVrRecordingActive] = useState(false);
+  const [vrRecordingSeconds, setVrRecordingSeconds] = useState(0);
+  const [vrPreviewOpen, setVrPreviewOpen] = useState(false);
+  const [vrError, setVrError] = useState<string | null>(null);
+  const [vrCameraLabel, setVrCameraLabel] = useState('Webcam');
+  const [vrResultPath, setVrResultPath] = useState<string | null>(null);
+  const [vrPreviewPosition, setVrPreviewPosition] = useState({ x: 32, y: 32 });
+  const [vrPlaybackOpen, setVrPlaybackOpen] = useState(false);
+  const [vrPlaybackSearch, setVrPlaybackSearch] = useState('');
+  const [vrPlaybackCategory, setVrPlaybackCategory] = useState('ALL');
+  const [vrPlaybackSelectedId, setVrPlaybackSelectedId] = useState<string | null>(null);
+  const vrStreamRef = useRef<MediaStream | null>(null);
+  const vrRecorderRef = useRef<MediaRecorder | null>(null);
+  const vrVideoRef = useRef<HTMLVideoElement | null>(null);
+  const vrPlaybackVideoRef = useRef<HTMLVideoElement | null>(null);
+  const vrChunksRef = useRef<BlobPart[]>([]);
+  const vrDragRef = useRef<{ startX: number; startY: number; originX: number; originY: number } | null>(null);
+  const vrRecordingActiveRef = useRef(false);
+
   useEffect(() => {
     try {
       const saved = localStorage.getItem('kt_operator_dock_order');
       if (saved) setDockOrder(JSON.parse(saved));
+      const savedVrSettings = localStorage.getItem('kt_vr_settings');
+      if (savedVrSettings) {
+        const parsed = JSON.parse(savedVrSettings) as Partial<VrRecordingSettings>;
+        setVrSettings({ ...DEFAULT_VR_SETTINGS, ...parsed });
+      }
     } catch (e) {}
   }, []);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('kt_vr_settings', JSON.stringify(vrSettings));
+    }
+  }, [vrSettings]);
+
+  const formatRecordingDuration = (seconds: number) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+  };
+
+  const vrPlaybackEntries = useMemo(() => {
+    return bouts
+      .filter((bout) => !!bout.vr_file_url)
+      .map((bout) => {
+        const category = categories.find((cat) => cat.id === bout.category_id);
+        const aka = participants.find((participant) => participant.id === bout.participant_a_id);
+        const ao = participants.find((participant) => participant.id === bout.participant_b_id);
+        const matchCode = getMatchCode(bout.round_no, bout.bout_no);
+        return {
+          id: bout.id,
+          categoryId: bout.category_id,
+          categoryName: category?.name || 'General',
+          matchCode,
+          label: `R${bout.round_no}B${bout.bout_no}`,
+          recordedAt: bout.vr_recorded_at || bout.created_at || new Date().toISOString(),
+          duration: bout.vr_duration_seconds || 0,
+          cameraLabel: bout.vr_camera_label || 'Webcam',
+          url: bout.vr_file_url || '',
+          akaName: aka?.full_name || 'AKA Red',
+          aoName: ao?.full_name || 'AO Blue',
+        };
+      })
+      .sort((a, b) => new Date(b.recordedAt).getTime() - new Date(a.recordedAt).getTime());
+  }, [bouts, categories, participants]);
+
+  const filteredVrPlaybackEntries = useMemo(() => {
+    const term = vrPlaybackSearch.trim().toLowerCase();
+    return vrPlaybackEntries.filter((entry) => {
+      const matchesCategory = vrPlaybackCategory === 'ALL' || entry.categoryId === vrPlaybackCategory;
+      const matchesSearch = !term || [
+        entry.categoryName,
+        entry.matchCode,
+        entry.label,
+        entry.akaName,
+        entry.aoName,
+      ].some((value) => value.toLowerCase().includes(term));
+      return matchesCategory && matchesSearch;
+    });
+  }, [vrPlaybackCategory, vrPlaybackEntries, vrPlaybackSearch]);
+
+  const selectedVrPlaybackEntry = useMemo(() => {
+    if (!filteredVrPlaybackEntries.length) return null;
+    if (vrPlaybackSelectedId) {
+      const match = filteredVrPlaybackEntries.find((entry) => entry.id === vrPlaybackSelectedId);
+      if (match) return match;
+    }
+    const currentMatch = activeBout && activeBout.vr_file_url
+      ? filteredVrPlaybackEntries.find((entry) => entry.id === activeBout.id)
+      : null;
+    if (currentMatch) return currentMatch;
+    return filteredVrPlaybackEntries[0];
+  }, [activeBout, filteredVrPlaybackEntries, vrPlaybackSelectedId]);
+
+  const openVrPlayback = useCallback(() => {
+    setVrPlaybackOpen(true);
+    const preferred = activeBout?.vr_file_url ? activeBout.id : null;
+    if (preferred && !vrPlaybackSelectedId) {
+      setVrPlaybackSelectedId(preferred);
+    }
+  }, [activeBout?.id, activeBout?.vr_file_url, vrPlaybackSelectedId]);
+
+  const addLog = useCallback((category: KeyLogEntry['category'], message: string) => {
+    setKeyLog(prev => [{
+      id: crypto.randomUUID(),
+      time: nowTime(),
+      category,
+      message
+    }, ...prev].slice(0, 200));
+  }, []);
+
+  const refreshVrDevices = useCallback(async () => {
+    if (typeof navigator === 'undefined' || !navigator.mediaDevices?.enumerateDevices) return [] as Array<{ deviceId: string; label: string }>;
+
+    try {
+      const devices = await navigator.mediaDevices.enumerateDevices();
+      const cams = devices.filter(device => device.kind === 'videoinput').map(device => ({
+        deviceId: device.deviceId || `camera-${Math.random().toString(16).slice(2)}`,
+        label: device.label || 'Camera'
+      }));
+      setVrDevices(cams);
+      return cams;
+    } catch (err) {
+      setVrError('Unable to read connected webcam devices.');
+      return [] as Array<{ deviceId: string; label: string }>;
+    }
+  }, []);
+
+  useEffect(() => {
+    void refreshVrDevices();
+  }, [refreshVrDevices]);
+
+  useEffect(() => {
+    vrRecordingActiveRef.current = vrRecordingActive;
+  }, [vrRecordingActive]);
+
+  useEffect(() => {
+    if (!vrRecordingActive) return;
+    const intervalId = window.setInterval(() => {
+      setVrRecordingSeconds(current => current + 1);
+    }, 1000);
+    return () => window.clearInterval(intervalId);
+  }, [vrRecordingActive]);
+
+  const releaseVrStream = useCallback(() => {
+    if (vrStreamRef.current) {
+      vrStreamRef.current.getTracks().forEach(track => track.stop());
+      vrStreamRef.current = null;
+    }
+    if (vrVideoRef.current) {
+      vrVideoRef.current.srcObject = null;
+    }
+    vrRecorderRef.current = null;
+    vrChunksRef.current = [];
+  }, []);
+
+  useEffect(() => {
+    if (!vrPreviewOpen || !vrVideoRef.current || !vrStreamRef.current) return;
+    vrVideoRef.current.srcObject = vrStreamRef.current;
+    void vrVideoRef.current.play().catch(() => undefined);
+  }, [vrPreviewOpen]);
+
+  const handleVrRecordingFailure = useCallback((message: string) => {
+    setVrError(message);
+    setVrRecordingActive(false);
+    setVrPreviewOpen(false);
+    setVrRecordingSeconds(0);
+    setVrCameraLabel('Webcam');
+    releaseVrStream();
+    addLog('SYSTEM', `VR Recording Error: ${message}`);
+  }, [addLog, releaseVrStream]);
+
+  const stopVrRecording = useCallback(async () => {
+    const recorder = vrRecorderRef.current;
+    if (!recorder) {
+      releaseVrStream();
+      setVrRecordingActive(false);
+      setVrPreviewOpen(false);
+      setVrRecordingSeconds(0);
+      setVrCameraLabel('Webcam');
+      return;
+    }
+
+    if (recorder.state !== 'inactive') {
+      try {
+        recorder.stop();
+      } catch (err) {
+        handleVrRecordingFailure('Unable to stop the webcam recording.');
+      }
+      return;
+    }
+
+    releaseVrStream();
+    setVrRecordingActive(false);
+    setVrPreviewOpen(false);
+    setVrRecordingSeconds(0);
+    setVrCameraLabel('Webcam');
+  }, [handleVrRecordingFailure, releaseVrStream]);
+
+  const finishVrRecording = useCallback(async (blob: Blob, cameraLabel: string) => {
+    if (!activeBout) {
+      handleVrRecordingFailure('No active match is loaded for VR recording.');
+      return;
+    }
+
+    const categoryName = activeCat?.name || 'General';
+    const matchCode = getMatchCode(activeBout.round_no, activeBout.bout_no);
+    const fileName = `${matchCode}_${new Date().toISOString().replace(/[:.]/g, '-').replace('T', '_')}.webm`;
+    const folderPath = buildVrPath(categoryName, matchCode);
+    const form = new FormData();
+    form.append('file', blob, fileName);
+    form.append('fileName', fileName);
+    form.append('folderPath', folderPath);
+    form.append('metadata', JSON.stringify({
+      recordingId: `vr_${Date.now()}`,
+      tournamentId: activeTournamentId || 'local',
+      category: categoryName,
+      categoryId: activeBout.category_id,
+      round: activeBout.round_no,
+      bout: activeBout.bout_no,
+      matchId: activeBout.id,
+      matchKey: matchCode,
+      akaName: akaFighter?.full_name || 'AKA Red',
+      aoName: aoFighter?.full_name || 'AO Blue',
+      cameraDevice: cameraLabel,
+      resolution: vrSettings.resolution,
+      fileName,
+      filePath: `${folderPath}/${fileName}`,
+      startedAt: new Date(Date.now() - vrRecordingSeconds * 1000).toISOString(),
+      endedAt: new Date().toISOString(),
+      duration: vrRecordingSeconds,
+      status: 'completed',
+    }));
+
+    try {
+      const response = await fetch('/api/vr/upload', {
+        method: 'POST',
+        body: form,
+      });
+
+      const payload = await response.json();
+      if (!response.ok) {
+        throw new Error(payload.error || 'VR upload failed.');
+      }
+
+      const updatedVrUrl = payload.publicUrl || payload.filePath || `${folderPath}/${fileName}`;
+      const updatedMetadata = {
+        ...(payload.metadata || {}),
+        filePath: payload.filePath || `${folderPath}/${fileName}`,
+        publicUrl: updatedVrUrl,
+        cameraDevice: cameraLabel,
+        duration: payload.duration || vrRecordingSeconds,
+      };
+
+      const savedBout = await db.bouts.update(activeBout.id, {
+        vr_file_url: updatedVrUrl,
+        vr_metadata: updatedMetadata,
+        vr_recorded_at: new Date().toISOString(),
+        vr_duration_seconds: payload.duration || vrRecordingSeconds,
+        vr_camera_label: cameraLabel,
+      });
+
+      setActiveBout(prev => prev ? { ...prev, ...savedBout } : prev);
+      setBouts(prev => prev.map(b => b.id === activeBout.id ? { ...b, ...savedBout } : b));
+      setVrResultPath(updatedVrUrl);
+      setVrPreviewOpen(false);
+      setVrRecordingActive(false);
+      setVrRecordingSeconds(0);
+      setVrCameraLabel('Webcam');
+      addLog('SYSTEM', `VR Recording: Available`);
+      addLog('SYSTEM', `Camera: ${cameraLabel}`);
+      addLog('SYSTEM', `Duration: ${formatRecordingDuration(payload.duration || vrRecordingSeconds)}`);
+      addLog('SYSTEM', `View Recording: ${updatedVrUrl}`);
+      releaseVrStream();
+    } catch (error: any) {
+      handleVrRecordingFailure(error.message || 'VR upload failed.');
+    }
+  }, [activeBout, activeCat, activeTournamentId, addLog, akaFighter, aoFighter, handleVrRecordingFailure, releaseVrStream, vrRecordingSeconds, vrSettings.resolution]);
+
+  const startVrRecording = useCallback(async () => {
+    if (!activeBout) {
+      alert('Load a match before starting VR recording.');
+      return;
+    }
+
+    if (typeof navigator === 'undefined' || !navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === 'undefined') {
+      handleVrRecordingFailure('This browser does not support webcam recording.');
+      return;
+    }
+
+    try {
+      const cameras = await refreshVrDevices();
+      if (!cameras.length) {
+        alert('No webcam detected. Please connect a webcam before starting VR.');
+        return;
+      }
+
+      const selectedCamera = resolveCameraSelection(vrSettings.cameraDeviceId, cameras) || cameras[0];
+      const videoConstraints = buildVideoConstraints({
+        deviceId: selectedCamera?.deviceId,
+        resolution: vrSettings.resolution,
+        frameRate: vrSettings.frameRate,
+      });
+
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: videoConstraints,
+        audio: false,
+      });
+
+      const cameraLabel = selectedCamera.label || 'Webcam';
+      const mimeType = MediaRecorder.isTypeSupported('video/webm;codecs=vp9')
+        ? 'video/webm;codecs=vp9'
+        : MediaRecorder.isTypeSupported('video/webm;codecs=vp8')
+          ? 'video/webm;codecs=vp8'
+          : 'video/webm';
+
+      vrStreamRef.current = stream;
+      if (vrVideoRef.current) {
+        vrVideoRef.current.srcObject = stream;
+      }
+
+      const recorder = new MediaRecorder(stream, { mimeType });
+      vrChunksRef.current = [];
+      recorder.ondataavailable = (event) => {
+        if (event.data && event.data.size > 0) {
+          vrChunksRef.current.push(event.data);
+        }
+      };
+      recorder.onstop = async () => {
+        const blob = new Blob(vrChunksRef.current, { type: mimeType || 'video/webm' });
+        if (blob.size === 0) {
+          handleVrRecordingFailure('The webcam recording was empty and could not be saved.');
+          return;
+        }
+        await finishVrRecording(blob, cameraLabel);
+        releaseVrStream();
+      };
+      recorder.onerror = () => {
+        handleVrRecordingFailure('Webcam recording failed while capturing video.');
+      };
+
+      vrRecorderRef.current = recorder;
+      setVrCameraLabel(cameraLabel);
+      setVrError(null);
+      setVrPreviewOpen(true);
+      setVrRecordingSeconds(0);
+      setVrRecordingActive(true);
+      recorder.start(250);
+      addLog('SYSTEM', `VR Recording: Available`);
+      addLog('SYSTEM', `Camera: ${cameraLabel}`);
+    } catch (error: any) {
+      const message = error?.message || 'Unable to access the webcam.';
+      if (message.includes('Permission')) {
+        alert('Camera access was denied. Please allow webcam permission to start VR recording.');
+      }
+      handleVrRecordingFailure(message.includes('Permission') ? 'Webcam permission was denied.' : 'Unable to start webcam recording.');
+    }
+  }, [activeBout, addLog, finishVrRecording, handleVrRecordingFailure, refreshVrDevices, releaseVrStream, vrSettings.cameraDeviceId, vrSettings.frameRate, vrSettings.resolution]);
+
+  const handleVrToggle = useCallback(async () => {
+    if (vrRecordingActive) {
+      await stopVrRecording();
+      return;
+    }
+    await startVrRecording();
+  }, [startVrRecording, stopVrRecording, vrRecordingActive]);
+
+  const autoStopVrRecording = useCallback(async (reason?: string) => {
+    if (!vrRecordingActive) return;
+    await stopVrRecording();
+    if (reason) {
+      addLog('SYSTEM', reason);
+    }
+  }, [addLog, stopVrRecording, vrRecordingActive]);
+
+  useEffect(() => {
+    return () => {
+      if (vrRecordingActiveRef.current) {
+        try {
+          vrRecorderRef.current?.stop();
+        } catch (err) {}
+      }
+      releaseVrStream();
+    };
+  }, [releaseVrStream]);
+
+  const guardVrMatchTransition = useCallback((reason: string) => {
+    if (!vrRecordingActive) return true;
+    void autoStopVrRecording(reason);
+    return true;
+  }, [autoStopVrRecording, vrRecordingActive]);
 
   const logContainerRef = useRef<HTMLDivElement>(null);
 
@@ -175,15 +574,6 @@ export default function OperatorConsolePage() {
   const [isOnline, setIsOnline] = useState(true);
   const [dbStatus, setDbStatus] = useState<'CONNECTED' | 'LOCAL' | 'OFFLINE'>('CONNECTED');
 
-  const addLog = useCallback((category: KeyLogEntry['category'], message: string) => {
-    setKeyLog(prev => [{
-      id: crypto.randomUUID(),
-      time: nowTime(),
-      category,
-      message
-    }, ...prev].slice(0, 200));
-  }, []);
-
   const updateBout = useCallback(async (updates: Partial<Bout>) => {
     if (!activeBout) return;
     try {
@@ -199,6 +589,10 @@ export default function OperatorConsolePage() {
   }, [activeBout, setBouts, setActiveBout]);
 
   const loadBout = useCallback(async (bout: Bout, pList?: Participant[], catList?: Category[], shouldBroadcastDisplay: boolean = true) => {
+    if (vrRecordingActive) {
+      await autoStopVrRecording(`VR recording auto-stopped before loading match R${bout.round_no}B${bout.bout_no}.`);
+    }
+
     const cArr = catList || categories;
     const pArr = pList || participants;
     const boutCat = cArr.find(c => c.id === bout.category_id);
@@ -257,7 +651,7 @@ export default function OperatorConsolePage() {
     });
 
     addLog('SYSTEM', `Match R${bout.round_no}B${bout.bout_no} loaded to Current Match`);
-  }, [participants, categories, takeoverTatami, tatamiId, updateTatamiTelemetry]);
+  }, [categories, guardVrMatchTransition, participants, takeoverTatami, tatamiId, updateTatamiTelemetry, vrRecordingActive, addLog]);
 
   const loadData = useCallback(async () => {
     try {
@@ -816,6 +1210,10 @@ export default function OperatorConsolePage() {
       return;
     }
 
+    if (vrRecordingActive) {
+      await autoStopVrRecording(`VR recording auto-stopped before saving result for R${activeBout.round_no}B${activeBout.bout_no}.`);
+    }
+
     try {
       // 1. If scoreboard component has custom saveResult implementation, call it
       if (scoreboardRef.current?.saveResult) {
@@ -1148,6 +1546,24 @@ export default function OperatorConsolePage() {
     { id: 'print',           icon: Printer,        label: 'PRINT',          color: 'blue',   action: () => {
         addLog('SYSTEM', 'Function Dock: Triggered Browser Print dialog');
         window.print();
+      } 
+    },
+    { id: 'vr_recording',    icon: Camera,         label: vrRecordingActive ? '● VR ON' : 'VR OFF', color: vrRecordingActive ? 'red' : 'blue', action: async () => {
+        if (vrRecordingActive) {
+          await stopVrRecording();
+        } else {
+          await startVrRecording();
+        }
+      } 
+    },
+    { id: 'vr_playback',     icon: Play,           label: 'PLAYBACK',      color: 'blue',   action: () => {
+        if (vrPlaybackOpen) {
+          setVrPlaybackOpen(false);
+          addLog('SYSTEM', 'Function Dock: VR playback viewer closed');
+        } else {
+          openVrPlayback();
+          addLog('SYSTEM', 'Function Dock: Opened VR footage viewer');
+        }
       } 
     },
     { id: 'display',         icon: Monitor,        label: 'DISPLAY',        color: 'blue',   action: () => {
@@ -2233,6 +2649,290 @@ export default function OperatorConsolePage() {
               CANCEL
             </button>
           </div>
+        </div>
+      )}
+
+      {vrPlaybackOpen && (
+        <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm">
+          <div className="flex h-[86vh] w-full max-w-6xl flex-col overflow-hidden rounded-2xl border border-cyan-500/30 bg-[#0b1220] shadow-2xl shadow-cyan-950/30">
+            <div className="flex items-center justify-between border-b border-white/10 px-4 py-3">
+              <div>
+                <div className="text-[9px] font-black uppercase tracking-[0.25em] text-cyan-400">VR FOOTAGE VIEWER</div>
+                <div className="text-xs text-white/60">Review saved match footage without leaving the console</div>
+              </div>
+              <button
+                onClick={() => setVrPlaybackOpen(false)}
+                className="rounded border border-white/10 bg-white/5 p-2 text-white/60 transition hover:bg-white/10 hover:text-white cursor-pointer"
+                title="Close playback viewer"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            <div className="grid flex-1 overflow-hidden lg:grid-cols-[340px_minmax(0,1fr)]">
+              <aside className="border-b border-white/10 bg-[#0f172a]/70 p-3 lg:border-b-0 lg:border-r">
+                <div className="space-y-3">
+                  <div className="space-y-2">
+                    <label className="block text-[8px] font-black uppercase tracking-[0.2em] text-white/40">Search footage</label>
+                    <div className="flex items-center gap-2 rounded border border-white/10 bg-white/5 px-2 py-2">
+                      <Search className="h-3 w-3 text-white/40" />
+                      <input
+                        value={vrPlaybackSearch}
+                        onChange={(event) => setVrPlaybackSearch(event.target.value)}
+                        placeholder="Category / match / athlete"
+                        className="w-full bg-transparent text-[10px] text-white placeholder:text-white/30 focus:outline-none"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="block text-[8px] font-black uppercase tracking-[0.2em] text-white/40">Category</label>
+                    <select
+                      value={vrPlaybackCategory}
+                      onChange={(event) => setVrPlaybackCategory(event.target.value)}
+                      className="w-full rounded border border-white/10 bg-[#111827] px-2 py-2 text-[10px] text-white focus:outline-none"
+                    >
+                      <option value="ALL">ALL CATEGORIES</option>
+                      {categories.map((category) => (
+                        <option key={category.id} value={category.id}>{category.name}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <button
+                    onClick={() => {
+                      const currentMatchId = activeBout?.id || null;
+                      if (currentMatchId) {
+                        setVrPlaybackSelectedId(currentMatchId);
+                        setVrPlaybackCategory(activeBout?.category_id || 'ALL');
+                      }
+                    }}
+                    className="w-full rounded border border-cyan-500/30 bg-cyan-500/10 px-2 py-2 text-[9px] font-black uppercase tracking-[0.22em] text-cyan-200 transition hover:bg-cyan-500/20 cursor-pointer"
+                  >
+                    Focus current match
+                  </button>
+                </div>
+
+                <div className="mt-4 space-y-2 overflow-y-auto pr-1">
+                  {filteredVrPlaybackEntries.length === 0 ? (
+                    <div className="rounded border border-dashed border-white/10 bg-white/5 p-4 text-center text-[10px] text-white/45">
+                      No recordings found for this search.
+                    </div>
+                  ) : (
+                    filteredVrPlaybackEntries.map((entry, index) => {
+                      const selected = selectedVrPlaybackEntry?.id === entry.id;
+                      return (
+                        <button
+                          key={entry.id}
+                          onClick={() => setVrPlaybackSelectedId(entry.id)}
+                          className={`w-full rounded-xl border p-2 text-left transition ${selected ? 'border-cyan-500/50 bg-cyan-500/10' : 'border-white/10 bg-white/5 hover:bg-white/10'} cursor-pointer`}
+                        >
+                          <div className="flex items-center justify-between gap-2">
+                            <span className="text-[9px] font-black uppercase tracking-[0.2em] text-cyan-300">{entry.matchCode}</span>
+                            <span className="text-[7px] text-white/40">{entry.duration ? `${Math.round(entry.duration)}s` : '—'}</span>
+                          </div>
+                          <div className="mt-1 text-xs font-bold text-white">{entry.categoryName}</div>
+                          <div className="mt-0.5 text-[10px] text-white/60">{entry.akaName} vs {entry.aoName}</div>
+                          <div className="mt-1 text-[8px] uppercase tracking-[0.15em] text-white/35">{entry.cameraLabel} • {new Date(entry.recordedAt).toLocaleString()}</div>
+                          {index === 0 && activeBout?.vr_file_url === entry.url && (
+                            <div className="mt-2 text-[8px] font-black uppercase tracking-[0.2em] text-yellow-300">Current match footage</div>
+                          )}
+                        </button>
+                      );
+                    })
+                  )}
+                </div>
+              </aside>
+
+              <div className="flex min-h-0 flex-col bg-[#0b1220]">
+                {selectedVrPlaybackEntry ? (
+                  <>
+                    <div className="flex items-center justify-between border-b border-white/10 px-4 py-3">
+                      <div>
+                        <div className="text-[9px] font-black uppercase tracking-[0.2em] text-cyan-300">{selectedVrPlaybackEntry.categoryName}</div>
+                        <div className="text-sm font-black text-white">{selectedVrPlaybackEntry.matchCode} • {selectedVrPlaybackEntry.akaName} vs {selectedVrPlaybackEntry.aoName}</div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => {
+                            const currentIndex = filteredVrPlaybackEntries.findIndex((entry) => entry.id === selectedVrPlaybackEntry.id);
+                            const prevEntry = filteredVrPlaybackEntries[currentIndex - 1] || filteredVrPlaybackEntries[filteredVrPlaybackEntries.length - 1];
+                            if (prevEntry) setVrPlaybackSelectedId(prevEntry.id);
+                          }}
+                          className="rounded border border-white/10 bg-white/5 p-2 text-white/70 transition hover:bg-white/10 cursor-pointer"
+                          title="Previous clip"
+                        >
+                          <ArrowLeft className="h-4 w-4" />
+                        </button>
+                        <button
+                          onClick={() => {
+                            const currentIndex = filteredVrPlaybackEntries.findIndex((entry) => entry.id === selectedVrPlaybackEntry.id);
+                            const nextEntry = filteredVrPlaybackEntries[currentIndex + 1] || filteredVrPlaybackEntries[0];
+                            if (nextEntry) setVrPlaybackSelectedId(nextEntry.id);
+                          }}
+                          className="rounded border border-white/10 bg-white/5 p-2 text-white/70 transition hover:bg-white/10 cursor-pointer"
+                          title="Next clip"
+                        >
+                          <ArrowRight className="h-4 w-4" />
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="flex-1 overflow-hidden p-4">
+                      <div className="flex h-full flex-col rounded-2xl border border-white/10 bg-black/30">
+                        <video
+                          key={selectedVrPlaybackEntry.url}
+                          ref={vrPlaybackVideoRef}
+                          src={selectedVrPlaybackEntry.url}
+                          controls
+                          playsInline
+                          preload="metadata"
+                          onError={() => {
+                            setVrError('This VR recording could not be loaded or is not supported by the current browser.');
+                          }}
+                          className="h-full w-full bg-black object-contain"
+                        />
+                        <div className="flex flex-wrap items-center gap-2 border-t border-white/10 bg-[#0a1019] px-4 py-3">
+                          <button
+                            onClick={() => {
+                              const video = vrPlaybackVideoRef.current;
+                              if (!video || !video.src) return;
+
+                              try {
+                                if (video.paused) {
+                                  const playPromise = video.play();
+                                  if (playPromise && typeof playPromise.catch === 'function') {
+                                    playPromise.catch((error: unknown) => {
+                                      console.warn('VR playback blocked:', error);
+                                      setVrError('This recording cannot autoplay in this browser. Use the native video controls to play it manually.');
+                                    });
+                                  }
+                                } else {
+                                  video.pause();
+                                }
+                              } catch (error) {
+                                console.warn('VR playback error:', error);
+                                setVrError('This recording could not be played in the current browser.');
+                              }
+                            }}
+                            className="flex items-center gap-2 rounded border border-cyan-500/30 bg-cyan-500/10 px-2 py-1.5 text-[8px] font-black uppercase tracking-[0.22em] text-cyan-200 transition hover:bg-cyan-500/20 cursor-pointer"
+                          >
+                            <Play className="h-3 w-3" /> Play / Pause
+                          </button>
+                          <button
+                            onClick={() => {
+                              const video = vrPlaybackVideoRef.current;
+                              if (!video) return;
+                              void video.requestFullscreen?.();
+                            }}
+                            className="rounded border border-white/10 bg-white/5 px-2 py-1.5 text-[8px] font-black uppercase tracking-[0.22em] text-white/80 transition hover:bg-white/10 cursor-pointer"
+                          >
+                            Fullscreen
+                          </button>
+                          {[0.5, 1, 1.5, 2].map((rate) => (
+                            <button
+                              key={rate}
+                              onClick={() => {
+                                const video = vrPlaybackVideoRef.current;
+                                if (!video) return;
+                                video.playbackRate = rate;
+                              }}
+                              className={`rounded border px-2 py-1.5 text-[8px] font-black uppercase tracking-[0.18em] transition cursor-pointer ${
+                                (vrPlaybackVideoRef.current?.playbackRate ?? 1) === rate
+                                  ? 'border-cyan-400 bg-cyan-500/20 text-cyan-200'
+                                  : 'border-white/10 bg-white/5 text-white/70 hover:bg-white/10'
+                              }`}
+                            >
+                              {rate}x
+                            </button>
+                          ))}
+                          <a
+                            href={selectedVrPlaybackEntry.url}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="ml-auto rounded border border-yellow-500/30 bg-yellow-500/10 px-2 py-1.5 text-[8px] font-black uppercase tracking-[0.22em] text-yellow-200 transition hover:bg-yellow-500/20 cursor-pointer"
+                          >
+                            Open file
+                          </a>
+                        </div>
+                      </div>
+                    </div>
+                  </>
+                ) : (
+                  <div className="flex h-full items-center justify-center p-8 text-center text-white/45">
+                    <div>
+                      <div className="text-[11px] font-black uppercase tracking-[0.2em] text-white/50">No footage selected</div>
+                      <div className="mt-2 text-sm">Choose a saved recording from the list to review it here.</div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {vrPreviewOpen && (
+        <div
+          className="fixed z-50 w-[280px] rounded-xl border border-red-500/40 bg-[#0b0f14]/95 shadow-2xl backdrop-blur-sm"
+          style={{ left: vrPreviewPosition.x, top: vrPreviewPosition.y }}
+        >
+          <div
+            className="flex cursor-grab items-center justify-between border-b border-white/10 px-3 py-2 text-[8px] font-black uppercase tracking-wider text-red-400"
+            onMouseDown={(event) => {
+              vrDragRef.current = {
+                startX: event.clientX,
+                startY: event.clientY,
+                originX: vrPreviewPosition.x,
+                originY: vrPreviewPosition.y,
+              };
+            }}
+            onMouseMove={(event) => {
+              if (!vrDragRef.current) return;
+              const dx = event.clientX - vrDragRef.current.startX;
+              const dy = event.clientY - vrDragRef.current.startY;
+              setVrPreviewPosition({
+                x: Math.min(window.innerWidth - 300, Math.max(0, vrDragRef.current.originX + dx)),
+                y: Math.min(window.innerHeight - 220, Math.max(0, vrDragRef.current.originY + dy)),
+              });
+            }}
+            onMouseUp={() => { vrDragRef.current = null; }}
+            onMouseLeave={() => { vrDragRef.current = null; }}
+          >
+            <span className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-red-500 animate-pulse" /> REC</span>
+            <span>{formatRecordingDuration(vrRecordingSeconds)}</span>
+          </div>
+          <div className="relative">
+            <video ref={vrVideoRef} autoPlay muted playsInline className="h-[170px] w-full bg-black object-cover" />
+            <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 to-transparent p-2 text-[7px] uppercase tracking-[0.2em] text-white/80">
+              Live Webcam
+            </div>
+          </div>
+          <div className="flex items-center justify-between gap-2 border-t border-white/10 px-3 py-2 text-[7px] text-white/70">
+            <span className="truncate">{vrCameraLabel}</span>
+            {vrResultPath ? (
+              <button
+                onClick={() => window.open(vrResultPath, '_blank', 'noopener,noreferrer')}
+                className="rounded border border-white/10 bg-white/5 px-2 py-1 font-black uppercase text-yellow-300 transition hover:bg-white/10 cursor-pointer"
+              >
+                View Recording
+              </button>
+            ) : (
+              <button
+                onClick={async () => { await stopVrRecording(); }}
+                className="rounded border border-red-500/40 bg-red-500/10 px-2 py-1 font-black uppercase text-red-300 transition hover:bg-red-500/20 cursor-pointer"
+              >
+                Stop
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+
+      {vrError && (
+        <div className="fixed bottom-6 right-6 z-[60] max-w-sm rounded-xl border border-red-500/40 bg-[#120b0b]/95 px-4 py-3 text-sm text-red-100 shadow-2xl">
+          <div className="font-black uppercase tracking-wide text-red-300">VR Recording Error</div>
+          <div className="mt-1 text-xs text-red-100/80">{vrError}</div>
         </div>
       )}
 
