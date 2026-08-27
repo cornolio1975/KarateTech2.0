@@ -198,23 +198,160 @@ export default function ParticipantsPage() {
     }
   };
 
-  // Export CSV
+  const getParticipantCategoryInfo = (participant: Participant) => {
+    const mappedCategories = mappings
+      .filter((m: any) => m.participant_id === participant.id)
+      .map((m: any) => categories.find((c: Category) => c.id === m.category_id))
+      .filter(Boolean) as Category[];
+
+    const kumiteCat = mappedCategories.find(c => isKumiteCategory(c));
+    const kataCat = mappedCategories.find(c => isKataCategory(c));
+
+    return {
+      kumiteCatName: kumiteCat?.name || '',
+      kataCatName: kataCat?.name || '',
+      isKumite: Boolean(participant.isKumite || kumiteCat),
+      isKata: Boolean(participant.isKata || kataCat),
+    };
+  };
+
+  const escapeCsv = (value: string | number | undefined | null) => {
+    const text = String(value ?? '').replace(/\r?\n/g, ' ');
+    return `"${text.replace(/"/g, '""')}"`;
+  };
+
   const handleExportCSV = () => {
-    const headers = 'No,Registration No,Full Name,Gender,Age,DOB,Weight,Height,Club,Country,Status\n';
+    const headers = [
+      'No',
+      'Registration No',
+      'Full Name',
+      'Gender',
+      'Age',
+      'Date of Birth',
+      'Weight',
+      'Height',
+      'School / Club',
+      'Kumite',
+      'Kata',
+      'Kumite Category',
+      'Kata Category',
+      'Email',
+      'Phone',
+      'Passport / IC'
+    ];
+
     const rows = filteredParticipants.map((p, idx) => {
       const clubName = clubs.find(c => c.id === p.club_id)?.name || 'Independent';
-      const countryName = countries.find(c => c.code === p.nationality_code)?.name || 'Unknown';
-      return `"${idx+1}","${p.registration_no}","${p.full_name}","${p.gender}",${getAge(p.dob)},"${p.dob}",${p.weight},${p.height},"${clubName}","${countryName}","${p.status}"`;
+      const categoryInfo = getParticipantCategoryInfo(p);
+      const values = [
+        idx + 1,
+        p.registration_no,
+        p.full_name,
+        p.gender,
+        getAge(p.dob),
+        p.dob,
+        p.weight,
+        p.height,
+        clubName,
+        categoryInfo.isKumite ? 'Yes' : 'No',
+        categoryInfo.isKata ? 'Yes' : 'No',
+        categoryInfo.kumiteCatName,
+        categoryInfo.kataCatName,
+        p.email || '',
+        p.phone || '',
+        p.passport_ic || ''
+      ];
+      return values.map(escapeCsv).join(',');
     }).join('\n');
 
-    const blob = new Blob([headers + rows], { type: 'text/csv;charset=utf-8;' });
+    const blob = new Blob([headers.map(escapeCsv).join(',') + '\n' + rows], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.setAttribute("href", url);
-    link.setAttribute("download", `KT_Participants_Export.csv`);
+    const link = document.createElement('a');
+    link.setAttribute('href', url);
+    link.setAttribute('download', `KT_Participants_Export.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+  };
+
+  const handlePrintParticipants = () => {
+    const printWindow = window.open('', '_blank', 'width=1200,height=900');
+    if (!printWindow) {
+      alert('Please allow pop-ups to print the participants list.');
+      return;
+    }
+
+    const rows = filteredParticipants.map((p, idx) => {
+      const clubName = clubs.find(c => c.id === p.club_id)?.name || 'Independent';
+      const categoryInfo = getParticipantCategoryInfo(p);
+      return `
+        <tr>
+          <td>${idx + 1}</td>
+          <td>${p.registration_no}</td>
+          <td>${p.full_name}</td>
+          <td>${p.gender}</td>
+          <td>${getAge(p.dob)}</td>
+          <td>${p.dob}</td>
+          <td>${p.weight}</td>
+          <td>${p.height}</td>
+          <td>${clubName}</td>
+          <td>${categoryInfo.isKumite ? '☑' : '☐'}</td>
+          <td>${categoryInfo.isKata ? '☑' : '☐'}</td>
+          <td>${categoryInfo.kumiteCatName}</td>
+          <td>${categoryInfo.kataCatName}</td>
+          <td>${p.email || ''}</td>
+          <td>${p.phone || ''}</td>
+          <td>${p.passport_ic || ''}</td>
+        </tr>
+      `;
+    }).join('');
+
+    printWindow.document.write(`
+      <html>
+        <head>
+          <title>Participants Export</title>
+          <style>
+            body { font-family: Arial, sans-serif; margin: 20px; color: #111827; }
+            h1 { font-size: 24px; margin-bottom: 12px; }
+            table { width: 100%; border-collapse: collapse; font-size: 11px; }
+            th, td { border: 1px solid #d1d5db; padding: 6px 8px; text-align: left; vertical-align: top; }
+            th { background: #f3f4f6; }
+            tr:nth-child(even) { background: #fafafa; }
+            @media print { body { margin: 0; } }
+          </style>
+        </head>
+        <body>
+          <h1>Participants List</h1>
+          <table>
+            <thead>
+              <tr>
+                <th>No</th>
+                <th>Registration No</th>
+                <th>Full Name</th>
+                <th>Gender</th>
+                <th>Age</th>
+                <th>Date of Birth</th>
+                <th>Weight</th>
+                <th>Height</th>
+                <th>School / Club</th>
+                <th>Kumite</th>
+                <th>Kata</th>
+                <th>Kumite Category</th>
+                <th>Kata Category</th>
+                <th>Email</th>
+                <th>Phone</th>
+                <th>Passport / IC</th>
+              </tr>
+            </thead>
+            <tbody>${rows}</tbody>
+          </table>
+        </body>
+      </html>
+    `);
+
+    printWindow.document.close();
+    printWindow.focus();
+    setTimeout(() => printWindow.print(), 250);
   };
 
   // --- Filtering logic matching KT demo ---
@@ -632,6 +769,13 @@ export default function ParticipantsPage() {
               </button>
             </div>
 
+            <button
+              onClick={handlePrintParticipants}
+              disabled={filteredParticipants.length === 0}
+              className="px-3 py-1.5 bg-indigo-500 text-white hover:bg-indigo-600 text-xs font-bold rounded-lg flex items-center gap-1 cursor-pointer disabled:opacity-50"
+            >
+              <Printer className="h-4 w-4" /> Print
+            </button>
             <button
               onClick={handleExportCSV}
               disabled={filteredParticipants.length === 0}
