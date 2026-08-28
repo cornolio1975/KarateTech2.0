@@ -3639,7 +3639,7 @@ export default function OperatorConsolePage() {
 
       {/* OFFICIAL WKF KATA LIST MODAL */}
       {isKataListModalOpen && (
-        <KataListModal onClose={() => setIsKataListModalOpen(false)} />
+        <KataListModal isOpen={isKataListModalOpen} onClose={() => setIsKataListModalOpen(false)} />
       )}
 
       {/* Officials Modal */}
