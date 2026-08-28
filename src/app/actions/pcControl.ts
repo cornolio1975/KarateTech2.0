@@ -195,17 +195,20 @@ export async function releaseLockAction(tournamentId: string, categoryId: string
 
 export async function getActiveLocks(tournamentId: string): Promise<CategoryLock[]> {
   if (!supabase) return [];
-  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-  if (!uuidRegex.test(tournamentId)) return [];
   
-  const { data, error } = await supabase
-    .from('category_locks')
-    .select('*')
-    .eq('tournament_id', tournamentId)
-    .eq('is_active', true);
-  
-  if (error) throw new Error(describeError(error));
-  return data || [];
+  try {
+    const { data, error } = await supabase
+      .from('category_locks')
+      .select('*')
+      .eq('tournament_id', tournamentId)
+      .eq('is_active', true);
+    
+    if (error) throw new Error(describeError(error));
+    return data || [];
+  } catch (error) {
+    console.warn("Supabase fetch failed for getActiveLocks:", error);
+    return [];
+  }
 }
 
 export async function getPcs(tournamentId?: string): Promise<TournamentPC[]> {
@@ -217,7 +220,12 @@ export async function getPcs(tournamentId?: string): Promise<TournamentPC[]> {
     query = query.eq('tournament_id', tournamentId);
   }
   
-  const { data, error } = await query;
-  if (error) throw new Error(describeError(error));
-  return data || [];
+  try {
+    const { data, error } = await query;
+    if (error) throw new Error(describeError(error));
+    return data || [];
+  } catch (error) {
+    console.warn("Supabase fetch failed for getPcs:", error);
+    return [];
+  }
 }

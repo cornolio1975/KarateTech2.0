@@ -2,14 +2,14 @@
 
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { db } from '@/db/dbClient';
-import { Participant } from '@/db/types';
+import { Official } from '@/db/types';
 import { X, Upload, Camera, RotateCcw, Check, Trash2, ZoomIn, Crop, SwitchCamera } from 'lucide-react';
 import Cropper, { Area } from 'react-easy-crop';
 
-interface PlayerPhotoModalProps {
-  participant: Participant;
+interface OfficialPhotoModalProps {
+  official: Official;
   onClose: () => void;
-  onSaved: (updated: Participant) => void;
+  onSaved: (updated: Official) => void;
 }
 
 type Mode = 'choose' | 'upload' | 'webcam' | 'crop';
@@ -43,9 +43,9 @@ const compressImage = (dataUrl: string, maxWidth = 300, maxHeight = 400): Promis
   });
 };
 
-export default function PlayerPhotoModal({ participant, onClose, onSaved }: PlayerPhotoModalProps) {
+export default function OfficialPhotoModal({ official, onClose, onSaved }: OfficialPhotoModalProps) {
   const [mode, setMode] = useState<Mode>('choose');
-  const [preview, setPreview] = useState<string | null>(participant.photo_url || null);
+  const [preview, setPreview] = useState<string | null>(official.photo_url || null);
   const [captured, setCaptured] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -162,7 +162,7 @@ export default function PlayerPhotoModal({ participant, onClose, onSaved }: Play
     try {
       setSaving(true);
       setError(null);
-      const updated = await db.participants.update(participant.id, { photo_url: imgData });
+      const updated = await db.officials.update(official.id, { photo_url: imgData });
       onSaved(updated);
       onClose();
     } catch (err: any) {
@@ -175,7 +175,7 @@ export default function PlayerPhotoModal({ participant, onClose, onSaved }: Play
 
   const retake = () => {
     setCaptured(null);
-    setPreview(participant.photo_url || null);
+    setPreview(official.photo_url || null);
     startCamera();
   };
 
@@ -200,10 +200,10 @@ export default function PlayerPhotoModal({ participant, onClose, onSaved }: Play
   };
 
   const handleRemove = async () => {
-    if (!window.confirm('Remove current photo for this participant?')) return;
+    if (!window.confirm('Remove current photo for this official?')) return;
     try {
       setSaving(true);
-      const updated = await db.participants.update(participant.id, { photo_url: '' });
+      const updated = await db.officials.update(official.id, { photo_url: '' });
       onSaved(updated);
       onClose();
     } catch {
@@ -220,8 +220,8 @@ export default function PlayerPhotoModal({ participant, onClose, onSaved }: Play
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-white/10">
           <div>
-            <h2 className="text-sm font-black text-white uppercase tracking-widest">Fighter Photo</h2>
-            <p className="text-[10px] text-white/40 font-bold mt-0.5 truncate max-w-[260px]">{participant.full_name}</p>
+            <h2 className="text-sm font-black text-white uppercase tracking-widest">Official Photo</h2>
+            <p className="text-[10px] text-white/40 font-bold mt-0.5 truncate max-w-[260px]">{official.name}</p>
           </div>
           <button onClick={onClose} className="p-1.5 rounded-lg text-white/30 hover:text-white hover:bg-white/10 transition cursor-pointer">
             <X className="h-4 w-4" />
@@ -237,7 +237,7 @@ export default function PlayerPhotoModal({ participant, onClose, onSaved }: Play
                 <div className="relative w-36 h-44 rounded-xl overflow-hidden border-2 border-white/20 bg-black/40 shadow-xl group cursor-pointer"
                   onClick={() => fileInputRef.current?.click()}>
                   {preview
-                    ? <img src={preview} alt={participant.full_name} className="w-full h-full object-cover" />
+                    ? <img src={preview} alt={official.name} className="w-full h-full object-cover" />
                     : <div className="w-full h-full flex flex-col items-center justify-center text-white/20 gap-2">
                         <Camera className="h-10 w-10" />
                         <span className="text-[9px] font-bold uppercase tracking-widest">No Photo</span>
@@ -309,7 +309,7 @@ export default function PlayerPhotoModal({ participant, onClose, onSaved }: Play
 
               <div className="flex gap-2">
                 <button
-                  onClick={() => { setMode('choose'); setCaptured(null); setPreview(participant.photo_url || null); }}
+                  onClick={() => { setMode('choose'); setCaptured(null); setPreview(official.photo_url || null); }}
                   className="flex-1 py-2 bg-white/5 hover:bg-white/10 text-white/60 font-bold text-xs rounded-lg transition cursor-pointer"
                 >
                   ← Back
@@ -317,7 +317,7 @@ export default function PlayerPhotoModal({ participant, onClose, onSaved }: Play
                 {captured && (
                   <>
                     <button
-                      onClick={() => { setCaptured(null); setPreview(participant.photo_url || null); fileInputRef.current?.click(); }}
+                      onClick={() => { setCaptured(null); setPreview(official.photo_url || null); fileInputRef.current?.click(); }}
                       className="py-2 px-3 bg-white/10 hover:bg-white/20 text-white font-bold text-xs rounded-lg transition cursor-pointer"
                       title="Change file"
                     >
@@ -377,7 +377,7 @@ export default function PlayerPhotoModal({ participant, onClose, onSaved }: Play
 
               <div className="flex gap-2">
                 <button
-                  onClick={() => { stopCamera(); setMode('choose'); setCaptured(null); setPreview(participant.photo_url || null); }}
+                  onClick={() => { stopCamera(); setMode('choose'); setCaptured(null); setPreview(official.photo_url || null); }}
                   className="flex-1 py-2 bg-white/5 hover:bg-white/10 text-white/60 font-bold text-xs rounded-lg transition cursor-pointer"
                 >
                   ← Cancel
@@ -428,7 +428,7 @@ export default function PlayerPhotoModal({ participant, onClose, onSaved }: Play
                   onClick={() => {
                     setCaptured(null);
                     setMode('choose');
-                    setPreview(participant.photo_url || null);
+                    setPreview(official.photo_url || null);
                   }}
                   className="flex-1 py-2 bg-white/5 hover:bg-white/10 text-white/60 font-bold text-xs rounded-lg transition cursor-pointer"
                 >

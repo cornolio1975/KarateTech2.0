@@ -199,6 +199,7 @@ export interface Bout {
 export interface Official {
   id: string;
   name: string;
+  photo_url?: string;
   role: 'Referee' | 'Judge' | 'Table Official' | 'Tatami Manager' | 'Coach';
   qualification: string;
   assigned_tatami?: string;
@@ -375,6 +376,7 @@ export interface Bout {
 export interface Official {
   id: string;
   name: string;
+  photo_url?: string;
   role: 'Referee' | 'Judge' | 'Table Official' | 'Tatami Manager' | 'Coach';
   qualification: string;
   assigned_tatami?: string;

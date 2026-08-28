@@ -4,7 +4,7 @@ import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { db, basePath } from '@/db/dbClient';
-import { Bout, Participant, Category, Club, Coach, isKumiteCategory, isKataCategory } from '@/db/types';
+import { Bout, Participant, Category, Club, Coach, Official, isKumiteCategory, isKataCategory } from '@/db/types';
 import { useTournament } from '@/context/TournamentContext';
 import {
   DEFAULT_VR_SETTINGS,
@@ -18,7 +18,7 @@ import {
 } from '@/lib/vr';
 import {
   Trophy, List, Users, UserSquare2, Timer, Clock, FileText,
-  ChevronRight, FolderOpen, ClipboardList, Users2,
+  ChevronRight, FolderOpen, ClipboardList, Users2, ShieldCheck, Shield, Phone, Mail,
   Flag, Undo2, LockOpen, CheckCircle2, Save, Printer,
   Monitor, Radio, Lock, Cpu, Settings, MoreHorizontal,
   Search, Download, X, Play, Pause, RotateCcw,
@@ -59,6 +59,117 @@ function calculateAge(dobString?: string) {
   return isNaN(age) ? null : age;
 }
 
+const LiveSystemStatus = ({ effectiveTatami, userEmail, isOnline, dbStatus }: { effectiveTatami: number, userEmail: string, isOnline: boolean, dbStatus: 'CONNECTED' | 'LOCAL' | 'OFFLINE' }) => {
+  const [time, setTime] = useState(new Date());
+  
+  // A true "Cloud Online" state requires BOTH the browser to be online AND the database to be CONNECTED.
+  const isCloudOnline = isOnline && dbStatus === 'CONNECTED';
+  
+  const [cloudRestored, setCloudRestored] = useState(false);
+  const [prevCloud, setPrevCloud] = useState(isCloudOnline);
+
+  useEffect(() => {
+    const timer = setInterval(() => setTime(new Date()), 1000);
+    return () => clearInterval(timer);
+  }, []);
+
+  useEffect(() => {
+    if (!prevCloud && isCloudOnline) {
+      setCloudRestored(true);
+      const to = setTimeout(() => setCloudRestored(false), 5000);
+      return () => clearTimeout(to);
+    }
+    setPrevCloud(isCloudOnline);
+  }, [isCloudOnline, prevCloud]);
+
+  if (cloudRestored) {
+    return (
+      <div className="w-[145px] shrink-0 px-3 py-2 flex flex-col justify-center h-full bg-[#0a0c10]">
+        <div className="text-[7px] font-black uppercase tracking-widest text-white/30 mb-2">SYSTEM STATUS</div>
+        <div className="text-[7px] font-bold text-green-400 mb-1 leading-tight">CLOUD CONNECTION RESTORED</div>
+        <div className="text-[7px] font-bold text-green-400 animate-pulse">SYNCING...</div>
+      </div>
+    );
+  }
+
+  let statusHeader = '';
+  let statusColor = '';
+  let dotColor = '';
+
+  if (isCloudOnline) {
+    statusHeader = 'CLOUD ONLINE';
+    statusColor = 'text-green-400';
+    dotColor = 'bg-green-400';
+  } else if (dbStatus === 'LOCAL') {
+    statusHeader = 'LOCAL SERVER';
+    statusColor = 'text-orange-400';
+    dotColor = 'bg-orange-400';
+  } else {
+    statusHeader = 'DISCONNECTED';
+    statusColor = 'text-red-400';
+    dotColor = 'bg-red-400';
+  }
+
+  const timeStr = time.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+
+  return (
+    <div className="w-[145px] shrink-0 px-2 py-1.5 flex flex-col justify-center gap-0.5 h-full bg-[#0a0c10]">
+      <div className="text-[7px] font-black uppercase tracking-widest text-white/30 mb-0.5">SYSTEM STATUS</div>
+      <div className={`flex items-center gap-1.5 text-[8px] font-bold ${statusColor} mb-1`}>
+        <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${dotColor} ${isCloudOnline ? 'animate-pulse' : ''}`} />
+        {statusHeader}
+      </div>
+      
+      <div className="flex flex-col gap-[3px] text-[6.5px] leading-tight w-full">
+        <div className="flex items-center justify-between w-full">
+          <span className="text-white/30 shrink-0">Console:</span>
+          <span className="text-white/70 font-mono truncate">TATAMI {effectiveTatami}</span>
+        </div>
+        
+        {isCloudOnline || dbStatus === 'LOCAL' ? (
+          <>
+            <div className="flex items-center justify-between w-full">
+              <span className="text-white/30 shrink-0">User:</span>
+              <span className="text-white/70 font-mono truncate max-w-[80px]" title={userEmail || 'unknown'}>
+                {userEmail || 'unknown'}
+              </span>
+            </div>
+            <div className="flex items-center justify-between w-full">
+              <span className="text-white/30 shrink-0">Connection:</span>
+              <span className={`font-bold truncate ${isCloudOnline ? 'text-green-400' : 'text-orange-400'}`}>{isCloudOnline ? 'Cloud' : 'Local Server'}</span>
+            </div>
+            {(!isCloudOnline && dbStatus === 'LOCAL') && (
+              <div className="flex items-center justify-between w-full">
+                <span className="text-white/30 shrink-0">Cloud:</span>
+                <span className="font-bold text-red-400">OFFLINE</span>
+              </div>
+            )}
+            <div className="flex items-center justify-between w-full">
+              <span className="text-white/30 shrink-0">Sync:</span>
+              <span className={`font-bold ${isCloudOnline ? 'text-green-400' : 'text-orange-400'}`}>{isCloudOnline ? 'LIVE' : 'LOCAL'}</span>
+            </div>
+            <div className="flex items-center justify-between w-full mt-0.5 pt-0.5 border-t border-white/5">
+              <span className="text-white/30 shrink-0">Heartbeat:</span>
+              <span className="text-white font-mono shrink-0">{timeStr}</span>
+            </div>
+          </>
+        ) : (
+          <>
+            <div className="flex items-center justify-between w-full">
+              <span className="text-white/30 shrink-0">Cloud:</span>
+              <span className="font-bold text-red-400">OFFLINE</span>
+            </div>
+            <div className="flex items-center justify-between w-full">
+              <span className="text-white/30 shrink-0">Local:</span>
+              <span className="font-bold text-red-400">OFFLINE</span>
+            </div>
+          </>
+        )}
+      </div>
+    </div>
+  );
+};
+
 export default function OperatorConsolePage() {
   const router = useRouter();
   const { 
@@ -67,6 +178,7 @@ export default function OperatorConsolePage() {
     tatamiId, 
     takeoverTatami, 
     userRole, 
+    userEmail,
     updateTatamiTelemetry,
     consoleTheme,
     setConsoleTheme
@@ -98,6 +210,8 @@ export default function OperatorConsolePage() {
   const [categories, setCategories] = useState<Category[]>([]);
   const [clubs, setClubs] = useState<Club[]>([]);
   const [coaches, setCoaches] = useState<Coach[]>([]);
+  const [officials, setOfficials] = useState<Official[]>([]);
+  const [isOfficialsModalOpen, setIsOfficialsModalOpen] = useState(false);
   const [selectedProfileModal, setSelectedProfileModal] = useState<{ participant: Participant; corner: 'AKA' | 'AO' } | null>(null);
   const [editParticipantId, setEditParticipantId] = useState<string | null>(null);
   const [photoModalParticipant, setPhotoModalParticipant] = useState<Participant | null>(null);
@@ -106,6 +220,8 @@ export default function OperatorConsolePage() {
   const [activeCat, setActiveCat] = useState<Category | null>(null);
   const [akaFighter, setAkaFighter] = useState<Participant | null>(null);
   const [aoFighter, setAoFighter] = useState<Participant | null>(null);
+  
+  const effectiveTatami = (takeoverTatami || tatamiId || localTatamiParam || activeBout?.tatami || 1) as 1 | 2;
 
   const [liveScoreAka, setLiveScoreAka] = useState(0);
   const [liveScoreAo, setLiveScoreAo] = useState(0);
@@ -686,18 +802,20 @@ export default function OperatorConsolePage() {
   const loadData = useCallback(async () => {
     try {
       setLoading(true);
-      const [bList, pList, catList, clList, coList] = await Promise.all([
+      const [bList, pList, catList, clList, coList, oList] = await Promise.all([
         db.bouts.list(),
         db.participants.list(),
         db.categories.list(),
         db.clubs.list(),
         db.coaches.list(),
+        db.officials.list(),
       ]);
       setBouts(bList);
       setParticipants(pList);
       setCategories(catList);
       setClubs(clList);
       setCoaches(coList);
+      setOfficials(oList);
       
       const currentTatamiNum = takeoverTatami || tatamiId || localTatamiParam || 1;
       const myTatami = `Tatami ${currentTatamiNum}`;
@@ -1565,6 +1683,11 @@ export default function OperatorConsolePage() {
         addLog('SYSTEM', 'Function Dock: Key Log filter reset to ALL');
       } 
     },
+    { id: 'officials',       icon: ShieldCheck,    label: 'OFFICIALS',      color: 'blue',   action: () => {
+        setIsOfficialsModalOpen(true);
+        addLog('SYSTEM', 'Function Dock: Opened Officials Directory');
+      } 
+    },
     { id: 'queue',           icon: Users2,         label: 'QUEUE',          color: 'blue',   action: () => {
         if (bracketTab === 'QUEUE') {
           setBracketTab('BRACKET CONSOLE');
@@ -1884,7 +2007,7 @@ export default function OperatorConsolePage() {
 
           <button onClick={() => { loadData(); addLog('SYSTEM', 'Top Bar: Data refresh requested'); }} className="p-1.5 rounded text-white/30 hover:text-white/70 transition cursor-pointer" title="Refresh Data"><RefreshCw className={`h-3.5 w-3.5 ${loading ? 'animate-spin' : ''}`} /></button>
           <button onClick={() => { addLog('SYSTEM', 'Top Bar: Navigating to Settings'); router.push('/settings'); }} className="p-1.5 rounded text-white/30 hover:text-white/70 transition cursor-pointer" title="Settings"><Settings className="h-3.5 w-3.5" /></button>
-          <button onClick={() => { document.documentElement.requestFullscreen?.(); addLog('SYSTEM', 'Top Bar: Fullscreen requested'); }} className="p-1.5 rounded text-white/30 hover:text-white/70 transition cursor-pointer" title="Fullscreen"><Maximize2 className="h-3.5 w-3.5" /></button>
+          <button onClick={() => { document.documentElement.requestFullscreen?.().catch(() => {}); addLog('SYSTEM', 'Top Bar: Fullscreen requested'); }} className="p-1.5 rounded text-white/30 hover:text-white/70 transition cursor-pointer" title="Fullscreen"><Maximize2 className="h-3.5 w-3.5" /></button>
           <Link href="/" onClick={() => addLog('SYSTEM', 'Top Bar: Exit to Home clicked')} className="p-1.5 rounded text-white/30 hover:text-red-400 transition" title="Back to Home"><X className="h-3.5 w-3.5" /></Link>
         </div>
       </header>      {/* DYNAMIC LIVE SCOREBOARD CONTROL (NO HARDCODED MOCKUPS) */}
@@ -2597,23 +2720,8 @@ export default function OperatorConsolePage() {
               </div>
             </div>
 
-            {/* SYSTEM STATUS (Fixed width, clean layout) */}
-            <div className="w-[145px] shrink-0 px-3 py-2 flex flex-col justify-center gap-0.5 h-full bg-[#0a0c10]">
-              <div className="text-[7px] font-black uppercase tracking-widest text-white/30 mb-0.5">SYSTEM STATUS</div>
-              {[
-                { label: 'DATABASE', value: dbStatus, color: dbStatus === 'CONNECTED' ? 'text-green-400' : 'text-orange-400', dot: dbStatus === 'CONNECTED' ? 'bg-green-400' : 'bg-orange-400' },
-                { label: 'PC ID', value: 'KT-001', color: 'text-blue-400', dot: 'bg-blue-400' },
-                { label: 'ROLE', value: 'OPERATOR', color: 'text-purple-400', dot: 'bg-purple-400' },
-                { label: 'VERSION', value: '2.0.0', color: 'text-white/50', dot: 'bg-white/30' },
-                { label: 'CLOUD', value: isOnline ? '● SYNCED' : '● OFFLINE', color: isOnline ? 'text-green-400' : 'text-red-400', dot: isOnline ? 'bg-green-400' : 'bg-red-400' },
-              ].map(row => (
-                <div key={row.label} className="flex items-center gap-1 text-[7.5px] leading-tight">
-                  <span className={`w-1 h-1 rounded-full shrink-0 ${row.dot}`} />
-                  <span className="text-white/30">{row.label}:</span>
-                  <span className={`font-bold ${row.color}`}>{row.value}</span>
-                </div>
-              ))}
-            </div>
+            {/* SYSTEM STATUS (Dynamic, clean layout) */}
+            <LiveSystemStatus effectiveTatami={effectiveTatami} userEmail={userEmail || 'unknown'} isOnline={isOnline} dbStatus={dbStatus} />
           </section>
         </div>
       </div>
@@ -3530,10 +3638,103 @@ export default function OperatorConsolePage() {
       )}
 
       {/* OFFICIAL WKF KATA LIST MODAL */}
-      <KataListModal
-        isOpen={isKataListModalOpen}
-        onClose={() => setIsKataListModalOpen(false)}
-      />
+      {isKataListModalOpen && (
+        <KataListModal onClose={() => setIsKataListModalOpen(false)} />
+      )}
+
+      {/* Officials Modal */}
+      {isOfficialsModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+          <div className="bg-[#11141b] border border-white/10 rounded-2xl w-full max-w-4xl shadow-2xl overflow-hidden flex flex-col max-h-[85vh]">
+            <div className="flex items-center justify-between p-5 border-b border-white/5 shrink-0 bg-[#0a0c10]/50">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-blue-500/20 border border-blue-500/30 flex items-center justify-center">
+                  <ShieldCheck className="h-5 w-5 text-blue-400" />
+                </div>
+                <div>
+                  <h2 className="text-sm font-black text-white uppercase tracking-widest">Officials Directory</h2>
+                  <p className="text-[10px] text-white/40 font-bold uppercase tracking-wider">Tournament Roster</p>
+                </div>
+              </div>
+              <button 
+                onClick={() => setIsOfficialsModalOpen(false)}
+                className="p-2 rounded-xl text-white/30 hover:text-white hover:bg-white/10 transition cursor-pointer"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            
+            <div className="flex-1 overflow-y-auto p-6 bg-[#0a0c10]/20">
+              {officials.length === 0 ? (
+                <div className="flex flex-col items-center justify-center h-48 text-white/30 space-y-3">
+                  <Shield className="h-10 w-10 opacity-50" />
+                  <p className="text-xs font-bold uppercase tracking-widest">No officials registered.</p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {officials.map(official => (
+                    <div key={official.id} className="bg-[#11141b] border border-white/5 hover:border-white/20 transition-all rounded-2xl overflow-hidden flex flex-col shadow-lg">
+                      <div className="p-4 flex items-center gap-4 border-b border-white/5">
+                        <div className="w-16 h-16 rounded-full bg-black/50 border-2 border-white/10 flex items-center justify-center overflow-hidden shrink-0">
+                          {official.photo_url ? (
+                            <img src={official.photo_url} alt={official.name} className="w-full h-full object-cover" />
+                          ) : (
+                            <Shield className="h-6 w-6 text-white/20" />
+                          )}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <h3 className="text-sm font-bold text-white truncate">{official.name}</h3>
+                          <span className={`inline-block px-2 py-0.5 mt-1 rounded text-[9px] font-black uppercase tracking-wider ${
+                            official.role === 'Tatami Manager' ? 'bg-purple-500/20 text-purple-400 border border-purple-500/30' :
+                            official.role === 'Referee' ? 'bg-red-500/20 text-red-400 border border-red-500/30' :
+                            official.role === 'Judge' ? 'bg-blue-500/20 text-blue-400 border border-blue-500/30' :
+                            'bg-white/10 text-white/60 border border-white/10'
+                          }`}>
+                            {official.role}
+                          </span>
+                        </div>
+                      </div>
+                      <div className="p-4 space-y-3 bg-[#0a0c10]/30 flex-1">
+                        <div>
+                          <span className="text-[9px] font-black text-white/30 uppercase tracking-widest block mb-0.5">Qualification</span>
+                          <span className="text-xs font-semibold text-white/80">{official.qualification || 'None listed'}</span>
+                        </div>
+                        <div>
+                          <span className="text-[9px] font-black text-white/30 uppercase tracking-widest block mb-0.5">Contact</span>
+                          <div className="flex flex-col gap-1 mt-1">
+                            {official.phone ? (
+                              <div className="flex items-center gap-2 text-xs font-medium text-white/70">
+                                <Phone className="h-3 w-3 text-white/30" />
+                                <span>{official.phone}</span>
+                              </div>
+                            ) : (
+                              <span className="text-xs text-white/40 italic">No phone</span>
+                            )}
+                            {official.email && (
+                              <div className="flex items-center gap-2 text-xs font-medium text-white/70 mt-0.5">
+                                <Mail className="h-3 w-3 text-white/30" />
+                                <span className="truncate">{official.email}</span>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+            <div className="p-4 border-t border-white/5 bg-[#11141b] flex justify-end">
+              <button 
+                onClick={() => setIsOfficialsModalOpen(false)}
+                className="px-6 py-2 bg-white/5 hover:bg-white/10 border border-white/10 text-white rounded-xl text-xs font-bold uppercase tracking-widest transition cursor-pointer"
+              >
+                Close Directory
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

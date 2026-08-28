@@ -5,8 +5,9 @@ import { db } from '@/db/dbClient';
 import { Official } from '@/db/types';
 import { 
   ShieldCheck, Plus, Search, Edit2, Trash2, Shield, 
-  MapPin, Check, X, RefreshCw, Grid, List, Mail, Phone, Users 
+  MapPin, Check, X, RefreshCw, Grid, List, Mail, Phone, Users, Camera, Copy, ExternalLink
 } from 'lucide-react';
+import OfficialPhotoModal from '@/components/OfficialPhotoModal';
 
 import { useTournament } from '@/context/TournamentContext';
 
@@ -24,6 +25,8 @@ export default function OfficialsPage() {
 
   // Form states
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [photoModalOpen, setPhotoModalOpen] = useState(false);
+  const [selectedOfficialForPhoto, setSelectedOfficialForPhoto] = useState<Official | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [name, setName] = useState('');
   const [role, setRole] = useState<Official['role']>('Referee');
@@ -121,6 +124,12 @@ export default function OfficialsPage() {
     }
   };
 
+  const handleCopyDisplayLink = () => {
+    const url = `${window.location.origin}/display/officials`;
+    navigator.clipboard.writeText(url);
+    alert('Display link copied to clipboard!');
+  };
+
   if (!mounted) return null;
 
   // Filter officials list
@@ -164,6 +173,15 @@ export default function OfficialsPage() {
               <Grid className="h-4 w-4" />
             </button>
           </div>
+
+          <button
+            onClick={handleCopyDisplayLink}
+            className="px-3 py-2 bg-secondary text-foreground border border-border hover:bg-secondary/80 rounded-lg text-xs font-bold transition shadow-sm cursor-pointer flex items-center gap-1.5"
+            title="Copy Public Display Link"
+          >
+            <Copy className="h-4 w-4 text-muted-foreground" />
+            <span className="hidden sm:inline">Copy Display Link</span>
+          </button>
 
           {canModify && (
             <button
@@ -267,7 +285,20 @@ export default function OfficialsPage() {
                 <tbody className="divide-y divide-border">
                   {filteredOfficials.map((off) => (
                     <tr key={off.id} className="hover:bg-secondary/25 transition-colors">
-                      <td className="p-3 font-semibold text-foreground">{off.name}</td>
+                      <td className="p-3 font-semibold text-foreground flex items-center gap-3">
+                        <div 
+                          className="w-8 h-8 rounded-full bg-secondary/80 border border-border flex items-center justify-center overflow-hidden shrink-0 cursor-pointer hover:border-primary transition"
+                          onClick={() => { setSelectedOfficialForPhoto(off); setPhotoModalOpen(true); }}
+                          title="Manage Photo"
+                        >
+                          {off.photo_url ? (
+                            <img src={off.photo_url} alt={off.name} className="w-full h-full object-cover" />
+                          ) : (
+                            <Camera className="h-3.5 w-3.5 text-muted-foreground" />
+                          )}
+                        </div>
+                        {off.name}
+                      </td>
                       <td className="p-3">
                         <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold ${
                           off.role === 'Tatami Manager' ? 'bg-purple-500/10 text-purple-500' :
@@ -307,6 +338,13 @@ export default function OfficialsPage() {
                       {canModify && (
                         <td className="p-3">
                           <div className="flex items-center justify-center gap-2">
+                            <button
+                              onClick={() => { setSelectedOfficialForPhoto(off); setPhotoModalOpen(true); }}
+                              className="p-1 text-muted-foreground hover:text-blue-500 hover:bg-blue-500/10 rounded cursor-pointer"
+                              title="Update Photo"
+                            >
+                              <Camera className="h-3.5 w-3.5" />
+                            </button>
                             <button
                               onClick={() => handleOpenEditModal(off)}
                               className="p-1 text-muted-foreground hover:text-foreground hover:bg-secondary rounded cursor-pointer"
@@ -390,6 +428,7 @@ export default function OfficialsPage() {
       {/* ADD / EDIT DIALOG MODAL */}
       {isModalOpen && (
         <div className="fixed inset-0 bg-background/80 backdrop-blur-xs flex items-center justify-center p-4 z-50">
+          {/* ... existing modal ... */}
           <div className="bg-card border border-border max-w-md w-full rounded-2xl shadow-xl overflow-hidden flex flex-col">
             
             <div className="p-5 border-b border-border flex items-center justify-between">
@@ -537,6 +576,20 @@ export default function OfficialsPage() {
             </form>
           </div>
         </div>
+      )}
+
+      {/* Official Photo Modal */}
+      {photoModalOpen && selectedOfficialForPhoto && (
+        <OfficialPhotoModal
+          official={selectedOfficialForPhoto}
+          onClose={() => {
+            setPhotoModalOpen(false);
+            setSelectedOfficialForPhoto(null);
+          }}
+          onSaved={(updated) => {
+            setOfficials(prev => prev.map(o => o.id === updated.id ? updated : o));
+          }}
+        />
       )}
 
     </div>
