@@ -250,7 +250,7 @@ export const dbOriginal = {
       }
       return mockStore.categories.update(id, updates);
     },
-    add: async (cat: Omit<Category, 'id'>): Promise<Category> => {
+    add: async (cat: Omit<Category, 'id'> & { id?: string }): Promise<Category> => {
       if (supabase) {
         const { data, error } = await supabase.from('categories').insert([cat]).select().single();
         if (error) throw new Error(describeError(error));
@@ -499,9 +499,21 @@ export const dbOriginal = {
       }
       return mockStore.participants.get(id);
     },
-    add: async (participant: Omit<Participant, 'id' | 'registration_no' | 'created_at'>): Promise<Participant> => {
+    add: async (participant: Omit<Participant, 'id' | 'registration_no' | 'created_at'> & { id?: string; registration_no?: string }): Promise<Participant> => {
       if (supabase) {
-        // Generate unique reg no: REG-YYYY-<timestamp5>-<random4>
+        // Preserve a supplied registration_no (CSV round-trip); otherwise generate: REG-YYYY-<timestamp5>-<random4>
+        if (participant.registration_no) {
+          const { data: insertData, error } = await supabase
+            .from('participants')
+            .insert([participant])
+            .select()
+            .single();
+          if (error) throw new Error(describeError(error));
+          const p = insertData as Participant;
+          await db.participants.autoAssignCategory(p);
+          await db.activityLogs.log(p.id, 'System', 'Registration Created', `Participant ${p.full_name} registered successfully`);
+          return p;
+        }
         const generateRegNo = () => {
           const year = new Date().getFullYear();
           const ts = Date.now() % 100000; // last 5 digits of timestamp
@@ -695,10 +707,12 @@ export const dbOriginal = {
     },
     getAssignedCategory: async (participantId: string): Promise<Category | undefined> => {
       if (supabase) {
+        // A participant may have more than one mapping (e.g. Kumite + Kata) — take the first
         const { data, error } = await supabase
           .from('participant_categories')
           .select('category_id')
           .eq('participant_id', participantId)
+          .limit(1)
           .maybeSingle();
         if (error) throw new Error(describeError(error));
         if (!data) return undefined;

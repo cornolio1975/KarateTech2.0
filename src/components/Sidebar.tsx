@@ -17,7 +17,7 @@ const MENU_ITEMS = [
   { name: 'Teams', icon: UsersRound, path: '/teams' },
   { name: 'Dojos', icon: Award, path: '/clubs' },
   { name: 'Categories', icon: Tags, path: '/categories' },
-  { name: 'Draws', icon: GitPullRequest, path: '/draws', badge: 'Draft' },
+  { name: 'Draws', icon: GitPullRequest, path: '/draws', badge: 'WKF Standard' },
   { name: 'Schedule', icon: CalendarDays, path: '/schedule' },
 
   { name: 'Bracket Console Hub', icon: MonitorPlay, path: '/bracket-hub', badge: 'Live' },

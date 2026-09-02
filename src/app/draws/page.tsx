@@ -267,8 +267,10 @@ export default function DrawsPage() {
       alert('No brackets found to print. Please click "Generate All Brackets" first.');
       return;
     }
-    const catIdsWithBouts = Array.from(new Set(currentBouts.map(b => b.category_id)));
-    printCategoryDraws(catIdsWithBouts, true);
+    // Preserve the tournament's existing category order; skip categories with no bracket data.
+    const catIdsWithBouts = new Set(currentBouts.map(b => b.category_id));
+    const orderedCatIds = categories.filter(c => catIdsWithBouts.has(c.id)).map(c => c.id);
+    printCategoryDraws(orderedCatIds, true);
   };
 
   const handlePrintCurrent = () => {
@@ -657,10 +659,10 @@ export default function DrawsPage() {
 
       {/* ======================================================== */}
       {/* RIGHT COLUMN: DRAW CONFIG & MATCH MATCHUPS PANEL         */}
-      <div id="draw-right-panel" className="flex-1 min-w-0 bg-background p-4 lg:p-6 space-y-4 flex flex-col h-auto lg:h-full lg:overflow-hidden">
+      <div id="draw-right-panel" className="flex-1 min-w-0 bg-background p-4 lg:p-6 space-y-4 flex flex-col h-auto lg:h-full lg:overflow-y-auto lg:overflow-x-hidden">
         
         {/* Title Header */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 shrink-0 border-b border-border pb-4">
+        <div className="flex flex-col md:flex-row md:items-center md:flex-wrap justify-between gap-4 shrink-0 border-b border-border pb-4">
           <div className="flex flex-col md:flex-row md:items-center gap-4">
             <div className="flex items-center gap-4">
               <div className="h-14 w-14 rounded-full overflow-hidden border border-white/20 bg-slate-900 shrink-0">
@@ -692,7 +694,7 @@ export default function DrawsPage() {
           </div>
 
           {/* Action buttons — visible in header */}
-          <div className="flex items-center gap-2 flex-wrap no-print shrink-0">
+          <div className="flex items-center gap-2 flex-wrap no-print min-w-0">
             {/* Discipline Filter Right Panel */}
             <select 
               value={disciplineFilter}
@@ -727,16 +729,24 @@ export default function DrawsPage() {
                 <span>Generate All Brackets</span>
               </button>
             )}
-            {canModify && (
+            {bouts.length > 0 && (
               <button
-                onClick={() => setIsClubStatsOpen(true)}
-                className="flex items-center gap-1.5 px-3.5 py-2 bg-indigo-500/10 text-indigo-500 hover:bg-indigo-500/20 border border-indigo-500/20 rounded-lg text-xs font-bold transition shadow-sm cursor-pointer"
-                title="View club participant assignment statistics"
+                onClick={handlePrint}
+                className="flex items-center gap-2 px-4 py-2 bg-slate-800 dark:bg-slate-100 text-white dark:text-slate-900 hover:opacity-90 rounded-lg text-xs font-bold transition shadow-sm cursor-pointer"
+                title="Print or Save PDF for every category's bracket, one page per category, in tournament order"
               >
-                <Award className="h-4 w-4" />
-                <span>Club Stats</span>
+                <Printer className="h-4 w-4" />
+                <span>Print / Save PDF — All Brackets</span>
               </button>
             )}
+            <button
+              onClick={() => setIsClubStatsOpen(true)}
+              className="flex items-center gap-1.5 px-3.5 py-2 bg-indigo-500/10 text-indigo-500 hover:bg-indigo-500/20 border border-indigo-500/20 rounded-lg text-xs font-bold transition shadow-sm cursor-pointer"
+              title="View club participant assignment statistics"
+            >
+              <Award className="h-4 w-4" />
+              <span>Club Stats</span>
+            </button>
             {canModify && bouts.length > 0 && (
               <button
                 onClick={handleClearAllDraws}
@@ -745,16 +755,6 @@ export default function DrawsPage() {
               >
                 <Trash2 className="h-4 w-4" />
                 <span>Clear All Brackets</span>
-              </button>
-            )}
-            {bouts.length > 0 && (
-              <button
-                onClick={handlePrint}
-                className="flex items-center gap-2 px-4 py-2 bg-slate-800 dark:bg-slate-100 text-white dark:text-slate-900 hover:opacity-90 rounded-lg text-xs font-bold transition shadow-sm cursor-pointer"
-                title="Print all categories draw sheets"
-              >
-                <Printer className="h-4 w-4" />
-                <span>Print All Categories</span>
               </button>
             )}
           </div>
@@ -1158,7 +1158,7 @@ export default function DrawsPage() {
     {/* ======================================================= */}
     {/* CLUB STATS MODAL                                        */}
     {/* ======================================================= */}
-    {isClubStatsOpen && canModify && (
+    {isClubStatsOpen && (
       <div className="fixed inset-0 z-[100] p-4 bg-background/80 backdrop-blur-sm animate-in fade-in duration-200 overflow-y-auto flex items-start justify-center">
         <div className="bg-card w-full max-w-3xl border border-border shadow-2xl rounded-2xl flex flex-col shrink-0 my-auto mt-8 mb-8">
           <div className="p-4 border-b border-border bg-secondary/15 flex items-center justify-between sticky top-0 bg-card z-10 rounded-t-2xl">

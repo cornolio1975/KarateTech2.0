@@ -3581,14 +3581,25 @@ export default function OperatorConsolePage() {
                 {/* Print Button */}
                 <button
                   onClick={() => {
+                    if (bracketModalCatId === 'ALL') {
+                      // Print every category that has bracket data, in tournament order
+                      const catIdsWithBouts = new Set(bouts.map(b => b.category_id));
+                      const orderedCatIds = filteredCategories.filter(c => catIdsWithBouts.has(c.id)).map(c => c.id);
+                      if (orderedCatIds.length === 0) {
+                        alert('No brackets found to print.');
+                        return;
+                      }
+                      window.open(`${basePath}/draws/print-preview?catId=${orderedCatIds.join(',')}&autoPrint=true`, '_blank');
+                      return;
+                    }
                     const catIdToPrint = bracketModalCatId !== 'ALL' ? bracketModalCatId : (activeCat?.id || filteredCategories[0]?.id || '');
                     window.open(`${basePath}/draws/print-preview?catId=${catIdToPrint}&autoPrint=true`, '_blank');
                   }}
                   className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 bg-white/10 hover:bg-white/20 border border-white/15 text-white rounded-xl text-xs font-bold transition cursor-pointer"
-                  title="Print Draw Sheet"
+                  title={bracketModalCatId === 'ALL' ? 'Print / Save PDF for every category (one page per category)' : 'Print Draw Sheet'}
                 >
                   <Printer className="h-3.5 w-3.5" />
-                  <span>Print</span>
+                  <span>{bracketModalCatId === 'ALL' ? 'Print All Brackets' : 'Print'}</span>
                 </button>
 
                 {/* Close Button */}

@@ -632,9 +632,9 @@ export const mockStore = {
       saveStoreData('ts_categories', list);
       return updated;
     },
-    add: (cat: Omit<Category, 'id'>): Category => {
+    add: (cat: Omit<Category, 'id'> & { id?: string }): Category => {
       const list = getStoreData('ts_categories', SEED_CATEGORIES);
-      const newCat = { ...cat, id: `cat-${Date.now()}` };
+      const newCat = { ...cat, id: cat.id || `cat-${Date.now()}` };
       list.push(newCat);
       saveStoreData('ts_categories', list);
       return newCat;
@@ -811,11 +811,11 @@ export const mockStore = {
     get: (id: string): Participant | undefined => {
       return getStoreData('ts_participants', SEED_PARTICIPANTS).find(p => p.id === id);
     },
-    add: (participant: Omit<Participant, 'id' | 'registration_no' | 'created_at'>): Participant => {
+    add: (participant: Omit<Participant, 'id' | 'registration_no' | 'created_at'> & { id?: string; registration_no?: string }): Participant => {
       const list = getStoreData('ts_participants', SEED_PARTICIPANTS);
       const count = list.length + 1;
-      const regNo = `REG-2026-${String(count).padStart(3, '0')}`;
-      const id = `part-${Date.now()}`;
+      const regNo = participant.registration_no || `REG-2026-${String(count).padStart(3, '0')}`;
+      const id = participant.id || `part-${Date.now()}`;
       
       const newParticipant: Participant = {
         ...participant,

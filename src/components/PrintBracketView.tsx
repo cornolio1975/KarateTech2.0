@@ -69,9 +69,7 @@ export const PrintBracketView: React.FC<PrintBracketViewProps> = ({
         margin: 0 !important;
         padding: 0 !important;
         background: #fff !important;
-        overflow: hidden !important;
         width: 100% !important;
-        height: 100% !important;
       }
       .print-container {
         width: 100% !important;
@@ -80,9 +78,9 @@ export const PrintBracketView: React.FC<PrintBracketViewProps> = ({
         max-height: 100% !important;
         padding: 0 !important;
         margin: 0 !important;
-        display: flex !important;
-        flex-direction: column !important;
-        justify-content: space-between !important;
+        /* Chrome does not reliably paginate flex containers when printing multiple
+           forced-break pages, so use block layout for print only (screen keeps flex). */
+        display: block !important;
         page-break-inside: avoid !important;
         break-inside: avoid !important;
         overflow: hidden !important;

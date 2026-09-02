@@ -4,6 +4,12 @@ import React, { useState } from 'react';
 import { useTournament } from '@/context/TournamentContext';
 import { db, basePath } from '@/db/dbClient';
 import { Upload, X, Check, RefreshCw, AlertCircle, FileText, ArrowRight } from 'lucide-react';
+import {
+  parseCSVText,
+  mapParticipantHeaderRow,
+  parseParticipantDataRow,
+  ParsedParticipantRow,
+} from '@/utils/participantCsv';
 
 interface ImportModalProps {
   isOpen: boolean;
@@ -40,6 +46,13 @@ export default function ImportModal({ isOpen, onClose }: ImportModalProps) {
 
   const [step, setStep] = useState<1 | 2 | 3>(1); // 1: Upload, 2: Preview & Map, 3: Success Report
   const [isProcessing, setIsProcessing] = useState(false);
+
+  // Exact database round-trip mode (activated when the CSV header includes an "id" column,
+  // i.e. a file produced by "Export CSV"). Existing IDs are updated in place; new IDs are inserted.
+  const [exactMode, setExactMode] = useState(false);
+  const [exactPreviewRows, setExactPreviewRows] = useState<ParsedParticipantRow[]>([]);
+  const [headerError, setHeaderError] = useState('');
+  const [exactReport, setExactReport] = useState<{ createdCount: number; updatedCount: number; errors: string[] } | null>(null);
 
   if (!isOpen) return null;
 
@@ -148,7 +161,35 @@ export default function ImportModal({ isOpen, onClose }: ImportModalProps) {
     return result;
   };
 
-  const parseCSV = (text: string) => {
+  const parseCSV = async (text: string) => {
+    setHeaderError('');
+
+    // Detect a full database export (has an "id" column) vs. the legacy club-registration template
+    const allRows = parseCSVText(text);
+    if (allRows.length > 0) {
+      const { fieldToIndex, missingRequired, hasIdColumn } = mapParticipantHeaderRow(allRows[0]);
+      if (hasIdColumn) {
+        if (missingRequired.length > 0) {
+          setHeaderError(`Import Error: Required participant field missing (${missingRequired.join(', ')})`);
+          return;
+        }
+        const dataRows = allRows.slice(1);
+        if (dataRows.length === 0) {
+          alert('No participant data rows found below the header.');
+          return;
+        }
+        const existingParticipants = await db.participants.list();
+        const existingIds = new Set(existingParticipants.map(p => p.id));
+        const seenIdsInFile = new Set<string>();
+        const parsed = dataRows.map((cols, i) => parseParticipantDataRow(cols, fieldToIndex, i + 1, existingIds, seenIdsInFile));
+        setExactMode(true);
+        setExactPreviewRows(parsed);
+        setStep(2);
+        return;
+      }
+    }
+    setExactMode(false);
+
     try {
       const lines = text.split('\n');
       const rows: ParsedRow[] = [];
@@ -274,7 +315,79 @@ export default function ImportModal({ isOpen, onClose }: ImportModalProps) {
     }
   };
 
+  const invalidExactRows = exactPreviewRows.filter(r => r.errors.length > 0);
+  const validExactRows = exactPreviewRows.filter(r => r.errors.length === 0);
+  const newExactRows = validExactRows.filter(r => !r.isExistingId);
+  const updateExactRows = validExactRows.filter(r => r.isExistingId);
+
+  const handleExactImport = async () => {
+    if (invalidExactRows.length > 0) return; // Validate everything first — block save while errors exist
+    setIsProcessing(true);
+    let createdCount = 0;
+    let updatedCount = 0;
+    const errors: string[] = [];
+
+    try {
+      for (const row of validExactRows) {
+        const payload = {
+          registration_no: row.registration_no,
+          full_name: row.full_name,
+          gender: row.gender,
+          dob: row.dob,
+          age: row.age,
+          nationality_code: row.nationality_code,
+          passport_ic: row.passport_ic,
+          email: row.email,
+          phone: row.phone,
+          emergency_contact_name: row.emergency_contact_name,
+          emergency_contact_phone: row.emergency_contact_phone,
+          club_id: row.club_id,
+          coach_id: row.coach_id,
+          weight: row.weight,
+          height: row.height,
+          status: row.status,
+          medical_status: row.medical_status,
+          payment_status: row.payment_status,
+          isKumite: row.isKumite,
+          isKata: row.isKata,
+          remarks: row.remarks,
+        };
+
+        try {
+          let participantId = row.id;
+          if (row.isExistingId && row.id) {
+            // Same Participant ID -> update the existing database record in place
+            await db.participants.update(row.id, payload);
+            updatedCount++;
+          } else {
+            // No matching existing ID -> insert as new, preserving any supplied ID/registration_no
+            const created = await db.participants.add(row.id ? { ...payload, id: row.id } : payload);
+            participantId = created.id;
+            createdCount++;
+          }
+
+          // Reassign category reference if supplied (single mapping, same limit as manual reassignment elsewhere)
+          const targetCategoryId = row.kumite_category_id || row.kata_category_id;
+          if (targetCategoryId && participantId) {
+            await db.participants.assignCategoryManually(participantId, targetCategoryId, 'CSV Import');
+          }
+        } catch (err: any) {
+          errors.push(`Row ${row.row} (${row.id || row.full_name}): ${err.message}`);
+        }
+      }
+
+      setExactReport({ createdCount, updatedCount, errors });
+      setStep(3);
+      triggerRefresh();
+    } catch (err: any) {
+      alert('Import process failed: ' + err.message);
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
   const handleImport = async () => {
+    if (exactMode) return handleExactImport();
     setIsProcessing(true);
     const importedIds: string[] = [];
     const duplicates: string[] = [];
@@ -375,6 +488,10 @@ export default function ImportModal({ isOpen, onClose }: ImportModalProps) {
     setPreviewRows([]);
     setImportReport(null);
     setStep(1);
+    setExactMode(false);
+    setExactPreviewRows([]);
+    setExactReport(null);
+    setHeaderError('');
   };
 
   return (
@@ -395,6 +512,15 @@ export default function ImportModal({ isOpen, onClose }: ImportModalProps) {
         <div className="flex-1 overflow-y-auto p-6">
           {step === 1 && (
             <div className="space-y-6">
+              {headerError && (
+                <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-xl text-xs text-red-500 flex items-center gap-2">
+                  <AlertCircle className="h-4 w-4 shrink-0" />
+                  <span>{headerError}</span>
+                </div>
+              )}
+              <div className="bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-900/30 rounded-xl p-3 text-[11px] text-blue-800 dark:text-blue-300">
+                Tip: uploading a CSV exported via "Export CSV" (with an <strong>id</strong> column) updates existing participants in place instead of creating new registrations.
+              </div>
               {/* Template Download Panel */}
               <div className="bg-primary/5 border border-primary/10 rounded-xl p-4 flex flex-col sm:flex-row items-center justify-between gap-4">
                 <div className="space-y-0.5 text-left w-full">
@@ -466,7 +592,105 @@ export default function ImportModal({ isOpen, onClose }: ImportModalProps) {
             </div>
           )}
 
-          {step === 2 && (
+          {step === 2 && exactMode && (
+            <div className="space-y-4 h-full flex flex-col">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs shrink-0">
+                <div className="p-2.5 bg-muted/40 border border-border rounded-lg text-center">
+                  <span className="block text-lg font-black">{exactPreviewRows.length}</span>
+                  <span className="text-muted-foreground">Total Rows</span>
+                </div>
+                <div className="p-2.5 bg-emerald-500/10 border border-emerald-500/20 rounded-lg text-center text-emerald-600 dark:text-emerald-400">
+                  <span className="block text-lg font-black">{newExactRows.length}</span>
+                  <span>New</span>
+                </div>
+                <div className="p-2.5 bg-blue-500/10 border border-blue-500/20 rounded-lg text-center text-blue-600 dark:text-blue-400">
+                  <span className="block text-lg font-black">{updateExactRows.length}</span>
+                  <span>Updates</span>
+                </div>
+                <div className="p-2.5 bg-red-500/10 border border-red-500/20 rounded-lg text-center text-red-600 dark:text-red-400">
+                  <span className="block text-lg font-black">{invalidExactRows.length}</span>
+                  <span>Errors</span>
+                </div>
+              </div>
+
+              <div className="flex-1 border border-border rounded-lg overflow-hidden flex flex-col bg-card">
+                <div className="overflow-x-auto overflow-y-auto max-h-[300px]">
+                  <table className="w-full min-w-max text-left border-collapse text-xs">
+                    <thead className="bg-secondary/40 sticky top-0 border-b border-border">
+                      <tr>
+                        <th className="p-3 font-semibold text-muted-foreground whitespace-nowrap">Row</th>
+                        <th className="p-3 font-semibold text-muted-foreground whitespace-nowrap">Status</th>
+                        <th className="p-3 font-semibold text-muted-foreground whitespace-nowrap">Participant ID</th>
+                        <th className="p-3 font-semibold text-muted-foreground whitespace-nowrap">Full Name</th>
+                        <th className="p-3 font-semibold text-muted-foreground whitespace-nowrap">Gender</th>
+                        <th className="p-3 font-semibold text-muted-foreground whitespace-nowrap">DOB</th>
+                        <th className="p-3 font-semibold text-muted-foreground whitespace-nowrap">Weight</th>
+                        <th className="p-3 font-semibold text-muted-foreground whitespace-nowrap">Height</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-border">
+                      {exactPreviewRows.map((row) => (
+                        <tr key={row.row} className={row.errors.length > 0 ? 'bg-red-500/10' : row.isExistingId ? 'bg-blue-500/5' : 'hover:bg-secondary/20'}>
+                          <td className="p-3 text-muted-foreground whitespace-nowrap">{row.row}</td>
+                          <td className="p-3 whitespace-nowrap">
+                            {row.errors.length > 0 ? (
+                              <span className="px-2 py-0.5 bg-red-500/20 text-red-500 text-[10px] rounded font-bold">Error</span>
+                            ) : row.isExistingId ? (
+                              <span className="px-2 py-0.5 bg-blue-500/20 text-blue-500 text-[10px] rounded font-bold">Update</span>
+                            ) : (
+                              <span className="px-2 py-0.5 bg-emerald-500/20 text-emerald-500 text-[10px] rounded font-bold">New</span>
+                            )}
+                          </td>
+                          <td className="p-3 font-mono text-[10px] text-muted-foreground whitespace-nowrap">{row.id || '(auto)'}</td>
+                          <td className="p-3 font-medium whitespace-nowrap">{row.full_name}</td>
+                          <td className="p-3 whitespace-nowrap">{row.gender}</td>
+                          <td className="p-3 font-mono whitespace-nowrap">{row.dob}</td>
+                          <td className="p-3 font-mono whitespace-nowrap">{row.weight} kg</td>
+                          <td className="p-3 font-mono whitespace-nowrap">{row.height} cm</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              {invalidExactRows.length > 0 && (
+                <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-xl text-xs text-red-500 max-h-32 overflow-y-auto space-y-1 shrink-0">
+                  <span className="font-bold flex items-center gap-1"><AlertCircle className="h-3.5 w-3.5" /> Fix these errors before importing:</span>
+                  {invalidExactRows.flatMap(r => r.errors).map((err, i) => (
+                    <p key={i}>Row {err.row} • ID {err.participantId} • {err.field}: {err.problem}. Suggestion: {err.suggestion}</p>
+                  ))}
+                </div>
+              )}
+
+              <div className="flex justify-end gap-2 pt-2 shrink-0">
+                <button
+                  onClick={handleReset}
+                  className="px-4 py-2 border border-border text-muted-foreground hover:text-foreground rounded-lg text-xs font-semibold cursor-pointer"
+                >
+                  Cancel Import / Back
+                </button>
+                <button
+                  onClick={handleImport}
+                  disabled={isProcessing || invalidExactRows.length > 0}
+                  title={invalidExactRows.length > 0 ? 'Resolve all errors before importing' : undefined}
+                  className="px-5 py-2 bg-primary text-primary-foreground hover:bg-primary/95 rounded-lg text-xs font-semibold shadow-sm flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+                >
+                  {isProcessing ? (
+                    <>
+                      <RefreshCw className="h-3.5 w-3.5 animate-spin" /> Importing...
+                    </>
+                  ) : (
+                    <>
+                      <Check className="h-4 w-4" /> Confirm Import ({newExactRows.length} New / {updateExactRows.length} Updates)
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+          )}
+
+          {step === 2 && !exactMode && (
             <div className="space-y-4 h-full flex flex-col">
               <div className="flex justify-between items-center bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-900/30 p-3 rounded-lg text-xs text-amber-800 dark:text-amber-300">
                 <div className="flex items-center gap-2">
@@ -566,7 +790,54 @@ export default function ImportModal({ isOpen, onClose }: ImportModalProps) {
             </div>
           )}
 
-          {step === 3 && importReport && (
+          {step === 3 && exactMode && exactReport && (
+            <div className="space-y-6">
+              <div className="flex flex-col items-center justify-center text-center p-8 bg-emerald-50 dark:bg-emerald-950/10 border border-emerald-100 dark:border-emerald-900/30 rounded-xl">
+                <div className="h-12 w-12 bg-emerald-100 dark:bg-emerald-950 text-emerald-600 dark:text-emerald-400 rounded-full flex items-center justify-center mb-4">
+                  <Check className="h-6 w-6" />
+                </div>
+                <h4 className="font-bold text-base text-foreground mb-1">Import Completed</h4>
+                <p className="text-xs text-muted-foreground max-w-md">
+                  Participant IDs were preserved for updated records; no existing registrations were duplicated or deleted.
+                </p>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="bg-secondary/40 border border-border p-4 rounded-xl">
+                  <span className="text-xs text-muted-foreground block">New Participants Added</span>
+                  <span className="text-2xl font-bold text-foreground block mt-1">{exactReport.createdCount}</span>
+                </div>
+                <div className="bg-secondary/40 border border-border p-4 rounded-xl">
+                  <span className="text-xs text-muted-foreground block">Existing Participants Updated</span>
+                  <span className="text-2xl font-bold text-foreground block mt-1">{exactReport.updatedCount}</span>
+                </div>
+              </div>
+
+              {exactReport.errors.length > 0 && (
+                <div className="bg-red-500/10 border border-red-500/20 p-4 rounded-xl space-y-1 text-xs text-red-500">
+                  <span className="font-semibold uppercase tracking-wider block">Errors</span>
+                  {exactReport.errors.map((err, idx) => <p key={idx}>{err}</p>)}
+                </div>
+              )}
+
+              <div className="flex justify-end gap-2 pt-4 border-t border-border">
+                <button
+                  onClick={handleReset}
+                  className="px-4 py-2 border border-border text-muted-foreground hover:text-foreground rounded-lg text-xs font-semibold cursor-pointer"
+                >
+                  Import More
+                </button>
+                <button
+                  onClick={onClose}
+                  className="px-5 py-2 bg-primary text-primary-foreground hover:bg-primary/95 rounded-lg text-xs font-bold shadow-sm cursor-pointer"
+                >
+                  Done & Close
+                </button>
+              </div>
+            </div>
+          )}
+
+          {step === 3 && !exactMode && importReport && (
             <div className="space-y-6">
               {/* Completed Panel */}
               <div className="flex flex-col items-center justify-center text-center p-8 bg-emerald-50 dark:bg-emerald-950/10 border border-emerald-100 dark:border-emerald-900/30 rounded-xl">

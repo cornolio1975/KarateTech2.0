@@ -3,14 +3,15 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useTournament } from '@/context/TournamentContext';
 import { db, describeError } from '@/db/dbClient';
-import { Participant, Club, Country, Category, Coach, isKataCategory, isKumiteCategory } from '@/db/types';
+import { Participant, Club, Country, Category, Coach, Bout, isKataCategory, isKumiteCategory } from '@/db/types';
 import AddParticipantModal from '@/components/AddParticipantModal';
 import EditParticipantDrawer from '@/components/EditParticipantDrawer';
 import ImportModal from '@/components/ImportModal';
+import { buildParticipantCsv } from '@/utils/participantCsv';
 import { 
   Check, Eye, Trash2, Edit2, ArrowUpDown, ChevronLeft, 
   ChevronRight, HelpCircle, Columns, Download, Printer, UserCheck, 
-  Search, SlidersHorizontal, Trophy, Award, BadgeAlert, Plus, CheckSquare, ListFilter, X, RefreshCw, Upload
+  Search, SlidersHorizontal, Trophy, Award, BadgeAlert, Plus, CheckSquare, ListFilter, X, RefreshCw, Upload, Move, AlertCircle
 } from 'lucide-react';
 
 export default function ParticipantsPage() {
@@ -32,6 +33,10 @@ export default function ParticipantsPage() {
   const [isClearConfirmOpen, setIsClearConfirmOpen] = useState(false);
   const [isClearing, setIsClearing] = useState(false);
   const [isClubStatsOpen, setIsClubStatsOpen] = useState(false);
+  const [isReassignOpen, setIsReassignOpen] = useState(false);
+  const [reassignPartId, setReassignPartId] = useState('');
+  const [reassignTargetCatId, setReassignTargetCatId] = useState('');
+  const [reassignEligibility, setReassignEligibility] = useState<{ eligible: boolean; reason: string } | null>(null);
   
   const [participants, setParticipants] = useState<Participant[]>([]);
   const [clubs, setClubs] = useState<Club[]>([]);
@@ -39,6 +44,7 @@ export default function ParticipantsPage() {
   const [categories, setCategories] = useState<Category[]>([]);
   const [coaches, setCoaches] = useState<Coach[]>([]);
   const [mappings, setMappings] = useState<any[]>([]);
+  const [bouts, setBouts] = useState<Bout[]>([]);
   
   // Active states
   const [selectedPartId, setSelectedPartId] = useState<string | null>(null);
@@ -80,13 +86,14 @@ export default function ParticipantsPage() {
   const loadData = async () => {
     try {
       setLoading(true);
-      const [pList, cList, cntList, catList, coList, pcList] = await Promise.all([
+      const [pList, cList, cntList, catList, coList, pcList, bList] = await Promise.all([
         db.participants.list(),
         db.clubs.list(),
         db.countries.list(),
         db.categories.list(),
         db.coaches.list(),
-        db.participantCategories.list()
+        db.participantCategories.list(),
+        db.bouts.list()
       ]);
       setParticipants(pList);
       setClubs(cList);
@@ -94,6 +101,7 @@ export default function ParticipantsPage() {
       setCategories(catList);
       setCoaches(coList);
       setMappings(pcList);
+      setBouts(bList);
     } catch (e) {
       console.error('Error loading participants data:', e);
     } finally {
@@ -106,6 +114,34 @@ export default function ParticipantsPage() {
       loadData();
     }
   }, [mounted, refreshKey]);
+
+  // Reassign Participants: live eligibility preview against the target category's rules
+  useEffect(() => {
+    if (!reassignPartId || !reassignTargetCatId) {
+      setReassignEligibility(null);
+      return;
+    }
+    const p = participants.find(part => part.id === reassignPartId);
+    const c = categories.find(cat => cat.id === reassignTargetCatId);
+    if (!p || !c) return;
+
+    const dob = new Date(p.dob);
+    const today = new Date();
+    const age = today.getFullYear() - dob.getFullYear();
+    const ageOk = age >= c.min_age && age <= c.max_age;
+    const weightOk = p.weight >= c.min_weight && p.weight <= c.max_weight;
+    const genderOk = c.gender === 'Mixed' || c.gender === p.gender;
+
+    if (ageOk && weightOk && genderOk) {
+      setReassignEligibility({ eligible: true, reason: `Eligible: matches rules (Age: ${age} yr, Weight: ${p.weight}kg, Gender: ${p.gender})` });
+    } else {
+      const mismatches: string[] = [];
+      if (!ageOk) mismatches.push(`Age: ${age} yr (expected ${c.min_age}-${c.max_age})`);
+      if (!weightOk) mismatches.push(`Weight: ${p.weight}kg (expected ${c.min_weight}-${c.max_weight}kg)`);
+      if (!genderOk) mismatches.push(`Gender: ${p.gender} (expected ${c.gender})`);
+      setReassignEligibility({ eligible: false, reason: `Ineligible: ${mismatches.join(', ')}. Manual override will bypass auto-rules.` });
+    }
+  }, [reassignPartId, reassignTargetCatId, participants, categories]);
 
   if (!mounted) return null;
 
@@ -142,6 +178,77 @@ export default function ParticipantsPage() {
     const confirmed = activeInCat.filter(p => p.status === 'Confirmed' || p.status === 'Checked In').length;
     
     return { confirmed, total };
+  };
+
+  // Whether a category already has bouts generated (used/scheduled/completed) — used to warn before reassignment
+  const isCategoryInCompetition = (catId: string) => bouts.some(b => b.category_id === catId);
+
+  const handleReassignSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!reassignPartId || !reassignTargetCatId) return;
+
+    const currentCatId = mappings.find((m: any) => m.participant_id === reassignPartId)?.category_id;
+    const involvesCompetitionData = isCategoryInCompetition(reassignTargetCatId) || (currentCatId && isCategoryInCompetition(currentCatId));
+    if (involvesCompetitionData) {
+      const proceed = confirm('This participant or category is already being used by competition data (brackets, schedules, or matches). Reassigning may affect eligibility, brackets, or scheduling. Continue?');
+      if (!proceed) return;
+    }
+
+    try {
+      setLoading(true);
+      await db.participants.assignCategoryManually(reassignPartId, reassignTargetCatId, 'Admin');
+      alert('Participant reassigned successfully.');
+      setIsReassignOpen(false);
+      setReassignPartId('');
+      setReassignTargetCatId('');
+      setReassignEligibility(null);
+      triggerRefresh();
+    } catch (err: any) {
+      alert(err?.message || describeError(err));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Clears every participant's category mapping (including manual overrides) and recomputes
+  // fresh matches from current category rules, for every active participant.
+  const handleForcedAutoReassign = async () => {
+    if (participants.length === 0) {
+      alert('No participants to reassign.');
+      return;
+    }
+    const involvesCompetitionData = bouts.length > 0;
+    const warningSuffix = involvesCompetitionData
+      ? ' Some categories already have brackets/matches — reassigning may affect participant eligibility, brackets, or scheduling.'
+      : '';
+    if (!confirm(`This will remove ALL current category assignments (including manual overrides) for ${participants.length} participant(s) and re-run automatic category matching.${warningSuffix} Continue?`)) {
+      return;
+    }
+
+    try {
+      setLoading(true);
+      let reassignedCount = 0;
+      const errors: string[] = [];
+      for (const p of participants) {
+        try {
+          await db.participants.autoAssignCategory(p);
+          reassignedCount++;
+        } catch (err: any) {
+          errors.push(`${p.full_name}: ${err?.message || describeError(err)}`);
+        }
+      }
+      if (errors.length > 0) {
+        alert(`Forced auto reassignment finished with ${errors.length} error(s):\n${errors.join('\n')}`);
+      } else {
+        alert(`Forced auto reassignment completed for ${reassignedCount} participant(s).`);
+      }
+      triggerRefresh();
+      await loadData();
+    } catch (err: any) {
+      alert(err?.message || describeError(err));
+    } finally {
+      setLoading(false);
+    }
   };
 
   // Bulk actions checklist selection helper
@@ -221,50 +328,16 @@ export default function ParticipantsPage() {
   };
 
   const handleExportCSV = () => {
-    const headers = [
-      'No',
-      'Registration No',
-      'Full Name',
-      'Gender',
-      'Age',
-      'Date of Birth',
-      'Weight',
-      'Height',
-      'School / Club',
-      'Kumite',
-      'Kata',
-      'Kumite Category',
-      'Kata Category',
-      'Email',
-      'Phone',
-      'Passport / IC'
-    ];
+    // Exact database field export for a lossless Export -> Import round trip
+    const categoryLookup = (participantId: string) => {
+      const partMappings = mappings.filter((m: any) => m.participant_id === participantId);
+      const kumite = partMappings.map((m: any) => categories.find(c => c.id === m.category_id)).find(c => c && isKumiteCategory(c));
+      const kata = partMappings.map((m: any) => categories.find(c => c.id === m.category_id)).find(c => c && isKataCategory(c));
+      return { kumite: kumite?.id, kata: kata?.id };
+    };
 
-    const rows = filteredParticipants.map((p, idx) => {
-      const clubName = clubs.find(c => c.id === p.club_id)?.name || 'Independent';
-      const categoryInfo = getParticipantCategoryInfo(p);
-      const values = [
-        idx + 1,
-        p.registration_no,
-        p.full_name,
-        p.gender,
-        getAge(p.dob),
-        p.dob,
-        p.weight,
-        p.height,
-        clubName,
-        categoryInfo.isKumite ? 'Yes' : 'No',
-        categoryInfo.isKata ? 'Yes' : 'No',
-        categoryInfo.kumiteCatName,
-        categoryInfo.kataCatName,
-        p.email || '',
-        p.phone || '',
-        p.passport_ic || ''
-      ];
-      return values.map(escapeCsv).join(',');
-    }).join('\n');
-
-    const blob = new Blob([headers.map(escapeCsv).join(',') + '\n' + rows], { type: 'text/csv;charset=utf-8;' });
+    const csvBody = buildParticipantCsv(filteredParticipants, categoryLookup);
+    const blob = new Blob(['\uFEFF' + csvBody], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.setAttribute('href', url);
@@ -272,6 +345,7 @@ export default function ParticipantsPage() {
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+    URL.revokeObjectURL(url);
   };
 
   const handlePrintParticipants = () => {
@@ -582,7 +656,7 @@ export default function ParticipantsPage() {
       {/* ======================================================== */}
       {/* RIGHT COLUMN: MAIN TABLE & FILTERS PANEL                  */}
       {/* ======================================================== */}
-      <div className="flex-1 min-w-0 bg-background p-4 lg:p-6 space-y-4 flex flex-col h-auto lg:h-full lg:overflow-hidden">
+      <div className="flex-1 min-w-0 bg-background p-4 lg:p-6 space-y-4 flex flex-col h-auto lg:h-full lg:overflow-y-auto lg:overflow-x-hidden">
         
         {/* Title Header */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 shrink-0">
@@ -590,7 +664,7 @@ export default function ParticipantsPage() {
             <h2 className="text-xl font-extrabold tracking-tight">Participants</h2>
             <p className="text-xs text-muted-foreground">Manage status, search school/club squads, and verify weights.</p>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
             {canModify && (
               <button
                 onClick={() => setIsClubStatsOpen(true)}
@@ -599,6 +673,26 @@ export default function ParticipantsPage() {
               >
                 <Award className="h-3.5 w-3.5" />
                 <span>Club Stats</span>
+              </button>
+            )}
+            {canModify && (
+              <button
+                onClick={() => setIsReassignOpen(true)}
+                className="px-4 py-2 bg-primary/10 text-primary hover:bg-primary/20 border border-primary/20 rounded-lg text-xs font-bold shadow-sm flex items-center gap-1.5 cursor-pointer transition-colors"
+                title="Move a participant to a different category"
+              >
+                <Move className="h-3.5 w-3.5" />
+                <span>Reassign Participants</span>
+              </button>
+            )}
+            {canModify && (
+              <button
+                onClick={handleForcedAutoReassign}
+                className="px-4 py-2 bg-amber-500/10 text-amber-600 hover:bg-amber-500/20 border border-amber-500/20 rounded-lg text-xs font-bold shadow-sm flex items-center gap-1.5 cursor-pointer transition-colors"
+                title="Remove all current category assignments (including manual overrides) and re-run automatic category matching for every participant"
+              >
+                <RefreshCw className="h-3.5 w-3.5" />
+                <span>Forced Auto Reassign</span>
               </button>
             )}
             {canModify && (
@@ -1020,6 +1114,95 @@ export default function ParticipantsPage() {
 
       {/* Import CSV Modal */}
       {isImportOpen && <ImportModal isOpen={isImportOpen} onClose={() => { setIsImportOpen(false); triggerRefresh(); }} />}
+
+      {/* Reassign Participants Modal */}
+      {isReassignOpen && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center z-30 p-4">
+          <form onSubmit={handleReassignSubmit} className="bg-card w-full max-w-md rounded-xl shadow-xl border border-border overflow-hidden animate-scale-in text-foreground">
+            <div className="p-5 border-b border-border bg-secondary/10 flex justify-between items-center">
+              <span className="font-bold text-sm">Reassign Participants</span>
+              <button
+                type="button"
+                onClick={() => { setIsReassignOpen(false); setReassignPartId(''); setReassignTargetCatId(''); setReassignEligibility(null); }}
+                className="p-1 text-muted-foreground hover:text-foreground"
+              >
+                <X className="h-4.5 w-4.5" />
+              </button>
+            </div>
+
+            <div className="p-5 space-y-4">
+              <div>
+                <label className="text-[10px] font-bold text-muted-foreground uppercase block mb-1">Select Participant</label>
+                <select
+                  required
+                  value={reassignPartId}
+                  onChange={(e) => setReassignPartId(e.target.value)}
+                  className="w-full px-3 py-2 bg-secondary border border-border rounded-lg text-xs focus:outline-none text-foreground"
+                >
+                  <option value="">Choose participant...</option>
+                  {participants.map(p => {
+                    const currentCatId = mappings.find((m: any) => m.participant_id === p.id)?.category_id;
+                    const currentCatName = categories.find(c => c.id === currentCatId)?.name || 'Unassigned';
+                    return (
+                      <option key={p.id} value={p.id}>
+                        {p.full_name} ({p.gender}, {p.weight}kg) • Currently: {currentCatName}
+                      </option>
+                    );
+                  })}
+                </select>
+              </div>
+
+              <div>
+                <label className="text-[10px] font-bold text-muted-foreground uppercase block mb-1">Target Category</label>
+                <select
+                  required
+                  value={reassignTargetCatId}
+                  onChange={(e) => setReassignTargetCatId(e.target.value)}
+                  className="w-full px-3 py-2 bg-secondary border border-border rounded-lg text-xs focus:outline-none text-foreground"
+                >
+                  <option value="">Choose destination category...</option>
+                  {categories.filter(c => c.status !== 'Closed').map(c => (
+                    <option key={c.id} value={c.id}>
+                      {c.name} ({c.min_weight}-{c.max_weight}kg){isCategoryInCompetition(c.id) ? ' — In Competition' : ''}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {reassignEligibility && (
+                <div className={`p-3.5 border rounded-lg flex gap-2 text-xs ${
+                  reassignEligibility.eligible
+                    ? 'bg-emerald-50 text-emerald-800 border-emerald-200 dark:bg-emerald-950/20 dark:text-emerald-400 dark:border-emerald-900/30'
+                    : 'bg-amber-50 text-amber-800 border-amber-200 dark:bg-amber-950/20 dark:text-amber-400 dark:border-amber-900/30'
+                }`}>
+                  <AlertCircle className="h-4.5 w-4.5 shrink-0 mt-0.5" />
+                  <div>
+                    <span className="font-bold block">{reassignEligibility.eligible ? 'Ready for Assignment' : 'Eligibility Flag Warning'}</span>
+                    <span className="block mt-0.5 leading-relaxed text-[11px]">{reassignEligibility.reason}</span>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div className="p-4 border-t border-border flex justify-end gap-2 bg-secondary/5">
+              <button
+                type="button"
+                onClick={() => { setIsReassignOpen(false); setReassignPartId(''); setReassignTargetCatId(''); setReassignEligibility(null); }}
+                className="px-3 py-1.5 border border-border text-muted-foreground hover:text-foreground rounded-lg text-xs font-semibold cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={!reassignPartId || !reassignTargetCatId}
+                className="px-4 py-1.5 bg-primary text-primary-foreground disabled:opacity-50 hover:bg-primary/95 text-xs font-bold rounded-lg cursor-pointer"
+              >
+                Reassign Participant
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
 
       {/* Clear All Participants Confirmation Modal */}
       {isClearConfirmOpen && (

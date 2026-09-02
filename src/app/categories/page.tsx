@@ -6,10 +6,35 @@ import { useTournament } from '@/context/TournamentContext';
 import { db } from '@/db/dbClient';
 import { Category, Participant, Club, Bout, isKumiteCategory, isKataCategory } from '@/db/types';
 import { basePath, describeError } from '@/db/dbClient';
+import { mockStore } from '@/db/mockStore';
+import { buildCategoryCsv } from '@/utils/categoryCsv';
 import { 
-  Plus, Tags, Merge, Split, Move, X, Check, AlertCircle, RefreshCw, Trash2, Edit2, Monitor, ChevronRight, Upload, Search, Filter, Download, Users, UserPlus, Sparkles, Settings2, Save, Lock, Unlock
+  Plus, Tags, Merge, Split, Move, X, Check, AlertCircle, RefreshCw, Trash2, Edit2, Monitor, ChevronRight, Upload, Search, Filter, Download, Users, UserPlus, Sparkles, Settings2, Save, Lock, Unlock, BarChart3
 } from 'lucide-react';
 import ImportCategoryModal from '@/components/ImportCategoryModal';
+
+// Shared category ordering: lowest age first, then Kata before Kumite, then Female before Male (Mixed last), then weight, then name
+const sortCategoriesByAge = (a: Category, b: Category): number => {
+  if (a.min_age !== b.min_age) return a.min_age - b.min_age;
+  if (a.max_age !== b.max_age) return a.max_age - b.max_age;
+
+  const aKata = isKataCategory(a);
+  const bKata = isKataCategory(b);
+  if (aKata !== bKata) return aKata ? -1 : 1;
+
+  if (a.gender !== b.gender) {
+    const order: Record<string, number> = { 'Female': 1, 'Male': 2, 'Mixed': 3 };
+    const gA = order[a.gender] || 99;
+    const gB = order[b.gender] || 99;
+    if (gA !== gB) return gA - gB;
+    return a.gender.localeCompare(b.gender);
+  }
+
+  if (a.min_weight !== b.min_weight) return a.min_weight - b.min_weight;
+  if (a.max_weight !== b.max_weight) return a.max_weight - b.max_weight;
+
+  return a.name.localeCompare(b.name);
+};
 
 export default function CategoriesPage() {
   const { 
@@ -44,6 +69,8 @@ export default function CategoriesPage() {
   const [isSplitOpen, setIsSplitOpen] = useState(false);
   const [isMoveOpen, setIsMoveOpen] = useState(false);
   const [isImportOpen, setIsImportOpen] = useState(false);
+  const [isAssignStatOpen, setIsAssignStatOpen] = useState(false);
+  const [assignStatSearch, setAssignStatSearch] = useState('');
   const [consoleCat, setConsoleCat] = useState<Category | null>(null); // for bout-picker modal
 
   // Merge state
@@ -219,7 +246,7 @@ export default function CategoriesPage() {
   if (!mounted) return null;
 
   // Active Category Lists
-  const activeCategories = categories.filter(c => c.status !== 'Closed');
+  const activeCategories = categories.filter(c => c.status !== 'Closed').sort(sortCategoriesByAge);
 
   const getParticipantsForCategory = (catId: string) => {
     const pIds = mappings.filter(m => m.category_id === catId).map(m => m.participant_id);
@@ -308,15 +335,57 @@ export default function CategoriesPage() {
   const handleEditSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!editCat) return;
+
+    const trimmedName = editCat.name.trim();
+    if (!trimmedName) {
+      alert('Category name cannot be empty.');
+      return;
+    }
+
+    // Duplicate/conflicting category check (excluding the category being edited)
+    const isDuplicate = categories.some(c =>
+      c.id !== editCat.id &&
+      c.name.trim().toLowerCase() === trimmedName.toLowerCase() &&
+      c.gender === editCat.gender &&
+      c.min_age === editCat.min_age &&
+      c.max_age === editCat.max_age &&
+      c.min_weight === editCat.min_weight &&
+      c.max_weight === editCat.max_weight
+    );
+    if (isDuplicate) {
+      alert('Another category with the same name and configuration already exists. Please adjust the details to avoid duplicates.');
+      return;
+    }
+
+    // Bracket / match protection: warn if this category already has competition data
+    const hasBoutData = bouts.some(b => b.category_id === editCat.id);
+    if (hasBoutData) {
+      const proceed = confirm('This category is already being used by competition data. Editing it may affect participant eligibility, brackets, or scheduling. Continue?');
+      if (!proceed) return;
+    }
+
     try {
       setLoading(true);
-      await db.categories.update(editCat.id, editCat);
+      await db.categories.update(editCat.id, { ...editCat, name: trimmedName });
       alert('Category updated successfully.');
       setIsEditOpen(false);
+
+      // Check whether already-assigned participants still meet the updated criteria
+      const assigned = getParticipantsForCategory(editCat.id);
+      const stillIneligible = assigned.some(p => {
+        const age = mockStore.helpers.calculateAge(p.dob);
+        const genderOk = editCat.gender === 'Mixed' || p.gender === editCat.gender;
+        return !(genderOk && age >= editCat.min_age && age <= editCat.max_age && p.weight >= editCat.min_weight && p.weight <= editCat.max_weight);
+      });
+      if (stillIneligible) {
+        const openReassign = confirm('Some participants may no longer meet the updated category criteria. Review and reassign affected participants.\n\nOpen Reassign Participants now?');
+        if (openReassign) setIsMoveOpen(true);
+      }
+
       setEditCat(null);
       triggerRefresh();
     } catch (err: any) {
-      alert(err?.message || describeError(err));
+      alert(err?.message || describeError(err) || 'Unable to save category changes. Please check the connection and try again.');
     } finally {
       setLoading(false);
     }
@@ -396,7 +465,7 @@ export default function CategoriesPage() {
     if (disciplineFilter === 'KUMITE') return isKumiteCategory(c);
     if (disciplineFilter === 'KATA') return isKataCategory(c);
     return true;
-  });
+  }).sort(sortCategoriesByAge);
 
   // Categories filtered for display grid
   const filteredCategories = categories.filter(c => {
@@ -412,27 +481,7 @@ export default function CategoriesPage() {
       if (!matchesName && !matchesGender && !matchesWeight) return false;
     }
     return true;
-  }).sort((a, b) => {
-    // 1. Sort by Age (low to high)
-    if (a.min_age !== b.min_age) return a.min_age - b.min_age;
-    if (a.max_age !== b.max_age) return a.max_age - b.max_age;
-    
-    // 2. Sort by Gender
-    if (a.gender !== b.gender) {
-      const order = { 'Male': 1, 'Female': 2, 'Mixed': 3 };
-      const gA = order[a.gender as keyof typeof order] || 99;
-      const gB = order[b.gender as keyof typeof order] || 99;
-      if (gA !== gB) return gA - gB;
-      return a.gender.localeCompare(b.gender);
-    }
-    
-    // 3. Sort by Weight
-    if (a.min_weight !== b.min_weight) return a.min_weight - b.min_weight;
-    if (a.max_weight !== b.max_weight) return a.max_weight - b.max_weight;
-    
-    // 4. Fallback to name
-    return a.name.localeCompare(b.name);
-  });
+  }).sort(sortCategoriesByAge);
 
   const calculateAge = (dobString: string): number => {
     if (!dobString) return 0;
@@ -535,52 +584,17 @@ export default function CategoriesPage() {
       return;
     }
 
-    const headers = [
-      'Category ID',
-      'Name',
-      'Discipline',
-      'Gender',
-      'Min Age',
-      'Max Age',
-      'Min Weight (kg)',
-      'Max Weight (kg)',
-      'Format',
-      'Status',
-      'Registered Athletes',
-      'Total Bouts'
-    ];
-
-    const rows = targetCategories.map(cat => {
-      const isKata = isKataCategory(cat);
-      const isKumite = isKumiteCategory(cat);
-      const discipline = isKata ? 'Kata' : isKumite ? 'Kumite' : 'Open';
-      const count = mappings.filter(m => m.category_id === cat.id).length;
-      const boutCount = bouts.filter(b => b.category_id === cat.id).length;
-
-      return [
-        `"${cat.id}"`,
-        `"${cat.name.replace(/"/g, '""')}"`,
-        `"${discipline}"`,
-        `"${cat.gender}"`,
-        cat.min_age ?? 0,
-        cat.max_age ?? 99,
-        cat.min_weight ?? 0,
-        cat.max_weight ?? 999,
-        `"${cat.format || 'knockout'}"`,
-        `"${cat.status || 'Open'}"`,
-        count,
-        boutCount
-      ].join(',');
-    });
-
-    const csvContent = 'data:text/csv;charset=utf-8,' + [headers.join(','), ...rows].join('\n');
-    const encodedUri = encodeURI(csvContent);
+    // Exact database field export for a lossless Export -> Import round trip
+    const csvBody = buildCategoryCsv(targetCategories);
+    const blob = new Blob(['\uFEFF' + csvBody], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
-    link.setAttribute('href', encodedUri);
+    link.setAttribute('href', url);
     link.setAttribute('download', `KarateTech_Categories_${new Date().toISOString().slice(0, 10)}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+    URL.revokeObjectURL(url);
   };
 
   return (
@@ -642,6 +656,14 @@ export default function CategoriesPage() {
             >
               <Move className="h-4 w-4" />
               <span>Reassign Athlete</span>
+            </button>
+            <button
+              onClick={() => { setAssignStatSearch(''); setIsAssignStatOpen(true); }}
+              className="px-3.5 py-2 bg-card hover:bg-secondary border border-border text-xs font-semibold rounded-lg shadow-xs flex items-center gap-1.5 cursor-pointer text-foreground"
+              title="View full participant-to-category assignment details in a table"
+            >
+              <BarChart3 className="h-4 w-4 text-muted-foreground" />
+              <span>Category Assign Stats</span>
             </button>
           </div>
         )}
@@ -1731,6 +1753,116 @@ export default function CategoriesPage() {
         isOpen={isImportOpen} 
         onClose={() => setIsImportOpen(false)} 
       />
+
+      {/* CATEGORY ASSIGN STATS MODAL — full participant-to-category assignment table */}
+      {isAssignStatOpen && (() => {
+        const q = assignStatSearch.trim().toLowerCase();
+        const rows = mappings
+          .map((m: any) => {
+            const cat = categories.find(c => c.id === m.category_id);
+            const p = participants.find(part => part.id === m.participant_id);
+            if (!cat || !p) return null;
+            const clubName = clubs.find(c => c.id === p.club_id)?.name || 'Independent';
+            return { mapping: m, cat, p, clubName };
+          })
+          .filter((r): r is NonNullable<typeof r> => r !== null)
+          .filter(r => {
+            if (!q) return true;
+            return r.cat.name.toLowerCase().includes(q) || r.p.full_name.toLowerCase().includes(q) || r.clubName.toLowerCase().includes(q);
+          })
+          .sort((a, b) => sortCategoriesByAge(a.cat, b.cat) || a.p.full_name.localeCompare(b.p.full_name));
+
+        const assignedParticipantIds = new Set(mappings.map((m: any) => m.participant_id));
+        const unassignedCount = participants.filter(p => !assignedParticipantIds.has(p.id)).length;
+
+        return (
+          <div className="fixed inset-0 bg-black/70 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-in fade-in duration-150">
+            <div className="bg-card border border-border rounded-2xl max-w-5xl w-full overflow-hidden shadow-2xl flex flex-col max-h-[85vh]">
+              <div className="p-5 border-b border-border bg-secondary/15 flex items-center justify-between">
+                <div>
+                  <span className="font-bold text-sm flex items-center gap-2"><BarChart3 className="h-4.5 w-4.5 text-primary" /> Category Assign Stats</span>
+                  <span className="text-[11px] text-muted-foreground block mt-0.5">Full participant-to-category assignment details</span>
+                </div>
+                <button type="button" onClick={() => setIsAssignStatOpen(false)} className="p-1 text-muted-foreground hover:text-foreground">
+                  <X className="h-4.5 w-4.5" />
+                </button>
+              </div>
+
+              <div className="p-4 border-b border-border bg-secondary/5 grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
+                <div className="p-2.5 bg-muted/40 border border-border rounded-lg text-center">
+                  <span className="block text-lg font-black">{categories.length}</span>
+                  <span className="text-muted-foreground">Total Categories</span>
+                </div>
+                <div className="p-2.5 bg-emerald-500/10 border border-emerald-500/20 rounded-lg text-center text-emerald-600 dark:text-emerald-400">
+                  <span className="block text-lg font-black">{mappings.length}</span>
+                  <span>Total Assignments</span>
+                </div>
+                <div className="p-2.5 bg-blue-500/10 border border-blue-500/20 rounded-lg text-center text-blue-600 dark:text-blue-400">
+                  <span className="block text-lg font-black">{assignedParticipantIds.size}</span>
+                  <span>Assigned Athletes</span>
+                </div>
+                <div className="p-2.5 bg-amber-500/10 border border-amber-500/20 rounded-lg text-center text-amber-600 dark:text-amber-400">
+                  <span className="block text-lg font-black">{unassignedCount}</span>
+                  <span>Unassigned Athletes</span>
+                </div>
+              </div>
+
+              <div className="p-4 border-b border-border">
+                <div className="relative">
+                  <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-muted-foreground" />
+                  <input
+                    type="text"
+                    autoFocus
+                    value={assignStatSearch}
+                    onChange={(e) => setAssignStatSearch(e.target.value)}
+                    placeholder="Filter by category, athlete, or club..."
+                    className="w-full pl-8 pr-3 py-2 bg-secondary border border-border rounded-lg text-xs focus:outline-none focus:ring-1 focus:ring-primary text-foreground"
+                  />
+                </div>
+              </div>
+
+              <div className="flex-1 overflow-y-auto">
+                <table className="w-full text-left border-collapse text-xs">
+                  <thead className="bg-muted text-muted-foreground font-semibold sticky top-0">
+                    <tr>
+                      <th className="p-2.5 border-b border-border">Category</th>
+                      <th className="p-2.5 border-b border-border">Gender / Age / Weight</th>
+                      <th className="p-2.5 border-b border-border">Athlete</th>
+                      <th className="p-2.5 border-b border-border">Club</th>
+                      <th className="p-2.5 border-b border-border">Assignment</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-border">
+                    {rows.length === 0 ? (
+                      <tr>
+                        <td colSpan={5} className="p-6 text-center text-muted-foreground">No assignments match this filter.</td>
+                      </tr>
+                    ) : rows.map(r => (
+                      <tr key={r.mapping.id} className="hover:bg-secondary/20">
+                        <td className="p-2.5 font-semibold">{r.cat.name}</td>
+                        <td className="p-2.5 text-muted-foreground whitespace-nowrap">{r.cat.gender} • {r.cat.min_age}-{r.cat.max_age}y • {r.cat.min_weight}-{r.cat.max_weight}kg</td>
+                        <td className="p-2.5 font-medium">{r.p.full_name}</td>
+                        <td className="p-2.5 text-muted-foreground">{r.clubName}</td>
+                        <td className="p-2.5">
+                          <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${r.mapping.manual_override ? 'bg-amber-500/20 text-amber-600 dark:text-amber-400' : 'bg-emerald-500/20 text-emerald-600 dark:text-emerald-400'}`}>
+                            {r.mapping.manual_override ? 'Manual' : 'Auto-Matched'}
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              <div className="p-4 border-t border-border flex justify-end bg-secondary/5">
+                <button type="button" onClick={() => setIsAssignStatOpen(false)} className="px-4 py-1.5 bg-primary text-primary-foreground hover:bg-primary/95 text-xs font-bold rounded-lg cursor-pointer">
+                  Close
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
 
       {/* ADD PARTICIPANTS TO CATEGORY MODAL */}
       {selectedCatForAdd && (

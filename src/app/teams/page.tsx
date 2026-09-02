@@ -5,7 +5,7 @@ import { useTournament } from '@/context/TournamentContext';
 import { db, describeError } from '@/db/dbClient';
 import { Team, Participant, Club, Coach } from '@/db/types';
 import { 
-  Plus, UsersRound, Trophy, User, Trash2, X, Check, AlertTriangle, ShieldCheck, RefreshCw, Edit, Upload 
+  Plus, UsersRound, Trophy, User, Trash2, X, Check, AlertTriangle, ShieldCheck, RefreshCw, Edit, Upload, Search
 } from 'lucide-react';
 import ImportTeamModal from '@/components/ImportTeamModal';
 
@@ -37,6 +37,7 @@ export default function TeamsPage() {
   // Add Member state
   const [selectedPartId, setSelectedPartId] = useState('');
   const [validationError, setValidationError] = useState<string | null>(null);
+  const [memberSearchQuery, setMemberSearchQuery] = useState('');
 
   // Edit Team state
   const [isEditOpen, setIsEditOpen] = useState(false);
@@ -177,6 +178,7 @@ export default function TeamsPage() {
       alert('Member added to team.');
       setIsAddMemberOpen(false);
       setSelectedPartId('');
+      setMemberSearchQuery('');
       triggerRefresh();
     } catch (err: any) {
       alert(describeError(err));
@@ -269,13 +271,13 @@ export default function TeamsPage() {
   return (
     <div className="p-6 space-y-6 text-foreground w-full h-full overflow-y-auto">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Team Roster Management</h1>
           <p className="text-sm text-muted-foreground">Form club squads, define team captains, check validation rules, and track rankings.</p>
         </div>
         {canModify && (
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
             <button
               onClick={() => setIsImportOpen(true)}
               className="px-4 py-2 bg-secondary border border-border hover:bg-secondary/80 text-foreground text-xs font-bold rounded-lg shadow-xs flex items-center gap-1.5 cursor-pointer"
@@ -358,7 +360,7 @@ export default function TeamsPage() {
                       <span>Squad Members ({members.length})</span>
                       {canModify && (
                         <button
-                          onClick={() => { setActiveTeamId(t.id); setIsAddMemberOpen(true); }}
+                          onClick={() => { setActiveTeamId(t.id); setIsAddMemberOpen(true); setMemberSearchQuery(''); }}
                           className="text-primary hover:underline flex items-center gap-0.5 cursor-pointer font-bold lowercase"
                         >
                           + Add Member
@@ -493,29 +495,52 @@ export default function TeamsPage() {
           <form onSubmit={handleAddMemberSubmit} className="bg-card w-full max-w-md rounded-xl shadow-xl border border-border overflow-hidden animate-scale-in text-foreground">
             <div className="p-5 border-b border-border bg-secondary/10 flex justify-between items-center">
               <span className="font-bold text-sm">Add Squad Member</span>
-              <button type="button" onClick={() => { setIsAddMemberOpen(false); setSelectedPartId(''); }} className="p-1 text-muted-foreground hover:text-foreground">
+              <button type="button" onClick={() => { setIsAddMemberOpen(false); setSelectedPartId(''); setMemberSearchQuery(''); }} className="p-1 text-muted-foreground hover:text-foreground">
                 <X className="h-4.5 w-4.5" />
               </button>
             </div>
 
             <div className="p-5 space-y-4">
               <div>
+                <label className="text-[10px] font-bold text-muted-foreground uppercase block mb-1">Search Athlete</label>
+                <div className="relative">
+                  <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-muted-foreground" />
+                  <input
+                    type="text"
+                    autoFocus
+                    value={memberSearchQuery}
+                    onChange={(e) => setMemberSearchQuery(e.target.value)}
+                    placeholder="Type name or registration no..."
+                    className="w-full pl-8 pr-3 py-2 bg-secondary border border-border rounded-lg text-xs focus:outline-none focus:ring-1 focus:ring-primary text-foreground"
+                  />
+                </div>
+              </div>
+
+              <div>
                 <label className="text-[10px] font-bold text-muted-foreground uppercase block mb-1">Select Athlete</label>
                 <select
                   required
+                  size={6}
                   value={selectedPartId}
                   onChange={(e) => setSelectedPartId(e.target.value)}
                   className="w-full px-3 py-2 bg-secondary border border-border rounded-lg text-xs focus:outline-none text-foreground"
                 >
                   <option value="">Choose athlete...</option>
-                  {participants.map(p => {
-                    const clubName = clubs.find(c => c.id === p.club_id)?.name || 'Independent';
-                    return (
-                      <option key={p.id} value={p.id}>
-                        {p.full_name} ({clubName})
-                      </option>
-                    );
-                  })}
+                  {participants
+                    .filter(p => !(teamMembersMap[activeTeamId]?.some(m => m.id === p.id)))
+                    .filter(p => {
+                      const q = memberSearchQuery.trim().toLowerCase();
+                      if (!q) return true;
+                      return p.full_name.toLowerCase().includes(q) || p.registration_no?.toLowerCase().includes(q);
+                    })
+                    .map(p => {
+                      const clubName = clubs.find(c => c.id === p.club_id)?.name || 'Independent';
+                      return (
+                        <option key={p.id} value={p.id}>
+                          {p.full_name} ({clubName})
+                        </option>
+                      );
+                    })}
                 </select>
               </div>
 
@@ -532,7 +557,7 @@ export default function TeamsPage() {
             </div>
 
             <div className="p-4 border-t border-border flex justify-end gap-2 bg-secondary/5">
-              <button type="button" onClick={() => { setIsAddMemberOpen(false); setSelectedPartId(''); }} className="px-3 py-1.5 border border-border text-muted-foreground hover:text-foreground rounded-lg text-xs font-semibold cursor-pointer">
+              <button type="button" onClick={() => { setIsAddMemberOpen(false); setSelectedPartId(''); setMemberSearchQuery(''); }} className="px-3 py-1.5 border border-border text-muted-foreground hover:text-foreground rounded-lg text-xs font-semibold cursor-pointer">
                 Cancel
               </button>
               <button
