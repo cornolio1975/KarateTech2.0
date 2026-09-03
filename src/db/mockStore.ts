@@ -1295,6 +1295,68 @@ export const mockStore = {
         return pairs.join('|');
       };
 
+      /**
+       * Identify which pairs of array-indices (in the ordered athletes array) will
+       * be matched against each other in R1 after WKF seed order is applied.
+       * Returns only "real" matches (both indices have an athlete, not a bye).
+       *
+       * Example: N=9, slots=16, seed=[1,16,8,9,4,13,5,12,2,15,7,10,3,14,6,11]
+       *   → pair (seed[2]-1, seed[3]-1) = (7, 8) — the ONLY real match.
+       */
+      const _getRealMatchPairs = (n: number): [number, number][] => {
+        const slots = Math.max(2, Math.pow(2, Math.ceil(Math.log2(n))));
+        const seed = _wkfSeedOrder(slots);
+        const pairs: [number, number][] = [];
+        for (let i = 0; i < slots; i += 2) {
+          const ai = seed[i] - 1;
+          const bi = seed[i + 1] - 1;
+          if (ai < n && bi < n) pairs.push([ai, bi]);
+        }
+        return pairs;
+      };
+
+      /**
+       * Post-processing pass: for any real-R1-match pair where both participants
+       * share the same club, attempt to swap one of them with the nearest
+       * different-club participant sitting in a walkover (bye) slot.
+       *
+       * This is the critical fix for uneven distributions like N=9 with a dominant
+       * club (e.g. 6 SENSHI + 3 GOJU KAI) where round-robin interleaving still
+       * lands both majority-club overflow athletes at the real-match indices.
+       *
+       * Priority: fix every same-club real-match; skip if no different-club
+       * participant is available in a walkover slot (mathematically unavoidable).
+       */
+      const _fixRealMatchConflicts = (ordered: Participant[]): Participant[] => {
+        const n = ordered.length;
+        const realPairs = _getRealMatchPairs(n);
+        if (realPairs.length === 0) return ordered;
+
+        // Indices that participate in real matches (cannot be treated as "free to swap from")
+        const inRealMatch = new Set(realPairs.flatMap(p => p));
+        // Indices in walkover slots — safe to pull a different-club athlete from
+        const walkoversIdx = Array.from({ length: n }, (_, i) => i).filter(i => !inRealMatch.has(i));
+
+        const result = [...ordered];
+
+        for (const [idxA, idxB] of realPairs) {
+          const clubA = result[idxA].club_id || 'independent';
+          const clubB = result[idxB].club_id || 'independent';
+          if (clubA === clubB) {
+            // Find the closest walkover-slot participant from a different club
+            const altIdx = walkoversIdx.find(wi =>
+              (result[wi].club_id || 'independent') !== clubA
+            );
+            if (altIdx !== undefined) {
+              // Swap the second real-match participant with that walkover-slot participant
+              [result[idxB], result[altIdx]] = [result[altIdx], result[idxB]];
+            }
+          }
+        }
+
+        return result;
+      };
+
       // --- Load pairing signature history from sessionStorage (browser only) ---
       // sessionStorage is undefined in test/server environments → deterministic fallback
       const _SIG_KEY = `ts_bracket_sig_${catId}`;
@@ -1314,8 +1376,9 @@ export const mockStore = {
       // This is what the old algorithm produced. Preserved for:
       //   a) test environments (no sessionStorage) — ensures all existing tests pass
       //   b) first-ever generation (no history yet)
+      // _fixRealMatchConflicts is applied here too so even the base/first-gen gets separation.
       const _basePool = [...athletes].sort((a, b) => (a.weight || 0) - (b.weight || 0));
-      const _baseCandidate = _buildClubOrder(_basePool, 0);
+      const _baseCandidate = _fixRealMatchConflicts(_buildClubOrder(_basePool, 0));
 
       if (!_hasSession) {
         // Test / server environment — always use deterministic base, no randomization
@@ -1333,10 +1396,12 @@ export const mockStore = {
         });
 
         // Candidates 1–7: randomized variants with different shuffle seeds and club rotations
+        // _fixRealMatchConflicts is applied to each so real-match slots always get
+        // different-club athletes wherever the club distribution makes it possible.
         for (let _attempt = 1; _attempt <= 7; _attempt++) {
           const _shuffled = _shuffleInPlace([...athletes]);
           const _rot = _attempt % Math.max(1, _numClubs);
-          const _candidate = _buildClubOrder(_shuffled, _rot);
+          const _candidate = _fixRealMatchConflicts(_buildClubOrder(_shuffled, _rot));
           const _sig = _r1Signature(_candidate);
           const _score = _r1Score(_candidate) - (_sigHistory.includes(_sig) ? 50 : 0);
           _candidates.push({ order: _candidate, sig: _sig, score: _score });
