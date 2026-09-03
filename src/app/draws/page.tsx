@@ -688,7 +688,9 @@ export default function DrawsPage() {
 
             {/* Page Title & Subtitle */}
             <div className="text-left">
-              <h2 className="text-lg font-extrabold tracking-tight">Generate Draws</h2>
+              <h2 className="text-lg font-extrabold tracking-tight">
+                Generate Draws <span className="text-sm font-bold text-muted-foreground">({participants.length} participants)</span>
+              </h2>
               <p className="text-[11px] text-muted-foreground">Configure standard single elimination brackets for categories.</p>
             </div>
           </div>

@@ -68,6 +68,9 @@ export const SportdataBracket: React.FC<SportdataBracketProps> = ({
   // 1. Get bouts for selected category (excluding 3rd place bout, which is round_no === 99)
   const categoryBouts = bouts.filter((b) => b.category_id === selectedCatId);
   const selectedCategory = categories.find((c) => c.id === selectedCatId);
+  const categoryParticipantCount = new Set(
+    categoryBouts.flatMap(bout => [bout.participant_a_id, bout.participant_b_id].filter(Boolean))
+  ).size;
   const isRoundRobin = selectedCategory?.format === "round_robin";
 
   if (categoryBouts.length === 0) {
@@ -114,8 +117,8 @@ export const SportdataBracket: React.FC<SportdataBracketProps> = ({
               marginRight: "12px",
             }}
           >
-            <div className="text-[10px] font-black uppercase tracking-wide leading-none text-gray-900 dark:text-white truncate">
-              {selectedCategory?.name || "Round Robin Division"}
+            <div className="text-[10px] font-black uppercase tracking-wide leading-none text-black truncate">
+              {selectedCategory?.name || "Round Robin Division"} ({categoryParticipantCount} Athletes)
             </div>
             <div className="text-[7.5px] font-bold uppercase text-gray-600 dark:text-gray-400 truncate mt-0.5 leading-none">
               {tournamentName ||
@@ -620,9 +623,9 @@ export const SportdataBracket: React.FC<SportdataBracketProps> = ({
             marginRight: "12px",
           }}
         >
-          <div className="text-[10px] font-black uppercase tracking-wide leading-none text-gray-900 dark:text-white truncate">
+          <div className="text-[10px] font-black uppercase tracking-wide leading-none text-black truncate">
             {categories.find((c) => c.id === selectedCatId)?.name ||
-              "Tournament Division"}
+              "Tournament Division"} ({categoryParticipantCount} Athletes)
           </div>
           <div className="text-[7.5px] font-bold uppercase text-gray-600 dark:text-gray-400 truncate mt-0.5 leading-none">
             {tournamentName ||

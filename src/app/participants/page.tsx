@@ -24,7 +24,8 @@ export default function ParticipantsPage() {
     setIsAddOpen,
     refreshKey,
     triggerRefresh,
-    canModify
+    canModify,
+    userEmail
   } = useTournament();
 
   const [mounted, setMounted] = useState(false);
@@ -346,6 +347,25 @@ export default function ParticipantsPage() {
     link.click();
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
+  };
+
+  const handleDeleteSelected = async () => {
+    if (selectedIds.length === 0) return;
+    if (!confirm(`Delete the ${selectedIds.length} selected participant(s)?`)) return;
+
+    try {
+      setLoading(true);
+      for (const id of selectedIds) {
+        await db.participants.delete(id, userEmail || 'User');
+      }
+      setSelectedIds([]);
+      triggerRefresh();
+      alert(`Successfully deleted ${selectedIds.length} participant(s).`);
+    } catch (err: any) {
+      alert(`Failed to delete selected participants: ${describeError(err)}`);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handlePrintParticipants = () => {
@@ -870,6 +890,15 @@ export default function ParticipantsPage() {
             >
               <Printer className="h-4 w-4" /> Print
             </button>
+            {canModify && (
+              <button
+                onClick={handleDeleteSelected}
+                disabled={selectedIds.length === 0 || loading}
+                className="px-3 py-1.5 bg-red-500/10 text-red-600 dark:text-red-400 hover:bg-red-500/15 text-xs font-bold rounded-lg flex items-center gap-1 cursor-pointer disabled:opacity-50"
+              >
+                <Trash2 className="h-4 w-4" /> Delete Selected
+              </button>
+            )}
             <button
               onClick={handleExportCSV}
               disabled={filteredParticipants.length === 0}
