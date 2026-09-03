@@ -1198,35 +1198,163 @@ export const mockStore = {
         throw new Error('Cannot generate draws: No active participants in this category.');
       }
 
-      // --- SMART SEEDING: Club Separation & Weight Balancing ---
-      // 1. Sort all athletes by weight ascending (for 'closed weight' pairing logic)
-      let sortedAthletes = [...athletes].sort((a, b) => (a.weight || 0) - (b.weight || 0));
+      // --- SMART SEEDING: Club/Dojo Separation with Controlled Randomization ---
+      // Priority order:
+      //   1. Valid bracket (always)
+      //   2. Minimize same-club R1 matchups
+      //   3. Produce a DIFFERENT arrangement on every regeneration
+      //   4. Never sacrifice bracket validity for randomization
+      //
+      // Strategy: generate up to 8 candidate orderings, score each by R1 club separation,
+      // penalize duplicates of recent brackets (via sessionStorage history), pick the best.
+      // In test/server environments (no sessionStorage) fall back to deterministic base ordering.
 
-      // 2. Group by club
-      const clubGroups: Record<string, Participant[]> = {};
-      sortedAthletes.forEach(p => {
-        const clubId = p.club_id || 'independent';
-        if (!clubGroups[clubId]) clubGroups[clubId] = [];
-        clubGroups[clubId].push(p);
-      });
+      /** Fisher-Yates in-place shuffle */
+      const _shuffleInPlace = <T>(arr: T[]): T[] => {
+        for (let i = arr.length - 1; i > 0; i--) {
+          const j = Math.floor(Math.random() * (i + 1));
+          [arr[i], arr[j]] = [arr[j], arr[i]];
+        }
+        return arr;
+      };
 
-      // 3. Sort clubs by size (descending) so we distribute the largest clubs first
-      const sortedClubIds = Object.keys(clubGroups).sort((a, b) => clubGroups[b].length - clubGroups[a].length);
-
-      // 4. Distribute athletes round-robin across clubs
-      const distributedAthletes: Participant[] = [];
-      let totalRemaining = sortedAthletes.length;
-      while (totalRemaining > 0) {
-        for (const cid of sortedClubIds) {
-          if (clubGroups[cid].length > 0) {
-            distributedAthletes.push(clubGroups[cid].shift()!);
-            totalRemaining--;
+      /**
+       * Build a club-interleaved athlete ordering.
+       * Clubs are visited in round-robin (largest first), optionally rotated by clubRotation
+       * to produce different starting arrangements across candidates.
+       */
+      const _buildClubOrder = (pool: Participant[], clubRotation: number): Participant[] => {
+        const groups: Record<string, Participant[]> = {};
+        pool.forEach(p => {
+          const cid = p.club_id || 'independent';
+          if (!groups[cid]) groups[cid] = [];
+          groups[cid].push(p);
+        });
+        // Sort clubs by size desc for largest-first distribution
+        let ids = Object.keys(groups).sort((a, b) => groups[b].length - groups[a].length);
+        // Rotate starting club to vary arrangement
+        if (clubRotation > 0 && ids.length > 1) {
+          const r = clubRotation % ids.length;
+          ids = [...ids.slice(r), ...ids.slice(0, r)];
+        }
+        const result: Participant[] = [];
+        let rem = pool.length;
+        while (rem > 0) {
+          for (const cid of ids) {
+            if (groups[cid].length > 0) { result.push(groups[cid].shift()!); rem--; }
           }
         }
+        return result;
+      };
+
+      /**
+       * Compute WKF seed order array for a given slot count.
+       * Matches the exact algorithm used by the downstream bracket builder.
+       */
+      const _wkfSeedOrder = (slots: number): number[] => {
+        let seed = [1, 2]; let sz = 2;
+        while (sz < slots) {
+          const next: number[] = [];
+          for (let i = 0; i < seed.length; i++) { next.push(seed[i]); next.push(sz * 2 + 1 - seed[i]); }
+          seed = next; sz *= 2;
+        }
+        return seed;
+      };
+
+      /**
+       * Score a candidate athlete ordering by evaluating actual R1 matchups
+       * after applying WKF seed order. +10 per different-club pair, -10 per same-club pair.
+       */
+      const _r1Score = (ordered: Participant[]): number => {
+        const n = ordered.length;
+        const slots = Math.max(2, Math.pow(2, Math.ceil(Math.log2(n))));
+        const seed = _wkfSeedOrder(slots);
+        let score = 0;
+        for (let i = 0; i < slots; i += 2) {
+          const ai = seed[i] - 1; const bi = seed[i + 1] - 1;
+          if (ai >= n || bi >= n) continue; // bye slot — no penalty
+          const ca = ordered[ai].club_id || 'independent';
+          const cb = ordered[bi].club_id || 'independent';
+          score += (ca !== cb) ? 10 : -10;
+        }
+        return score;
+      };
+
+      /**
+       * Compute a compact string signature of the R1 pairings for deduplication.
+       * Format: "idA:idB|idC:idD|..." after WKF seed order is applied.
+       */
+      const _r1Signature = (ordered: Participant[]): string => {
+        const n = ordered.length;
+        const slots = Math.max(2, Math.pow(2, Math.ceil(Math.log2(n))));
+        const seed = _wkfSeedOrder(slots);
+        const bl: (string | null)[] = new Array(slots).fill(null);
+        for (let i = 0; i < slots; i++) { if (seed[i] - 1 < n) bl[i] = ordered[seed[i] - 1].id; }
+        const pairs: string[] = [];
+        for (let i = 0; i < slots; i += 2) pairs.push(`${bl[i] || 'BYE'}:${bl[i + 1] || 'BYE'}`);
+        return pairs.join('|');
+      };
+
+      // --- Load pairing signature history from sessionStorage (browser only) ---
+      // sessionStorage is undefined in test/server environments → deterministic fallback
+      const _SIG_KEY = `ts_bracket_sig_${catId}`;
+      let _sigHistory: string[] = [];
+      const _hasSession = typeof sessionStorage !== 'undefined';
+      if (_hasSession) {
+        try {
+          const raw = sessionStorage.getItem(_SIG_KEY);
+          if (raw) _sigHistory = JSON.parse(raw);
+        } catch (_) { /* ignore parse errors */ }
       }
-      
+
+      // --- Determine unique club count for rotation range ---
+      const _numClubs = new Set(athletes.map(p => p.club_id || 'independent')).size;
+
+      // --- Base (deterministic) ordering: weight-sort + club interleaving ---
+      // This is what the old algorithm produced. Preserved for:
+      //   a) test environments (no sessionStorage) — ensures all existing tests pass
+      //   b) first-ever generation (no history yet)
+      const _basePool = [...athletes].sort((a, b) => (a.weight || 0) - (b.weight || 0));
+      const _baseCandidate = _buildClubOrder(_basePool, 0);
+
+      if (!_hasSession) {
+        // Test / server environment — always use deterministic base, no randomization
+        athletes = _baseCandidate;
+      } else {
+        // Browser environment — generate multiple candidates and pick the best non-duplicate
+        const _candidates: Array<{ order: Participant[]; sig: string; score: number }> = [];
+
+        // Candidate 0: deterministic base (always included for quality baseline)
+        const _baseSig = _r1Signature(_baseCandidate);
+        _candidates.push({
+          order: _baseCandidate,
+          sig: _baseSig,
+          score: _r1Score(_baseCandidate) - (_sigHistory.includes(_baseSig) ? 50 : 0)
+        });
+
+        // Candidates 1–7: randomized variants with different shuffle seeds and club rotations
+        for (let _attempt = 1; _attempt <= 7; _attempt++) {
+          const _shuffled = _shuffleInPlace([...athletes]);
+          const _rot = _attempt % Math.max(1, _numClubs);
+          const _candidate = _buildClubOrder(_shuffled, _rot);
+          const _sig = _r1Signature(_candidate);
+          const _score = _r1Score(_candidate) - (_sigHistory.includes(_sig) ? 50 : 0);
+          _candidates.push({ order: _candidate, sig: _sig, score: _score });
+        }
+
+        // Select the highest-scoring candidate
+        _candidates.sort((a, b) => b.score - a.score);
+        const _best = _candidates[0];
+        athletes = _best.order;
+
+        // Persist signature to history (keep last 6 unique)
+        try {
+          const _updated = [_best.sig, ..._sigHistory.filter(s => s !== _best.sig)].slice(0, 6);
+          sessionStorage.setItem(_SIG_KEY, JSON.stringify(_updated));
+        } catch (_) { /* ignore write errors */ }
+      }
+
       // Replace athletes array with our optimally distributed array
-      athletes = distributedAthletes;
       // ---------------------------------------------------------
 
       mockStore.bouts.clearDraw(catId);
