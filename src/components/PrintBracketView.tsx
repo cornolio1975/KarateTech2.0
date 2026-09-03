@@ -31,28 +31,32 @@ export const PrintBracketView: React.FC<PrintBracketViewProps> = ({
   const selectedCategory = categories.find((c) => c.id === selectedCatId);
   const categoryBouts = bouts.filter((b) => b.category_id === selectedCatId);
   
+  const categoryParticipantCount = useMemo(() => {
+    const compIds = new Set<string>();
+    categoryBouts.forEach(b => {
+      if (b.participant_a_id) compIds.add(b.participant_a_id);
+      if (b.participant_b_id) compIds.add(b.participant_b_id);
+    });
+    return compIds.size;
+  }, [categoryBouts]);
+
   // Extract number of rounds and competitors to calculate print scale
   const dimensions = useMemo(() => {
     if (!selectedCategory) return null;
     
     const isRoundRobin = selectedCategory.format === 'round_robin';
     
-    // Find unique competitors in this category's bouts
-    const compIds = new Set<string>();
     let maxRound = 1;
-    
     categoryBouts.forEach(b => {
-      if (b.participant_a_id) compIds.add(b.participant_a_id);
-      if (b.participant_b_id) compIds.add(b.participant_b_id);
       if (b.round_no !== 99 && b.round_no > maxRound) {
         maxRound = b.round_no;
       }
     });
     
-    const competitorCount = compIds.size || 8; // fallback
+    const competitorCount = categoryParticipantCount || 8; // fallback
     
     return calculatePrintDimensions(competitorCount, maxRound, isRoundRobin, orientation, fitMode, marginSize);
-  }, [categoryBouts, selectedCategory, orientation, fitMode, marginSize]);
+  }, [categoryBouts, selectedCategory, orientation, fitMode, marginSize, categoryParticipantCount]);
 
   if (!selectedCategory || !dimensions) {
     return <div>No category selected or missing data.</div>;
@@ -159,7 +163,7 @@ export const PrintBracketView: React.FC<PrintBracketViewProps> = ({
 
       {/* 2. Category Banner */}
       <div className="bg-slate-50 border border-slate-200 border-l-[5px] border-l-blue-600 px-2.5 py-0.5 rounded mb-1.5 flex justify-between items-center shrink-0">
-        <div className="text-sm font-black uppercase text-slate-900">{selectedCategory.name}</div>
+        <div className="text-sm font-black uppercase text-slate-900">{selectedCategory.name} ({categoryParticipantCount} ATHLETES)</div>
         <div className="text-[11px] font-bold text-slate-600">
           {selectedCategory.gender} • {selectedCategory.format === 'round_robin' ? 'Round Robin' : selectedCategory.format === 'wkf_repechage' ? 'WKF Repechage' : 'Single Elimination'}
         </div>
