@@ -6,7 +6,7 @@ import { db, basePath, describeError } from '@/db/dbClient';
 import { Participant, Category, Bout, Club, isKataCategory, isKumiteCategory } from '@/db/types';
 import { 
   GitPullRequest, Check, Trophy, Trash2, Edit2, Play, 
-  ChevronRight, ArrowRight, Award, Plus, Sparkles, RefreshCw, X, Printer,
+  ChevronRight, ArrowRight, ArrowLeftRight, Award, Plus, Sparkles, RefreshCw, X, Printer,
   Lock, Unlock, ShieldAlert, AlertTriangle
 } from 'lucide-react';
 import { SportdataBracket } from '@/components/SportdataBracket';
@@ -49,6 +49,11 @@ export default function DrawsPage() {
   const [unlockError, setUnlockError] = useState('');
   const [pendingAction, setPendingAction] = useState<'clear' | 'regenerate' | null>(null);
   const [isClubStatsOpen, setIsClubStatsOpen] = useState(false);
+
+  // Manual R1 Seeding — swap state
+  const [r1SwapMode, setR1SwapMode] = useState(false);
+  const [swapSlot, setSwapSlot] = useState<{ boutId: string; side: 'a' | 'b'; participantId: string | null } | null>(null);
+  const [swapConfirm, setSwapConfirm] = useState<{ boutA: Bout; sideA: 'a'|'b'; boutB: Bout; sideB: 'a'|'b' } | null>(null);
 
   useEffect(() => {
     if (isPrinting) {
@@ -401,6 +406,61 @@ export default function DrawsPage() {
     setScoreA(bout.score_a);
     setScoreB(bout.score_b);
     setChosenWinnerId(bout.winner_id || bout.participant_a_id);
+  };
+
+  // Manual R1 participant swap handler
+  const handleSwapR1Participants = async (
+    boutA: Bout, sideA: 'a' | 'b',
+    boutB: Bout, sideB: 'a' | 'b'
+  ) => {
+    setSwapConfirm(null);
+    setSwapSlot(null);
+    try {
+      setLoading(true);
+      const pidA = sideA === 'a' ? boutA.participant_a_id : boutA.participant_b_id;
+      const pidB = sideB === 'a' ? boutB.participant_a_id : boutB.participant_b_id;
+
+      // Determine new walkover status for each bout after the swap
+      const newA = sideA === 'a' ? pidB : boutA.participant_a_id;
+      const newB = sideA === 'b' ? pidB : boutA.participant_b_id;
+      const boutAHasBye = !newA || !newB;
+      const boutAWinner = boutAHasBye ? (newA || newB) : null;
+      const boutAStatus = boutAHasBye ? 'Walkover' : 'Scheduled';
+
+      const newC = sideB === 'a' ? pidA : boutB.participant_a_id;
+      const newD = sideB === 'b' ? pidA : boutB.participant_b_id;
+      const boutBHasBye = !newC || !newD;
+      const boutBWinner = boutBHasBye ? (newC || newD) : null;
+      const boutBStatus = boutBHasBye ? 'Walkover' : 'Scheduled';
+
+      // Same bout — swap A & B sides within one bout (flip)
+      if (boutA.id === boutB.id) {
+        await (db.bouts as any).updateBoutState(boutA.id, {
+          participant_a_id: boutA.participant_b_id,
+          participant_b_id: boutA.participant_a_id,
+        });
+      } else {
+        await (db.bouts as any).updateBoutState(boutA.id, {
+          participant_a_id: newA,
+          participant_b_id: newB,
+          winner_id: boutAWinner,
+          status: boutAStatus,
+        });
+        await (db.bouts as any).updateBoutState(boutB.id, {
+          participant_a_id: newC,
+          participant_b_id: newD,
+          winner_id: boutBWinner,
+          status: boutBStatus,
+        });
+      }
+
+      const updatedBouts = await db.bouts.list();
+      setBouts(updatedBouts);
+    } catch (err: any) {
+      alert(describeError(err));
+    } finally {
+      setLoading(false);
+    }
   };
 
   // Submit resolved bout
@@ -898,6 +958,129 @@ export default function DrawsPage() {
                     />
                   </div>
 
+                  {/* ── Manual R1 Seeding Panel ── */}
+                  {canModify && (() => {
+                    const r1Bouts = categoryBouts
+                      .filter(b => b.round_no === 1)
+                      .sort((a, b) => a.bout_no - b.bout_no);
+                    if (r1Bouts.length === 0) return null;
+                    // Only show when no match has been resolved yet (status still Scheduled/Walkover)
+                    const hasStarted = categoryBouts.some(
+                      b => b.status === 'Completed' || b.status === 'Running'
+                    );
+                    if (hasStarted && !unlockedCategories.includes(selectedCatId!)) return null;
+
+                    return (
+                      <div className="border-t border-border shrink-0 no-print">
+                        {/* Header — toggles panel */}
+                        <button
+                          onClick={() => { setR1SwapMode(v => !v); setSwapSlot(null); }}
+                          className="w-full flex items-center justify-between px-4 py-2.5 bg-secondary/30 hover:bg-secondary/50 transition text-left cursor-pointer"
+                        >
+                          <div className="flex items-center gap-2">
+                            <ArrowLeftRight className="h-3.5 w-3.5 text-primary" />
+                            <span className="text-[11px] font-black uppercase tracking-wider text-foreground">
+                              Manual R1 Seeding
+                            </span>
+                            <span className="text-[9px] font-semibold text-muted-foreground bg-secondary px-1.5 py-0.5 rounded">
+                              Drag-free swap — click any participant slot to swap positions
+                            </span>
+                          </div>
+                          <span className="text-[10px] font-bold text-muted-foreground">
+                            {r1SwapMode ? '▲ Hide' : '▼ Show'}
+                          </span>
+                        </button>
+
+                        {r1SwapMode && (
+                          <div className="p-4 space-y-2">
+                            {swapSlot && (
+                              <div className="flex items-center gap-2 mb-3 p-2.5 bg-primary/10 border border-primary/30 rounded-lg">
+                                <ArrowLeftRight className="h-3.5 w-3.5 text-primary shrink-0" />
+                                <span className="text-[11px] font-bold text-primary">
+                                  Selected: <span className="font-black">{participants.find(p => p.id === swapSlot.participantId)?.full_name || 'BYE'}</span> (R1B{categoryBouts.find(b => b.id === swapSlot.boutId)?.bout_no} {swapSlot.side === 'a' ? 'AKA' : 'AO'})
+                                </span>
+                                <span className="text-[10px] text-muted-foreground">— now click another slot to swap</span>
+                                <button onClick={() => setSwapSlot(null)} className="ml-auto p-0.5 hover:text-foreground text-muted-foreground cursor-pointer">
+                                  <X className="h-3.5 w-3.5" />
+                                </button>
+                              </div>
+                            )}
+
+                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-2">
+                              {r1Bouts.map(bout => {
+                                const partA = participants.find(p => p.id === bout.participant_a_id);
+                                const partB = participants.find(p => p.id === bout.participant_b_id);
+                                const clubA = clubs.find(c => c.id === partA?.club_id);
+                                const clubB = clubs.find(c => c.id === partB?.club_id);
+                                const sameClub = partA && partB && partA.club_id && partA.club_id === partB.club_id;
+
+                                const renderSlot = (side: 'a' | 'b', part: typeof partA, club: typeof clubA) => {
+                                  const pid = side === 'a' ? bout.participant_a_id : bout.participant_b_id;
+                                  const isSelected = swapSlot?.boutId === bout.id && swapSlot?.side === side;
+                                  const isSwapSource = !!swapSlot && !isSelected;
+                                  return (
+                                    <button
+                                      key={side}
+                                      onClick={() => {
+                                        if (!swapSlot) {
+                                          // Select this slot as the source
+                                          setSwapSlot({ boutId: bout.id, side, participantId: pid });
+                                        } else if (swapSlot.boutId === bout.id && swapSlot.side === side) {
+                                          // Deselect
+                                          setSwapSlot(null);
+                                        } else {
+                                          // Trigger swap confirmation
+                                          const srcBout = categoryBouts.find(b => b.id === swapSlot.boutId)!;
+                                          setSwapConfirm({ boutA: srcBout, sideA: swapSlot.side, boutB: bout, sideB: side });
+                                        }
+                                      }}
+                                      className={`w-full text-left px-2.5 py-1.5 rounded-lg border text-[10px] font-semibold transition cursor-pointer ${
+                                        isSelected
+                                          ? 'bg-primary/15 border-primary text-primary ring-1 ring-primary'
+                                          : isSwapSource
+                                          ? 'bg-secondary hover:bg-primary/10 hover:border-primary/50 border-border/80 text-foreground'
+                                          : 'bg-secondary/60 hover:bg-secondary border-border/60 text-foreground'
+                                      }`}
+                                    >
+                                      <div className="flex items-center gap-1.5">
+                                        <div className={`w-2 h-2 rounded-full shrink-0 ${side === 'a' ? 'bg-red-500' : 'bg-blue-500'}`} />
+                                        <span className="truncate font-bold">{part?.full_name || '— BYE —'}</span>
+                                        {isSelected && <ArrowLeftRight className="h-3 w-3 ml-auto shrink-0 text-primary" />}
+                                      </div>
+                                      {club && <div className="text-[9px] text-muted-foreground truncate pl-3.5 mt-0.5">{club.name}</div>}
+                                    </button>
+                                  );
+                                };
+
+                                return (
+                                  <div key={bout.id} className={`p-2.5 rounded-xl border space-y-1.5 ${
+                                    sameClub
+                                      ? 'border-amber-500/40 bg-amber-500/5'
+                                      : 'border-border bg-card'
+                                  }`}>
+                                    <div className="flex items-center justify-between mb-0.5">
+                                      <span className="text-[9px] font-black text-muted-foreground uppercase tracking-wider">R1B{bout.bout_no}</span>
+                                      {sameClub && (
+                                        <span className="text-[8px] font-black text-amber-500 uppercase tracking-wider bg-amber-500/10 px-1.5 py-0.5 rounded">Same Dojo ⚠</span>
+                                      )}
+                                    </div>
+                                    {renderSlot('a', partA, clubA)}
+                                    <div className="text-center text-[8px] font-black text-muted-foreground">VS</div>
+                                    {renderSlot('b', partB, clubB)}
+                                  </div>
+                                );
+                              })}
+                            </div>
+
+                            <p className="text-[9px] text-muted-foreground pt-1">
+                              💡 Bouts highlighted in <span className="text-amber-500 font-bold">amber</span> have same-Dojo matchups. Click any athlete slot to select it, then click another slot to swap their positions.
+                            </p>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })()}
+
                   {categoryBouts.filter(b => b.round_no === 98).length > 0 && (
                     <div className="mt-8 border-t border-border pt-6 px-6 pb-8 bg-secondary/20 shrink-0">
                       <h3 className="text-xs font-black uppercase text-foreground tracking-wider mb-4 flex items-center gap-1.5">
@@ -1058,6 +1241,67 @@ export default function DrawsPage() {
           </form>
         </div>
       )}
+
+      {/* R1 SWAP CONFIRMATION MODAL */}
+      {swapConfirm && (() => {
+        const { boutA, sideA, boutB, sideB } = swapConfirm;
+        const pidA = sideA === 'a' ? boutA.participant_a_id : boutA.participant_b_id;
+        const pidB = sideB === 'a' ? boutB.participant_a_id : boutB.participant_b_id;
+        const nameA = participants.find(p => p.id === pidA)?.full_name || 'BYE';
+        const nameB = participants.find(p => p.id === pidB)?.full_name || 'BYE';
+        const clubA = clubs.find(c => c.id === participants.find(p => p.id === pidA)?.club_id);
+        const clubB = clubs.find(c => c.id === participants.find(p => p.id === pidB)?.club_id);
+        return (
+          <div className="fixed inset-0 bg-black/70 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-in fade-in duration-150">
+            <div className="bg-card border border-border rounded-2xl max-w-md w-full overflow-hidden shadow-2xl">
+              <div className="bg-primary/10 border-b border-border p-5 flex items-center gap-3">
+                <div className="p-2.5 bg-primary/15 text-primary rounded-xl">
+                  <ArrowLeftRight className="h-5 w-5" />
+                </div>
+                <div>
+                  <h3 className="font-extrabold text-sm text-foreground">Confirm Participant Swap</h3>
+                  <p className="text-xs text-muted-foreground">This will swap these two participants in Round 1.</p>
+                </div>
+              </div>
+              <div className="p-5 space-y-4">
+                <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-3">
+                  <div className="p-3 bg-secondary rounded-xl text-center space-y-0.5">
+                    <div className={`w-2 h-2 rounded-full mx-auto ${sideA === 'a' ? 'bg-red-500' : 'bg-blue-500'}`} />
+                    <p className="text-xs font-black text-foreground truncate">{nameA}</p>
+                    {clubA && <p className="text-[9px] text-muted-foreground truncate">{clubA.name}</p>}
+                    <p className="text-[9px] font-bold text-muted-foreground">R1B{boutA.bout_no} · {sideA === 'a' ? 'AKA' : 'AO'}</p>
+                  </div>
+                  <ArrowLeftRight className="h-5 w-5 text-primary shrink-0" />
+                  <div className="p-3 bg-secondary rounded-xl text-center space-y-0.5">
+                    <div className={`w-2 h-2 rounded-full mx-auto ${sideB === 'a' ? 'bg-red-500' : 'bg-blue-500'}`} />
+                    <p className="text-xs font-black text-foreground truncate">{nameB}</p>
+                    {clubB && <p className="text-[9px] text-muted-foreground truncate">{clubB.name}</p>}
+                    <p className="text-[9px] font-bold text-muted-foreground">R1B{boutB.bout_no} · {sideB === 'a' ? 'AKA' : 'AO'}</p>
+                  </div>
+                </div>
+                <p className="text-[11px] text-muted-foreground text-center">
+                  <span className="font-bold text-foreground">{nameA}</span> and <span className="font-bold text-foreground">{nameB}</span> will exchange their R1 bracket positions.
+                </p>
+              </div>
+              <div className="p-4 border-t border-border bg-secondary/15 flex items-center justify-end gap-2.5">
+                <button
+                  onClick={() => { setSwapConfirm(null); setSwapSlot(null); }}
+                  className="px-4 py-2 border border-border bg-card hover:bg-secondary rounded-lg text-xs font-bold text-muted-foreground hover:text-foreground cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={() => handleSwapR1Participants(boutA, sideA, boutB, sideB)}
+                  className="px-4 py-2 bg-primary text-primary-foreground hover:bg-primary/95 rounded-lg text-xs font-bold shadow-sm cursor-pointer flex items-center gap-1.5"
+                >
+                  <ArrowLeftRight className="h-4 w-4" />
+                  <span>Confirm Swap</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
 
       {/* BOUT RESULTS RESOLUTION DIALOG MODAL */}
       {selectedBoutToResolve && (
