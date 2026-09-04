@@ -1,0 +1,34 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 300" width="100%" height="100%">
+  <!-- Definitions for single petal template -->
+  <defs>
+    <!-- Single curved petal: teardrop swirl curving into center -->
+    <path id="wkf-petal" d="M 150 42 C 182 42 208 64 210 94 C 211 118 196 138 174 145 C 160 149 146 142 142 128 C 139 116 145 103 156 97 C 162 94 167 87 166 80 C 164 68 153 60 140 64 C 122 70 114 90 120 108 C 125 125 140 137 150 148 C 120 148 94 125 94 95 C 94 65 119 42 150 42 Z" />
+  </defs>
+
+  <g transform="translate(0, -10)">
+    <!-- 5 Petals rotated by 72 deg around (150, 125) -->
+    <!-- Teal / Green (Top-Left) -->
+    <path d="M 150 35 C 178 35 200 52 202 78 C 203 99 189 117 169 123 C 153 128 139 119 137 103 C 135 91 143 80 155 76 C 162 73 165 65 163 58 C 160 48 149 42 138 46 C 120 53 112 72 119 90 C 104 78 98 56 109 39 C 120 23 135 35 150 35 Z" fill="#52c8a4" />
+    
+    <!-- Rotated petal group for clean 5-fold radial symmetry -->
+    <g transform="translate(150, 125)">
+      <!-- Petal 1: Green/Teal at -72 deg (Top Left) -->
+      <path d="M 0 -85 C 26 -85 46 -68 47 -44 C 48 -25 35 -9 17 -3 C 3 1 -9 -7 -11 -21 C -13 -32 -6 -42 5 -45 C 11 -48 14 -55 12 -61 C 9 -70 -1 -75 -10 -72 C -26 -65 -33 -48 -27 -32 C -40 -43 -45 -62 -35 -77 C -25 -92 -12 -85 0 -85 Z" fill="#54caa5" transform="rotate(-72)" />
+      
+      <!-- Petal 2: Yellow at 0 deg (Top Right) -->
+      <path d="M 0 -85 C 26 -85 46 -68 47 -44 C 48 -25 35 -9 17 -3 C 3 1 -9 -7 -11 -21 C -13 -32 -6 -42 5 -45 C 11 -48 14 -55 12 -61 C 9 -70 -1 -75 -10 -72 C -26 -65 -33 -48 -27 -32 C -40 -43 -45 -62 -35 -77 C -25 -92 -12 -85 0 -85 Z" fill="#f8c33e" transform="rotate(0)" />
+      
+      <!-- Petal 3: Blue at 72 deg (Right) -->
+      <path d="M 0 -85 C 26 -85 46 -68 47 -44 C 48 -25 35 -9 17 -3 C 3 1 -9 -7 -11 -21 C -13 -32 -6 -42 5 -45 C 11 -48 14 -55 12 -61 C 9 -70 -1 -75 -10 -72 C -26 -65 -33 -48 -27 -32 C -40 -43 -45 -62 -35 -77 C -25 -92 -12 -85 0 -85 Z" fill="#2d6fb5" transform="rotate(72)" />
+      
+      <!-- Petal 4: Red at 144 deg (Bottom) -->
+      <path d="M 0 -85 C 26 -85 46 -68 47 -44 C 48 -25 35 -9 17 -3 C 3 1 -9 -7 -11 -21 C -13 -32 -6 -42 5 -45 C 11 -48 14 -55 12 -61 C 9 -70 -1 -75 -10 -72 C -26 -65 -33 -48 -27 -32 C -40 -43 -45 -62 -35 -77 C -25 -92 -12 -85 0 -85 Z" fill="#e23637" transform="rotate(144)" />
+      
+      <!-- Petal 5: Black/Dark Slate at 216 deg (Left) -->
+      <path d="M 0 -85 C 26 -85 46 -68 47 -44 C 48 -25 35 -9 17 -3 C 3 1 -9 -7 -11 -21 C -13 -32 -6 -42 5 -45 C 11 -48 14 -55 12 -61 C 9 -70 -1 -75 -10 -72 C -26 -65 -33 -48 -27 -32 C -40 -43 -45 -62 -35 -77 C -25 -92 -12 -85 0 -85 Z" fill="#23262d" transform="rotate(216)" />
+    </g>
+
+    <!-- WKF Bold Text Underneath Emblem -->
+    <text x="150" y="248" text-anchor="middle" font-family="'Montserrat', 'Arial Black', 'Helvetica Neue', sans-serif" font-weight="900" font-size="34" letter-spacing="3" fill="#1b1e24">WKF</text>
+  </g>
+</svg>
