@@ -59,8 +59,10 @@ export default function DrawsPage() {
     if (isPrinting) {
       // Give React 600ms to render the print DOM structure completely after data auto-refresh
       const timer = setTimeout(() => {
-        window.print();
-        setIsPrinting(false);
+        window.requestAnimationFrame(() => {
+          window.print();
+          setIsPrinting(false);
+        });
       }, 600);
       return () => clearTimeout(timer);
     }
@@ -181,7 +183,8 @@ export default function DrawsPage() {
       setLoading(true);
       const cat = categories.find(c => c.id === selectedCatId);
       const format = cat?.format || 'knockout';
-      await db.bouts.generateDraw(selectedCatId, format, false);
+      // WKF: standard knockout brackets include a 3rd-place (bronze) bout by default.
+      await db.bouts.generateDraw(selectedCatId, format, true);
       const updatedBouts = await db.bouts.list();
       setBouts(updatedBouts);
     } catch (err: any) {
@@ -227,7 +230,8 @@ export default function DrawsPage() {
         const count = getCategoryCountInfo(cat.id).confirmed;
         if (catBouts.length === 0 && count > 0) {
           try {
-            await db.bouts.generateDraw(cat.id, cat.format || 'knockout', false);
+            // WKF: standard knockout brackets include a 3rd-place (bronze) bout by default.
+            await db.bouts.generateDraw(cat.id, cat.format || 'knockout', true);
             generatedCount++;
           } catch (e: any) {
             console.error('Failed to generate for category:', cat.id, e);

@@ -179,6 +179,39 @@ export default function PublicSpectatorHub() {
           const bronzeKey = bronzeWinner?.club_id || 'Independent';
           if (tally[bronzeKey]) tally[bronzeKey].bronze++;
         }
+
+        // WKF Repechage: two bronze pools (round_no === 98). The final bout of each
+        // pool has no successor bout (bout_no + 1 does not exist in the pool).
+        const repechageBouts = catBouts.filter(b => b.round_no === 98);
+        const repechageBoutNos = new Set(repechageBouts.map(b => b.bout_no));
+        repechageBouts
+          .filter(b => !repechageBoutNos.has(b.bout_no + 1))
+          .forEach(b => {
+            if ((b.status === 'Completed' || b.status === 'Walkover') && b.winner_id) {
+              const bronzeWinner = participants.find(p => p.id === b.winner_id);
+              const bronzeKey = bronzeWinner?.club_id || 'Independent';
+              if (tally[bronzeKey]) tally[bronzeKey].bronze++;
+            }
+          });
+
+        // No dedicated bronze bout/repechage was drawn for this bracket: both
+        // semifinal losers are awarded bronze (same rule the bracket view uses).
+        if (!bronzeBout && repechageBouts.length === 0) {
+          const semiRound = maxRound - 1;
+          const semiBouts = catBouts.filter(b => b.round_no === semiRound);
+          const bronzeLoserIds = new Set<string>();
+          semiBouts.forEach(sb => {
+            if ((sb.status === 'Completed' || sb.status === 'Walkover') && sb.winner_id) {
+              const loserId = sb.winner_id === sb.participant_a_id ? sb.participant_b_id : sb.participant_a_id;
+              if (loserId) bronzeLoserIds.add(loserId);
+            }
+          });
+          bronzeLoserIds.forEach(loserId => {
+            const bronzeWinner = participants.find(p => p.id === loserId);
+            const bronzeKey = bronzeWinner?.club_id || 'Independent';
+            if (tally[bronzeKey]) tally[bronzeKey].bronze++;
+          });
+        }
       }
     });
 

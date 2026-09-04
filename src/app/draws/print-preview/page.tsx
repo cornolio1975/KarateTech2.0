@@ -34,6 +34,7 @@ function PrintPreviewContent() {
   const autoPrint = searchParams.get('autoPrint') === 'true';
 
   useEffect(() => {
+    let isMounted = true;
     async function loadData() {
       try {
         const [catList, pList, clList, bList] = await Promise.all([
@@ -42,17 +43,20 @@ function PrintPreviewContent() {
           db.clubs.list(),
           db.bouts.list(),
         ]);
-        setCategories(catList);
-        setParticipants(pList);
-        setClubs(clList);
-        setBouts(bList);
+        if (isMounted) {
+          setCategories(catList);
+          setParticipants(pList);
+          setClubs(clList);
+          setBouts(bList);
+        }
       } catch (err) {
-        console.error("Error loading print data:", err);
+        if (isMounted) console.error("Error loading print data:", err);
       } finally {
-        setLoading(false);
+        if (isMounted) setLoading(false);
       }
     }
     loadData();
+    return () => { isMounted = false; };
   }, []);
 
   // Parse multiple categories if comma-separated, or default to all categories with bouts.
@@ -99,7 +103,11 @@ function PrintPreviewContent() {
   useEffect(() => {
     if (!loading && printCatIds.length > 0 && autoPrint) {
       const timer = setTimeout(() => {
-        window.print();
+        // Decouple window.print from the React setTimeout execution context to prevent
+        // "state update on unmounted component" errors during HMR/hot-reload
+        window.requestAnimationFrame(() => {
+          window.print();
+        });
       }, 500);
       return () => clearTimeout(timer);
     }

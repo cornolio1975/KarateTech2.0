@@ -1198,18 +1198,16 @@ export const mockStore = {
         throw new Error('Cannot generate draws: No active participants in this category.');
       }
 
-      // --- SMART SEEDING: Club/Dojo Separation with Controlled Randomization ---
-      // Priority order:
-      //   1. Valid bracket (always)
-      //   2. Minimize same-club R1 matchups
-      //   3. Produce a DIFFERENT arrangement on every regeneration
-      //   4. Never sacrifice bracket validity for randomization
-      //
-      // Strategy: generate up to 8 candidate orderings, score each by R1 club separation,
-      // penalize duplicates of recent brackets (via sessionStorage history), pick the best.
-      // In test/server environments (no sessionStorage) fall back to deterministic base ordering.
+      const drawAthletes = athletes;
 
-      /** Fisher-Yates in-place shuffle */
+      // --- SMART SEEDING: Same-Dojo Split Rule (Upper/Lower Groups) ---
+      // Applies only to participant placement for knockout/WKF draw generation.
+      // Bracket topology, repechage, scoring, and UI remain unchanged.
+
+      const _hasSession = typeof sessionStorage !== 'undefined';
+      const _ODD_SPLIT_KEY = `ts_bracket_odd_split_${catId}`;
+      const _SIG_KEY = `ts_bracket_sig_${catId}`;
+
       const _shuffleInPlace = <T>(arr: T[]): T[] => {
         for (let i = arr.length - 1; i > 0; i--) {
           const j = Math.floor(Math.random() * (i + 1));
@@ -1218,209 +1216,290 @@ export const mockStore = {
         return arr;
       };
 
-      /**
-       * Build a club-interleaved athlete ordering.
-       * Clubs are visited in round-robin (largest first), optionally rotated by clubRotation
-       * to produce different starting arrangements across candidates.
-       */
-      const _buildClubOrder = (pool: Participant[], clubRotation: number): Participant[] => {
-        const groups: Record<string, Participant[]> = {};
-        pool.forEach(p => {
-          const cid = p.club_id || 'independent';
-          if (!groups[cid]) groups[cid] = [];
-          groups[cid].push(p);
-        });
-        // Sort clubs by size desc for largest-first distribution
-        let ids = Object.keys(groups).sort((a, b) => groups[b].length - groups[a].length);
-        // Rotate starting club to vary arrangement
-        if (clubRotation > 0 && ids.length > 1) {
-          const r = clubRotation % ids.length;
-          ids = [...ids.slice(r), ...ids.slice(0, r)];
-        }
-        const result: Participant[] = [];
-        let rem = pool.length;
-        while (rem > 0) {
-          for (const cid of ids) {
-            if (groups[cid].length > 0) { result.push(groups[cid].shift()!); rem--; }
-          }
-        }
-        return result;
-      };
+      const _clubKey = (p: Participant): string => p.club_id || `independent:${p.id}`;
 
-      /**
-       * Compute WKF seed order array for a given slot count.
-       * Matches the exact algorithm used by the downstream bracket builder.
-       */
       const _wkfSeedOrder = (slots: number): number[] => {
-        let seed = [1, 2]; let sz = 2;
+        let seed = [1, 2];
+        let sz = 2;
         while (sz < slots) {
           const next: number[] = [];
-          for (let i = 0; i < seed.length; i++) { next.push(seed[i]); next.push(sz * 2 + 1 - seed[i]); }
-          seed = next; sz *= 2;
+          for (let i = 0; i < seed.length; i++) {
+            next.push(seed[i]);
+            next.push(sz * 2 + 1 - seed[i]);
+          }
+          seed = next;
+          sz *= 2;
         }
         return seed;
       };
 
-      /**
-       * Score a candidate athlete ordering by evaluating actual R1 matchups
-       * after applying WKF seed order. +10 per different-club pair, -10 per same-club pair.
-       */
-      const _r1Score = (ordered: Participant[]): number => {
-        const n = ordered.length;
-        const slots = Math.max(2, Math.pow(2, Math.ceil(Math.log2(n))));
-        const seed = _wkfSeedOrder(slots);
-        let score = 0;
-        for (let i = 0; i < slots; i += 2) {
-          const ai = seed[i] - 1; const bi = seed[i + 1] - 1;
-          if (ai >= n || bi >= n) continue; // bye slot — no penalty
-          const ca = ordered[ai].club_id || 'independent';
-          const cb = ordered[bi].club_id || 'independent';
-          score += (ca !== cb) ? 10 : -10;
-        }
-        return score;
-      };
+      const _buildPlacementMeta = (count: number) => {
+        const slots = Math.max(2, Math.pow(2, Math.ceil(Math.log2(count))));
+        const seedOrder = _wkfSeedOrder(slots);
+        const half = slots / 2;
+        const upperFillPositions: number[] = [];
+        const lowerFillPositions: number[] = [];
 
-      /**
-       * Compute a compact string signature of the R1 pairings for deduplication.
-       * Format: "idA:idB|idC:idD|..." after WKF seed order is applied.
-       */
-      const _r1Signature = (ordered: Participant[]): string => {
-        const n = ordered.length;
-        const slots = Math.max(2, Math.pow(2, Math.ceil(Math.log2(n))));
-        const seed = _wkfSeedOrder(slots);
-        const bl: (string | null)[] = new Array(slots).fill(null);
-        for (let i = 0; i < slots; i++) { if (seed[i] - 1 < n) bl[i] = ordered[seed[i] - 1].id; }
-        const pairs: string[] = [];
-        for (let i = 0; i < slots; i += 2) pairs.push(`${bl[i] || 'BYE'}:${bl[i + 1] || 'BYE'}`);
-        return pairs.join('|');
-      };
-
-      /**
-       * Identify which pairs of array-indices (in the ordered athletes array) will
-       * be matched against each other in R1 after WKF seed order is applied.
-       * Returns only "real" matches (both indices have an athlete, not a bye).
-       *
-       * Example: N=9, slots=16, seed=[1,16,8,9,4,13,5,12,2,15,7,10,3,14,6,11]
-       *   → pair (seed[2]-1, seed[3]-1) = (7, 8) — the ONLY real match.
-       */
-      const _getRealMatchPairs = (n: number): [number, number][] => {
-        const slots = Math.max(2, Math.pow(2, Math.ceil(Math.log2(n))));
-        const seed = _wkfSeedOrder(slots);
-        const pairs: [number, number][] = [];
-        for (let i = 0; i < slots; i += 2) {
-          const ai = seed[i] - 1;
-          const bi = seed[i + 1] - 1;
-          if (ai < n && bi < n) pairs.push([ai, bi]);
-        }
-        return pairs;
-      };
-
-      /**
-       * Post-processing pass: for any real-R1-match pair where both participants
-       * share the same club, attempt to swap one of them with the nearest
-       * different-club participant sitting in a walkover (bye) slot.
-       *
-       * This is the critical fix for uneven distributions like N=9 with a dominant
-       * club (e.g. 6 SENSHI + 3 GOJU KAI) where round-robin interleaving still
-       * lands both majority-club overflow athletes at the real-match indices.
-       *
-       * Priority: fix every same-club real-match; skip if no different-club
-       * participant is available in a walkover slot (mathematically unavoidable).
-       */
-      const _fixRealMatchConflicts = (ordered: Participant[]): Participant[] => {
-        const n = ordered.length;
-        const realPairs = _getRealMatchPairs(n);
-        if (realPairs.length === 0) return ordered;
-
-        // Indices that participate in real matches (cannot be treated as "free to swap from")
-        const inRealMatch = new Set(realPairs.flatMap(p => p));
-        // Indices in walkover slots — safe to pull a different-club athlete from
-        const walkoversIdx = Array.from({ length: n }, (_, i) => i).filter(i => !inRealMatch.has(i));
-
-        const result = [...ordered];
-
-        for (const [idxA, idxB] of realPairs) {
-          const clubA = result[idxA].club_id || 'independent';
-          const clubB = result[idxB].club_id || 'independent';
-          if (clubA === clubB) {
-            // Find the closest walkover-slot participant from a different club
-            const altIdx = walkoversIdx.find(wi =>
-              (result[wi].club_id || 'independent') !== clubA
-            );
-            if (altIdx !== undefined) {
-              // Swap the second real-match participant with that walkover-slot participant
-              [result[idxB], result[altIdx]] = [result[altIdx], result[idxB]];
-            }
+        for (let pos = 0; pos < slots; pos++) {
+          const seedIndex = seedOrder[pos] - 1;
+          if (seedIndex < count) {
+            if (pos < half) upperFillPositions.push(pos);
+            else lowerFillPositions.push(pos);
           }
         }
 
-        return result;
+        return {
+          slots,
+          seedOrder,
+          half,
+          upperFillPositions,
+          lowerFillPositions,
+          upperCapacity: upperFillPositions.length,
+          lowerCapacity: lowerFillPositions.length,
+        };
       };
 
-      // --- Load pairing signature history from sessionStorage (browser only) ---
-      // sessionStorage is undefined in test/server environments → deterministic fallback
-      const _SIG_KEY = `ts_bracket_sig_${catId}`;
-      let _sigHistory: string[] = [];
-      const _hasSession = typeof sessionStorage !== 'undefined';
-      if (_hasSession) {
-        try {
-          const raw = sessionStorage.getItem(_SIG_KEY);
-          if (raw) _sigHistory = JSON.parse(raw);
-        } catch (_) { /* ignore parse errors */ }
-      }
+      const _pairSignatureFromBracket = (bracketList: (string | null)[]): string => {
+        const pairs: string[] = [];
+        for (let i = 0; i < bracketList.length; i += 2) {
+          pairs.push(`${bracketList[i] || 'BYE'}:${bracketList[i + 1] || 'BYE'}`);
+        }
+        return pairs.join('|');
+      };
 
-      // --- Determine unique club count for rotation range ---
-      const _numClubs = new Set(athletes.map(p => p.club_id || 'independent')).size;
+      const _sameDojoR1Conflicts = (bracketList: (string | null)[], byId: Record<string, Participant>): number => {
+        let conflicts = 0;
+        for (let i = 0; i < bracketList.length; i += 2) {
+          const idA = bracketList[i];
+          const idB = bracketList[i + 1];
+          if (!idA || !idB) continue;
+          if (_clubKey(byId[idA]) === _clubKey(byId[idB])) conflicts++;
+        }
+        return conflicts;
+      };
 
-      // --- Base (deterministic) ordering: weight-sort + club interleaving ---
-      // This is what the old algorithm produced. Preserved for:
-      //   a) test environments (no sessionStorage) — ensures all existing tests pass
-      //   b) first-ever generation (no history yet)
-      // _fixRealMatchConflicts is applied here too so even the base/first-gen gets separation.
-      const _basePool = [...athletes].sort((a, b) => (a.weight || 0) - (b.weight || 0));
-      const _baseCandidate = _fixRealMatchConflicts(_buildClubOrder(_basePool, 0));
+      const _chooseFromPool = (pool: Participant[], differentFromClub?: string): Participant => {
+        if (pool.length === 1) return pool.splice(0, 1)[0];
 
-      if (!_hasSession) {
-        // Test / server environment — always use deterministic base, no randomization
-        athletes = _baseCandidate;
-      } else {
-        // Browser environment — generate multiple candidates and pick the best non-duplicate
-        const _candidates: Array<{ order: Participant[]; sig: string; score: number }> = [];
-
-        // Candidate 0: deterministic base (always included for quality baseline)
-        const _baseSig = _r1Signature(_baseCandidate);
-        _candidates.push({
-          order: _baseCandidate,
-          sig: _baseSig,
-          score: _r1Score(_baseCandidate) - (_sigHistory.includes(_baseSig) ? 50 : 0)
-        });
-
-        // Candidates 1–7: randomized variants with different shuffle seeds and club rotations
-        // _fixRealMatchConflicts is applied to each so real-match slots always get
-        // different-club athletes wherever the club distribution makes it possible.
-        for (let _attempt = 1; _attempt <= 7; _attempt++) {
-          const _shuffled = _shuffleInPlace([...athletes]);
-          const _rot = _attempt % Math.max(1, _numClubs);
-          const _candidate = _fixRealMatchConflicts(_buildClubOrder(_shuffled, _rot));
-          const _sig = _r1Signature(_candidate);
-          const _score = _r1Score(_candidate) - (_sigHistory.includes(_sig) ? 50 : 0);
-          _candidates.push({ order: _candidate, sig: _sig, score: _score });
+        if (differentFromClub) {
+          const idx = pool.findIndex(p => _clubKey(p) !== differentFromClub);
+          if (idx >= 0) return pool.splice(idx, 1)[0];
         }
 
-        // Select the highest-scoring candidate
-        _candidates.sort((a, b) => b.score - a.score);
-        const _best = _candidates[0];
-        athletes = _best.order;
+        const idx = _hasSession ? Math.floor(Math.random() * pool.length) : 0;
+        return pool.splice(idx, 1)[0];
+      };
 
-        // Persist signature to history (keep last 6 unique)
-        try {
-          const _updated = [_best.sig, ..._sigHistory.filter(s => s !== _best.sig)].slice(0, 6);
-          sessionStorage.setItem(_SIG_KEY, JSON.stringify(_updated));
-        } catch (_) { /* ignore write errors */ }
+      const _placeIntoHalf = (
+        bracketList: (string | null)[],
+        poolInput: Participant[],
+        fillPositions: number[],
+        halfStart: number,
+        halfEnd: number
+      ) => {
+        const pool = [...poolInput];
+        const fillSet = new Set(fillPositions);
+
+        for (let boutStart = halfStart; boutStart <= halfEnd; boutStart += 2) {
+          const p1 = boutStart;
+          const p2 = boutStart + 1;
+          const hasP1 = fillSet.has(p1);
+          const hasP2 = fillSet.has(p2);
+
+          if (!hasP1 && !hasP2) continue;
+
+          if (hasP1 && hasP2) {
+            const a = _chooseFromPool(pool);
+            const b = _chooseFromPool(pool, _clubKey(a));
+            bracketList[p1] = a.id;
+            bracketList[p2] = b.id;
+            continue;
+          }
+
+          const solo = _chooseFromPool(pool);
+          if (hasP1) bracketList[p1] = solo.id;
+          if (hasP2) bracketList[p2] = solo.id;
+        }
+      };
+
+      if (drawType !== 'Round-robin' && drawType !== 'round_robin') {
+        let _oddHistory: Record<string, 'upper' | 'lower'> = {};
+        let _sigHistory: string[] = [];
+        if (_hasSession) {
+          try {
+            const rawOdd = sessionStorage.getItem(_ODD_SPLIT_KEY);
+            if (rawOdd) _oddHistory = JSON.parse(rawOdd);
+          } catch (_) {
+            _oddHistory = {};
+          }
+          try {
+            const rawSig = sessionStorage.getItem(_SIG_KEY);
+            if (rawSig) _sigHistory = JSON.parse(rawSig);
+          } catch (_) {
+            _sigHistory = [];
+          }
+        }
+
+        const _meta = _buildPlacementMeta(drawAthletes.length);
+        const _byId: Record<string, Participant> = Object.fromEntries(drawAthletes.map(p => [p.id, p]));
+
+        const _buildCandidate = () => {
+        const grouped = new Map<string, Participant[]>();
+        drawAthletes.forEach((p) => {
+          const key = _clubKey(p);
+          const list = grouped.get(key) || [];
+          list.push(p);
+          grouped.set(key, list);
+        });
+
+        const multiDojo: Array<{ key: string; list: Participant[] }> = [];
+        const singles: Participant[] = [];
+
+        for (const [key, list] of grouped.entries()) {
+          const copy = [...list];
+          if (_hasSession) _shuffleInPlace(copy);
+          if (copy.length >= 2) multiDojo.push({ key, list: copy });
+          else singles.push(copy[0]);
+        }
+
+        multiDojo.sort((a, b) => b.list.length - a.list.length || a.key.localeCompare(b.key));
+        if (_hasSession) _shuffleInPlace(singles);
+
+        const upperPool: Participant[] = [];
+        const lowerPool: Participant[] = [];
+        const oddApplied: Record<string, 'upper' | 'lower'> = {};
+
+        const upperCountByClub = new Map<string, number>();
+        const lowerCountByClub = new Map<string, number>();
+
+        const inc = (m: Map<string, number>, k: string, v = 1) => m.set(k, (m.get(k) || 0) + v);
+
+        for (const g of multiDojo) {
+          const n = g.list.length;
+          const base = Math.floor(n / 2);
+          let upperTake = base;
+          let lowerTake = base;
+
+          if (n % 2 === 1) {
+            let oddSide: 'upper' | 'lower';
+            if (_hasSession) {
+              const prev = _oddHistory[g.key];
+              oddSide = prev ? (prev === 'upper' ? 'lower' : 'upper') : (Math.random() < 0.5 ? 'upper' : 'lower');
+            } else {
+              oddSide = 'upper';
+            }
+            oddApplied[g.key] = oddSide;
+            if (oddSide === 'upper') upperTake++;
+            else lowerTake++;
+          }
+
+          for (let i = 0; i < upperTake; i++) {
+            const p = g.list[i];
+            upperPool.push(p);
+            inc(upperCountByClub, g.key);
+          }
+          for (let i = upperTake; i < upperTake + lowerTake; i++) {
+            const p = g.list[i];
+            lowerPool.push(p);
+            inc(lowerCountByClub, g.key);
+          }
+        }
+
+        while (singles.length > 0) {
+          const p = singles.shift()!;
+          const key = _clubKey(p);
+          const needUpper = upperPool.length < _meta.upperCapacity;
+          const needLower = lowerPool.length < _meta.lowerCapacity;
+
+          if (needUpper && (!needLower || upperPool.length <= lowerPool.length)) {
+            upperPool.push(p);
+            inc(upperCountByClub, key);
+          } else {
+            lowerPool.push(p);
+            inc(lowerCountByClub, key);
+          }
+        }
+
+        const moveOne = (
+          fromPool: Participant[],
+          toPool: Participant[],
+          fromCounts: Map<string, number>,
+          toCounts: Map<string, number>,
+          preferredOddSide: 'upper' | 'lower'
+        ) => {
+          let idx = -1;
+          for (let i = fromPool.length - 1; i >= 0; i--) {
+            const key = _clubKey(fromPool[i]);
+            if (oddApplied[key] === preferredOddSide && (fromCounts.get(key) || 0) > (toCounts.get(key) || 0)) {
+              idx = i;
+              break;
+            }
+          }
+          if (idx === -1) idx = fromPool.length - 1;
+          const [picked] = fromPool.splice(idx, 1);
+          toPool.push(picked);
+          const key = _clubKey(picked);
+          fromCounts.set(key, Math.max(0, (fromCounts.get(key) || 0) - 1));
+          toCounts.set(key, (toCounts.get(key) || 0) + 1);
+        };
+
+        while (upperPool.length > _meta.upperCapacity) {
+          moveOne(upperPool, lowerPool, upperCountByClub, lowerCountByClub, 'upper');
+        }
+        while (upperPool.length < _meta.upperCapacity) {
+          moveOne(lowerPool, upperPool, lowerCountByClub, upperCountByClub, 'lower');
+        }
+
+        const bracketList: (string | null)[] = new Array(_meta.slots).fill(null);
+        _placeIntoHalf(bracketList, upperPool, _meta.upperFillPositions, 0, _meta.half - 1);
+        _placeIntoHalf(bracketList, lowerPool, _meta.lowerFillPositions, _meta.half, _meta.slots - 1);
+
+        const orderedBySeed: Participant[] = new Array(drawAthletes.length);
+        for (let pos = 0; pos < _meta.slots; pos++) {
+          const seedIndex = _meta.seedOrder[pos] - 1;
+          if (seedIndex < drawAthletes.length && bracketList[pos]) {
+            orderedBySeed[seedIndex] = _byId[bracketList[pos]!];
+          }
+        }
+
+        const ordered = orderedBySeed.filter(Boolean);
+        const signature = _pairSignatureFromBracket(bracketList);
+        const conflictCount = _sameDojoR1Conflicts(bracketList, _byId);
+
+        return { ordered, signature, conflictCount, oddApplied };
+        };
+
+        let _best = _buildCandidate();
+        if (_hasSession) {
+          for (let attempt = 0; attempt < 11; attempt++) {
+            const next = _buildCandidate();
+            const bestSeenBefore = _sigHistory.includes(_best.signature);
+            const nextSeenBefore = _sigHistory.includes(next.signature);
+
+            const shouldReplace =
+              next.conflictCount < _best.conflictCount ||
+              (next.conflictCount === _best.conflictCount && bestSeenBefore && !nextSeenBefore);
+
+            if (shouldReplace) _best = next;
+            if (_best.conflictCount === 0 && !_sigHistory.includes(_best.signature)) break;
+          }
+
+          try {
+            const mergedOdd = { ..._oddHistory, ..._best.oddApplied };
+            sessionStorage.setItem(_ODD_SPLIT_KEY, JSON.stringify(mergedOdd));
+          } catch (_) {
+            // Ignore storage write errors; generation still proceeds.
+          }
+          try {
+            const updated = [_best.signature, ..._sigHistory.filter(s => s !== _best.signature)].slice(0, 8);
+            sessionStorage.setItem(_SIG_KEY, JSON.stringify(updated));
+          } catch (_) {
+            // Ignore storage write errors; generation still proceeds.
+          }
+        }
+
+        athletes = _best.ordered;
       }
-
-      // Replace athletes array with our optimally distributed array
-      // ---------------------------------------------------------
 
       mockStore.bouts.clearDraw(catId);
 

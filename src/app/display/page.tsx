@@ -432,6 +432,81 @@ function SpectatorDisplayContent() {
     loadPresentationData();
   }, [forceLiveOnly, urlPlaylistId, urlTournamentId]);
 
+  // Periodically refresh bout/participant data so the Medal Leaderboard slide
+  // reflects newly completed matches (incl. bronze/repechage) without a manual reload.
+  useEffect(() => {
+    const refreshMedalData = async () => {
+      try {
+        let bList: Bout[] = [], cList: Category[] = [], pList: Participant[] = [], clList: Club[] = [];
+        let loadedFromCloud = false;
+
+        if (supabase && urlTournamentId) {
+          try {
+            const { data: tournamentRow, error: tournamentError } = await supabase
+              .from('tournaments')
+              .select('*')
+              .eq('id', urlTournamentId)
+              .maybeSingle();
+
+            if (!tournamentError && tournamentRow) {
+              const tournamentDb = (tournamentRow.data as TournamentDatabase | undefined) || null;
+              if (
+                tournamentDb
+                && tournamentRow.status
+                && !['Archived', 'Deleted'].includes(tournamentRow.status)
+                && !tournamentRow.deleted_at
+              ) {
+                bList = tournamentDb.bouts || [];
+                cList = tournamentDb.categories || [];
+                pList = (tournamentDb.participants || []).filter(participant => !participant.deleted_at);
+                clList = tournamentDb.clubs || [];
+                loadedFromCloud = true;
+              }
+            }
+          } catch (cloudErr) {
+            console.warn('Cloud medal data refresh notice (falling back to local):', cloudErr);
+          }
+        }
+
+        if (!loadedFromCloud) {
+          if (urlTournamentId) {
+            const localTournamentDb = await localStore.loadTournament(urlTournamentId);
+            if (localTournamentDb) {
+              bList = localTournamentDb.bouts || [];
+              cList = localTournamentDb.categories || [];
+              pList = (localTournamentDb.participants || []).filter(participant => !participant.deleted_at);
+              clList = localTournamentDb.clubs || [];
+            } else {
+              [bList, cList, pList, clList] = await Promise.all([
+                db.bouts.list(),
+                db.categories.list(),
+                db.participants.list(),
+                db.clubs.list()
+              ]);
+            }
+          } else {
+            [bList, cList, pList, clList] = await Promise.all([
+              db.bouts.list(),
+              db.categories.list(),
+              db.participants.list(),
+              db.clubs.list()
+            ]);
+          }
+        }
+
+        setAllBouts(bList);
+        setAllCategories(cList);
+        setAllParticipants(pList);
+        setAllClubs(clList);
+      } catch (err) {
+        console.warn('Medal data refresh failed:', err);
+      }
+    };
+
+    const medalDataInterval = setInterval(refreshMedalData, 5000);
+    return () => clearInterval(medalDataInterval);
+  }, [urlTournamentId]);
+
   // Playlist Slide Rotation Timer Effect
   useEffect(() => {
     // Pause rotation if user paused manually or if a winner is actively being displayed
@@ -1176,6 +1251,39 @@ function SpectatorDisplayContent() {
         const bronzeWinner = allParticipants.find(participant => participant.id === bronzeBout.winner_id);
         const bronzeClubKey = bronzeWinner?.club_id || 'Independent';
         if (tally[bronzeClubKey]) tally[bronzeClubKey].bronze += 1;
+      }
+
+      // WKF Repechage: two bronze pools (round_no === 98). The final bout of each
+      // pool has no successor bout (bout_no + 1 does not exist in the pool).
+      const repechageBouts = categoryBouts.filter(bout => bout.round_no === 98);
+      const repechageBoutNos = new Set(repechageBouts.map(bout => bout.bout_no));
+      repechageBouts
+        .filter(bout => !repechageBoutNos.has(bout.bout_no + 1))
+        .forEach(bout => {
+          if ((bout.status === 'Completed' || bout.status === 'Walkover') && bout.winner_id) {
+            const bronzeWinner = allParticipants.find(participant => participant.id === bout.winner_id);
+            const bronzeClubKey = bronzeWinner?.club_id || 'Independent';
+            if (tally[bronzeClubKey]) tally[bronzeClubKey].bronze += 1;
+          }
+        });
+
+      // No dedicated bronze bout/repechage was drawn for this bracket: both
+      // semifinal losers are awarded bronze (same rule the bracket view uses).
+      if (!bronzeBout && repechageBouts.length === 0) {
+        const semiRound = maxRound - 1;
+        const semiBouts = categoryBouts.filter(bout => bout.round_no === semiRound);
+        const bronzeLoserIds = new Set<string>();
+        semiBouts.forEach(sb => {
+          if ((sb.status === 'Completed' || sb.status === 'Walkover') && sb.winner_id) {
+            const loserId = sb.winner_id === sb.participant_a_id ? sb.participant_b_id : sb.participant_a_id;
+            if (loserId) bronzeLoserIds.add(loserId);
+          }
+        });
+        bronzeLoserIds.forEach(loserId => {
+          const bronzeWinner = allParticipants.find(participant => participant.id === loserId);
+          const bronzeClubKey = bronzeWinner?.club_id || 'Independent';
+          if (tally[bronzeClubKey]) tally[bronzeClubKey].bronze += 1;
+        });
       }
     });
 

@@ -178,19 +178,16 @@ describe('Karate Tournament Draw Generator Tests', () => {
       expect(round1.length).toBe(2);
       expect(round2.length).toBe(1);
 
-      // Seed order for 4 slots: 1, 4, 2, 3
-      // Bracket list: [part-1, null, part-2, part-3]
-      // Bout 1: part-1 vs null (Walkover, winner is part-1)
-      // Bout 2: part-2 vs part-3 (Scheduled)
-      expect(round1[0].participant_a_id).toBe('part-1');
-      expect(round1[0].participant_b_id).toBeNull();
-      expect(round1[0].status).toBe('Walkover');
-      expect(round1[0].winner_id).toBe('part-1');
+      // One bout must be a walkover and the other a scheduled real match.
+      const walkover = round1.find(b => b.status === 'Walkover')!;
+      const scheduled = round1.find(b => b.status === 'Scheduled')!;
+      expect(walkover.participant_a_id).toBeTruthy();
+      expect(walkover.participant_b_id).toBeNull();
+      expect(walkover.winner_id).toBe(walkover.participant_a_id);
 
-      expect(round1[1].participant_a_id).toBe('part-2');
-      expect(round1[1].participant_b_id).toBe('part-3');
-      expect(round1[1].status).toBe('Scheduled');
-      expect(round1[1].winner_id).toBeNull();
+      expect(scheduled.participant_a_id).toBeTruthy();
+      expect(scheduled.participant_b_id).toBeTruthy();
+      expect(scheduled.winner_id).toBeNull();
 
       // Round 2 bout should have part-1 populated due to walkover propagation
       expect(round2[0].participant_a_id).toBe('part-1');
@@ -248,22 +245,83 @@ describe('Karate Tournament Draw Generator Tests', () => {
       const r2 = bouts.filter(b => b.round_no === 2);
       const r3 = bouts.filter(b => b.round_no === 3);
 
-      expect(r1[0].winner_id).toBe('part-1');
       expect(r1[0].status).toBe('Walkover');
+      expect(r1[0].winner_id).toBe(r1[0].participant_a_id);
       expect(r1[1].winner_id).toBeNull();
       expect(r1[1].status).toBe('Scheduled');
-      expect(r1[2].winner_id).toBe('part-2');
       expect(r1[2].status).toBe('Walkover');
-      expect(r1[3].winner_id).toBe('part-3');
+      expect(r1[2].winner_id).toBe(r1[2].participant_a_id);
       expect(r1[3].status).toBe('Walkover');
+      expect(r1[3].winner_id).toBe(r1[3].participant_a_id);
 
-      expect(r2[0].participant_a_id).toBe('part-1');
+      expect(r2[0].participant_a_id).toBe(r1[0].participant_a_id);
       expect(r2[0].participant_b_id).toBeNull();
       expect(r2[0].status).toBe('Scheduled');
 
-      expect(r2[1].participant_a_id).toBe('part-2');
-      expect(r2[1].participant_b_id).toBe('part-3');
+      expect(r2[1].participant_a_id).toBe(r1[2].participant_a_id);
+      expect(r2[1].participant_b_id).toBe(r1[3].participant_a_id);
       expect(r2[1].status).toBe('Scheduled');
+    });
+
+    it('splits same dojo participants evenly between upper and lower halves when possible', () => {
+      const participants = createParticipants(12);
+      // 6 from dojo A, 4 from dojo B, 2 from dojo C
+      for (let i = 0; i < 6; i++) participants[i].club_id = 'dojo-a';
+      for (let i = 6; i < 10; i++) participants[i].club_id = 'dojo-b';
+      for (let i = 10; i < 12; i++) participants[i].club_id = 'dojo-c';
+
+      const bouts = mockStore.bouts.generateDraw(catId, 'Elimination', false, participants);
+      const round1 = bouts.filter(b => b.round_no === 1);
+
+      const upperIds = new Set(
+        round1
+          .filter(b => b.bout_no <= 4)
+          .flatMap(b => [b.participant_a_id, b.participant_b_id])
+          .filter(Boolean) as string[]
+      );
+      const lowerIds = new Set(
+        round1
+          .filter(b => b.bout_no > 4)
+          .flatMap(b => [b.participant_a_id, b.participant_b_id])
+          .filter(Boolean) as string[]
+      );
+
+      const byId = Object.fromEntries(participants.map(p => [p.id, p]));
+      const countClub = (ids: Set<string>, clubId: string) =>
+        Array.from(ids).filter(id => byId[id].club_id === clubId).length;
+
+      expect(countClub(upperIds, 'dojo-a')).toBe(3);
+      expect(countClub(lowerIds, 'dojo-a')).toBe(3);
+      expect(countClub(upperIds, 'dojo-b')).toBe(2);
+      expect(countClub(lowerIds, 'dojo-b')).toBe(2);
+      expect(countClub(upperIds, 'dojo-c')).toBe(1);
+      expect(countClub(lowerIds, 'dojo-c')).toBe(1);
+    });
+
+    it('avoids same dojo round-1 pairings when mathematically possible', () => {
+      const participants = createParticipants(8);
+      // 4 clubs x 2 participants each; same-dojo R1 pairings are avoidable.
+      participants[0].club_id = 'dojo-a';
+      participants[1].club_id = 'dojo-a';
+      participants[2].club_id = 'dojo-b';
+      participants[3].club_id = 'dojo-b';
+      participants[4].club_id = 'dojo-c';
+      participants[5].club_id = 'dojo-c';
+      participants[6].club_id = 'dojo-d';
+      participants[7].club_id = 'dojo-d';
+
+      const bouts = mockStore.bouts.generateDraw(catId, 'Elimination', false, participants);
+      const round1 = bouts.filter(b => b.round_no === 1);
+      const byId = Object.fromEntries(participants.map(p => [p.id, p]));
+
+      const sameDojoCount = round1.reduce((count, bout) => {
+        if (!bout.participant_a_id || !bout.participant_b_id) return count;
+        const a = byId[bout.participant_a_id].club_id;
+        const b = byId[bout.participant_b_id].club_id;
+        return count + (a === b ? 1 : 0);
+      }, 0);
+
+      expect(sameDojoCount).toBe(0);
     });
   });
 
