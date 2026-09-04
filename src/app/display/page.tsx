@@ -1165,24 +1165,24 @@ function SpectatorDisplayContent() {
   const akaScoreShiftClass = '';
   const aoScoreShiftClass = '';
 
-  const akaScoreSizeClass = 'text-[130px] lg:text-[194px]';
-  const aoScoreSizeClass = 'text-[130px] lg:text-[194px]';
+  const akaScoreSizeClass = 'text-[150px] lg:text-[220px]';
+  const aoScoreSizeClass = 'text-[150px] lg:text-[220px]';
 
-  const akaSummaryBoxClass = akaTwoDigitScore ? 'h-full px-0.5 py-1' : 'h-full px-1 py-1';
-  const aoSummaryBoxClass = aoTwoDigitScore ? 'h-full px-0.5 py-1' : 'h-full px-1 py-1';
+  const akaSummaryBoxClass = akaTwoDigitScore ? 'h-full px-2 py-2.5' : 'h-full px-2.5 py-2.5';
+  const aoSummaryBoxClass = aoTwoDigitScore ? 'h-full px-2 py-2.5' : 'h-full px-2.5 py-2.5';
 
-  const akaSummaryGridClass = akaTwoDigitScore ? 'gap-x-0 text-[8px] lg:text-[10px]' : 'gap-x-0 text-[9px] lg:text-[11px]';
-  const aoSummaryGridClass = aoTwoDigitScore ? 'gap-x-0 text-[8px] lg:text-[10px]' : 'gap-x-0 text-[9px] lg:text-[11px]';
+  const akaSummaryGridClass = akaTwoDigitScore ? 'gap-x-2 text-[14px] lg:text-[16px]' : 'gap-x-2 text-[15px] lg:text-[17px]';
+  const aoSummaryGridClass = aoTwoDigitScore ? 'gap-x-2 text-[14px] lg:text-[16px]' : 'gap-x-2 text-[15px] lg:text-[17px]';
 
-  const akaSummaryValueClass = akaTwoDigitScore ? 'px-0 min-w-3.5' : 'px-0.5 min-w-4';
-  const aoSummaryValueClass = aoTwoDigitScore ? 'px-0 min-w-3.5' : 'px-0.5 min-w-4';
+  const akaSummaryValueClass = akaTwoDigitScore ? 'px-1.5 min-w-7' : 'px-2 min-w-8';
+  const aoSummaryValueClass = aoTwoDigitScore ? 'px-1.5 min-w-7' : 'px-2 min-w-8';
 
   const akaSummarySlotClass = akaTwoDigitScore
-    ? 'w-[74px] lg:w-[82px] h-[48px] lg:h-[58px]'
-    : 'w-[84px] lg:w-[92px] h-[54px] lg:h-[64px]';
+    ? 'w-[132px] lg:w-[148px] h-[78px] lg:h-[90px]'
+    : 'w-[146px] lg:w-[162px] h-[84px] lg:h-[96px]';
   const aoSummarySlotClass = aoTwoDigitScore
-    ? 'w-[74px] lg:w-[82px] h-[50px] lg:h-[60px]'
-    : 'w-[84px] lg:w-[92px] h-[56px] lg:h-[66px]';
+    ? 'w-[132px] lg:w-[148px] h-[78px] lg:h-[90px]'
+    : 'w-[146px] lg:w-[162px] h-[84px] lg:h-[96px]';
 
   const currentSlide = activePlaylist?.slides[currentSlideIndex];
   const currentSlideType = currentSlide?.type || 'live_scoreboard';
@@ -2301,11 +2301,11 @@ function SpectatorDisplayContent() {
             <div className={`${akaSummarySlotClass} shrink-0 self-center mr-1 lg:mr-2`}>
                 <div className={`w-full rounded-lg border border-red-400/60 bg-red-950/65 shadow-[0_0_12px_rgba(239,68,68,0.25)] ${akaSummaryBoxClass}`}>
                   <div className={`grid grid-cols-[auto_auto] justify-end gap-y-0.5 font-black uppercase tracking-wide text-red-100 ${akaSummaryGridClass}`}>
-                    <span>Ippon</span>
+                    <span className="whitespace-nowrap">Ippon</span>
                     <span className={`rounded bg-red-500/20 border border-red-400/30 text-right ${akaSummaryValueClass}`}>{akaTechniqueCounts.ippon}</span>
-                    <span>Waza-Ari</span>
+                    <span className="whitespace-nowrap">Waza-Ari</span>
                     <span className={`rounded bg-red-500/20 border border-red-400/30 text-right ${akaSummaryValueClass}`}>{akaTechniqueCounts.wazaAri}</span>
-                    <span>Yuko</span>
+                    <span className="whitespace-nowrap">Yuko</span>
                     <span className={`rounded bg-red-500/20 border border-red-400/30 text-right ${akaSummaryValueClass}`}>{akaTechniqueCounts.yuko}</span>
                   </div>
                 </div>
@@ -2497,11 +2497,11 @@ function SpectatorDisplayContent() {
             <div className={`${aoSummarySlotClass} shrink-0 self-center mr-1 lg:mr-2`}>
                 <div className={`w-full rounded-lg border border-blue-400/60 bg-blue-950/65 shadow-[0_0_12px_rgba(59,130,246,0.25)] ${aoSummaryBoxClass}`}>
                   <div className={`grid grid-cols-[auto_auto] justify-end gap-y-0.5 font-black uppercase tracking-wide text-blue-100 ${aoSummaryGridClass}`}>
-                    <span>Ippon</span>
+                    <span className="whitespace-nowrap">Ippon</span>
                     <span className={`rounded bg-blue-500/20 border border-blue-400/30 text-right ${aoSummaryValueClass}`}>{aoTechniqueCounts.ippon}</span>
-                    <span>Waza-Ari</span>
+                    <span className="whitespace-nowrap">Waza-Ari</span>
                     <span className={`rounded bg-blue-500/20 border border-blue-400/30 text-right ${aoSummaryValueClass}`}>{aoTechniqueCounts.wazaAri}</span>
-                    <span>Yuko</span>
+                    <span className="whitespace-nowrap">Yuko</span>
                     <span className={`rounded bg-blue-500/20 border border-blue-400/30 text-right ${aoSummaryValueClass}`}>{aoTechniqueCounts.yuko}</span>
                   </div>
                 </div>
