@@ -2,6 +2,7 @@ const { app, BrowserWindow, Menu, Tray, nativeImage } = require('electron');
 const path = require('path');
 const { spawn } = require('child_process');
 const net = require('net');
+const fs = require('fs');
 
 let mainWindow;
 let nextServerProcess;
@@ -25,9 +26,14 @@ function waitForServer(port, callback) {
 
 function startNextJsServer() {
   const isDev = !app.isPackaged;
-  const serverPath = isDev
-    ? path.join(__dirname, '.next', 'standalone', 'server.js')
-    : path.join(process.resourcesPath, 'app.asar.unpacked', '.next', 'standalone', 'server.js');
+  let serverPath;
+  if (isDev) {
+    serverPath = path.join(__dirname, '.next', 'standalone', 'server.js');
+  } else {
+    const standalonePath = path.join(process.resourcesPath, 'standalone', 'server.js');
+    const asarUnpackedPath = path.join(process.resourcesPath, 'app.asar.unpacked', '.next', 'standalone', 'server.js');
+    serverPath = fs.existsSync(standalonePath) ? standalonePath : asarUnpackedPath;
+  }
 
   const env = { 
     ...process.env, 

@@ -61,16 +61,21 @@
     },
     "files": [
       "main.js",
-      ".next/standalone/**/*",
       "public/**/*"
     ],
-    "asarUnpack": [
-      ".next/standalone/**/*"
-    ],
+    "asar": true,
     "extraResources": [
       {
+        "from": ".next/standalone",
+        "to": "standalone"
+      },
+      {
         "from": ".next/static",
-        "to": "app.asar.unpacked/.next/standalone/.next/static"
+        "to": "standalone/.next/static"
+      },
+      {
+        "from": "public",
+        "to": "standalone/public"
       }
     ],
     "win": {
