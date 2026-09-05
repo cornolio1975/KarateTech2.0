@@ -36,7 +36,7 @@ export function calculatePrintDimensions(
   if (prefMargin === 'narrow') marginMm = 5;
   if (prefMargin === 'wide') marginMm = 12;
 
-  let paperSize: PaperSize = 'A4';
+  const paperSize: PaperSize = 'A4';
   // Karate draw brackets expand horizontally: default orientation is landscape
   let resolvedOrientation: 'portrait' | 'landscape' = 'landscape';
   if (prefOrientation === 'portrait') {
@@ -46,17 +46,6 @@ export function calculatePrintDimensions(
   } else {
     // Auto: landscape is standard for tournament tree brackets
     resolvedOrientation = 'landscape';
-  }
-
-  if (isRoundRobin) {
-    return {
-      paperSize: 'A4',
-      orientation: resolvedOrientation,
-      bracketBaseWidthPx: 1050,
-      bracketBaseHeightPx: 680,
-      scaleFactor: 1.0,
-      marginMm
-    };
   }
 
   // 2. Standard paper pixel dimensions (at ~96 DPI screen/print baseline)
@@ -69,14 +58,35 @@ export function calculatePrintDimensions(
 
   // Safe printable area (subtract margins, approx 1mm = 3.78px)
   const marginPx = marginMm * 3.78;
-  const availableWidth = paperSizes[paperSize][resolvedOrientation].w - (marginPx * 2);
-  // Reserve 145px for Header (40px), Category Banner (30px), Footer (35px), and outer paddings (40px)
-  const availableHeight = paperSizes[paperSize][resolvedOrientation].h - (marginPx * 2) - 145;
+  // Keep a small safety allowance for the browser print box and bracket border.
+  const availableWidth = paperSizes[paperSize][resolvedOrientation].w - (marginPx * 2) - 8;
+  // Reserve space for the header, category banner, footer, and copyright line.
+  const availableHeight = paperSizes[paperSize][resolvedOrientation].h - (marginPx * 2) - 175;
+
+  if (isRoundRobin) {
+    const bracketBaseWidthPx = 1050;
+    const bracketBaseHeightPx = 680;
+    const scaleFactor = Math.min(
+      1,
+      availableWidth / bracketBaseWidthPx,
+      availableHeight / bracketBaseHeightPx
+    );
+
+    return {
+      paperSize,
+      orientation: resolvedOrientation,
+      bracketBaseWidthPx: availableWidth / scaleFactor,
+      bracketBaseHeightPx: availableHeight / scaleFactor,
+      scaleFactor,
+      marginMm
+    };
+  }
 
   // 3. Base size for bracket rendering
+  // Match SportdataBracket's minimum canvas so no content is clipped by scaling.
   const minCardWidthPx = 185;
-  const baseHeight = Math.max(competitorCount * 42, 480);
-  const baseWidth = Math.max((rounds + 1) * minCardWidthPx, 860);
+  const baseHeight = Math.max(competitorCount * 42, 580);
+  const baseWidth = Math.max((rounds + 1) * minCardWidthPx, 950);
 
   // 4. Calculate Scale Factor to guarantee fitting inside printable area
   const scaleX = availableWidth / baseWidth;

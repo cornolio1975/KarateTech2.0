@@ -7,6 +7,8 @@
     "dev:electron": "set BUILD_TARGET=electron&& next build && electron .",
     "build:electron": "set BUILD_TARGET=electron&& next build && electron-builder",
     "dev": "next dev",
+    "server:local": "node server-local.js",
+    "build:server": "set BUILD_TARGET=standalone&& next build",
     "build": "next build",
     "build:gh": "node build-gh.js",
     "build:hostinger": "node build-hostinger.js",
@@ -29,7 +31,8 @@
     "qrcode": "^1.5.4",
     "react": "19.2.4",
     "react-dom": "19.2.4",
-    "react-easy-crop": "^6.2.3"
+    "react-easy-crop": "^6.2.3",
+    "ws": "^8.21.3"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
@@ -38,6 +41,7 @@
     "@types/qrcode": "^1.5.6",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "@types/ws": "^8.18.1",
     "concurrently": "^10.0.5",
     "electron": "^43.4.1",
     "electron-builder": "^26.15.3",

@@ -6,9 +6,11 @@ import Link from 'next/link';
 import { useTournament } from '@/context/TournamentContext';
 import { 
   Search, SlidersHorizontal, Download, Upload, MoreHorizontal, 
-  Plus, Bell, Moon, Sun, ChevronDown, CheckCircle, AlertTriangle, Menu, Home, Globe, ExternalLink, Tv, Palette, Check, Lock
+  Plus, Bell, Moon, Sun, ChevronDown, CheckCircle, AlertTriangle, Menu, Home, Globe, ExternalLink, Tv, Palette, Check, Lock, Cloud, CloudOff, Server, RefreshCw
 } from 'lucide-react';
 import { db, describeError } from '@/db/dbClient';
+import { useLanSyncStatus } from '@/lib/useLanSync';
+import { syncEngine } from '@/lib/syncEngine';
 
 interface TopBarProps {
   onImportClick?: () => void;
@@ -36,6 +38,41 @@ export default function TopBar({ onImportClick, onMenuToggle }: TopBarProps) {
 
   const [isBulkOpen, setIsBulkOpen] = useState(false);
   const [isThemeOpen, setIsThemeOpen] = useState(false);
+  const [isSyncing, setIsSyncing] = useState(false);
+  const [isOnline, setIsOnline] = useState(typeof navigator !== 'undefined' ? navigator.onLine : true);
+  const lanStatus = useLanSyncStatus();
+
+  React.useEffect(() => {
+    const handleOnline = () => setIsOnline(true);
+    const handleOffline = () => setIsOnline(false);
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, []);
+
+  const handleManualSync = async () => {
+    if (!isOnline) {
+      alert('Cannot sync to Cloud: No Internet connection. System is continuing offline safely.');
+      return;
+    }
+    setIsSyncing(true);
+    try {
+      const res = await syncEngine.syncNow();
+      if (res && res.synced > 0) {
+        alert(`Cloud Sync complete: ${res.synced} local changes synchronized.`);
+      } else {
+        alert('Local database is already synchronized with Cloud.');
+      }
+    } catch (e: any) {
+      alert(`Sync failed: ${e.message}`);
+    } finally {
+      setIsSyncing(false);
+    }
+  };
+
   const isParticipantsPage = pathname === '/participants';
   const isControllerPage = pathname?.includes('/operator') || pathname?.includes('/kata-control') || pathname?.includes('/dashboard/control');
 
@@ -128,6 +165,41 @@ export default function TopBar({ onImportClick, onMenuToggle }: TopBarProps) {
           <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
           <span>LIVE EVENT</span>
         </div>
+
+        {/* Local Server / LAN Sync status */}
+        <div 
+          className="flex items-center gap-1.5 bg-secondary/80 px-2.5 py-1.5 rounded-lg text-xs font-semibold text-foreground border border-border cursor-default"
+          title={lanStatus.isConnected ? `Local Server Connected (${lanStatus.clientCount} active PCs on LAN)` : 'Local Server Active (Offline Mode)'}
+        >
+          <span className={`w-2 h-2 rounded-full ${lanStatus.isConnected ? 'bg-emerald-400 animate-pulse' : 'bg-amber-400'}`}></span>
+          <span className="hidden md:inline font-bold text-[11px] tracking-tight">
+            {lanStatus.isConnected ? `LAN SERVER (${lanStatus.clientCount})` : 'LOCAL SERVER'}
+          </span>
+        </div>
+
+        {/* Cloud Sync / Online Status */}
+        <button
+          onClick={handleManualSync}
+          disabled={isSyncing}
+          className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold border transition cursor-pointer ${
+            isOnline 
+              ? 'bg-indigo-950/20 border-indigo-500/30 text-indigo-300 hover:bg-indigo-900/30' 
+              : 'bg-amber-950/20 border-amber-500/30 text-amber-300 hover:bg-amber-900/30'
+          }`}
+          title={isOnline ? 'Online (Click to push/pull cloud sync)' : 'Offline Mode (Tournament operations unaffected)'}
+        >
+          {isSyncing ? (
+            <RefreshCw className="h-3.5 w-3.5 animate-spin text-indigo-400" />
+          ) : isOnline ? (
+            <Cloud className="h-3.5 w-3.5 text-indigo-400" />
+          ) : (
+            <CloudOff className="h-3.5 w-3.5 text-amber-400" />
+          )}
+          <span className="hidden lg:inline text-[11px] font-bold">
+            {isSyncing ? 'SYNCING...' : isOnline ? 'CLOUD SYNC' : 'OFFLINE MODE'}
+          </span>
+        </button>
+
         <span className="font-bold text-sm text-foreground truncate max-w-xs md:max-w-md hidden sm:inline-block">
           {tournamentName}
         </span>

@@ -13,6 +13,7 @@ import {
   AlertTriangle, Power, Radio, Zap, Trophy, Play, Check, ExternalLink,
   ChevronRight, Laptop, Activity, ListFilter, RotateCcw
 } from 'lucide-react';
+import LocalServerHub from '@/components/admin/LocalServerHub';
 
 export default function AdminDashboard() {
   const router = useRouter();
@@ -1295,102 +1296,15 @@ export default function AdminDashboard() {
 
       {/* TAB 4: LOCAL SERVER & CLOUD SYNC */}
       {activeTab === 'SERVER_SYNC' && (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <div className="bg-card border border-border rounded-2xl p-6 shadow-sm space-y-4">
-            <div className="flex items-center gap-2 border-b border-border pb-3">
-              <Server className="w-5 h-5 text-indigo-400" />
-              <h2 className="text-base font-black text-foreground">Local Server Management</h2>
-            </div>
-
-            <div className="space-y-3 text-xs">
-              <div className="flex items-center justify-between p-3 rounded-xl bg-secondary/40 border border-border">
-                <span className="font-bold text-muted-foreground">Server Operating Mode</span>
-                <span className="font-black text-emerald-400 px-2 py-0.5 rounded bg-emerald-500/10 border border-emerald-500/20">
-                  ONLINE / ACTIVE (PORT 3000)
-                </span>
-              </div>
-              <div className="flex items-center justify-between p-3 rounded-xl bg-secondary/40 border border-border">
-                <span className="font-bold text-muted-foreground">Local Database Engine</span>
-                <span className="font-black text-foreground">IndexedDB / SQLite High-Performance Local Store</span>
-              </div>
-              <div className="flex items-center justify-between p-3 rounded-xl bg-secondary/40 border border-border">
-                <span className="font-bold text-muted-foreground">Offline Resilience</span>
-                <span className="font-black text-emerald-400">ENABLED (Zero-latency fallback on LAN)</span>
-              </div>
-              <div className="flex items-center justify-between p-3 rounded-xl bg-secondary/40 border border-border">
-                <span className="font-bold text-muted-foreground">Registered Devices</span>
-                <span className="font-black text-indigo-400">3 Terminals (Admin, Tatami 1, Tatami 2)</span>
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-card border border-border rounded-2xl p-6 shadow-sm space-y-4">
-            <div className="flex items-center gap-2 border-b border-border pb-3">
-              <Cloud className="w-5 h-5 text-indigo-400" />
-              <h2 className="text-base font-black text-foreground">Cloud Synchronization Hub</h2>
-            </div>
-
-            <div className="space-y-3 text-xs">
-              <div className="flex items-center justify-between p-3 rounded-xl bg-secondary/40 border border-border">
-                <span className="font-bold text-muted-foreground">Cloud Sync Engine</span>
-                <span className="font-black text-emerald-400 px-2 py-0.5 rounded bg-emerald-500/10 border border-emerald-500/20">
-                  ● SYNCHRONIZED (Supabase Realtime)
-                </span>
-              </div>
-              <div className="flex items-center justify-between p-3 rounded-xl bg-secondary/40 border border-border">
-                <span className="font-bold text-muted-foreground">Offline Queue</span>
-                <span className={`font-black ${pendingSyncs > 0 ? 'text-amber-500 animate-pulse' : 'text-foreground'}`}>
-                  {pendingSyncs} Pending Commit{pendingSyncs !== 1 ? 's' : ''}
-                </span>
-              </div>
-              <div className="flex items-center justify-between p-3 rounded-xl bg-secondary/40 border border-border">
-                <span className="font-bold text-muted-foreground">Broadcast Synchronization</span>
-                <span className="font-black text-foreground">BroadcastChannel + Realtime Hub Active</span>
-              </div>
-              <button
-                onClick={handleForceCloudSync}
-                disabled={syncingCloud}
-                className="w-full flex items-center justify-center gap-2 py-3 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl font-bold uppercase tracking-wider text-xs transition cursor-pointer shadow-md"
-              >
-                <RefreshCw className={`w-3.5 h-3.5 ${syncingCloud ? 'animate-spin' : ''}`} />
-                <span>{syncingCloud ? 'Synchronizing with Cloud...' : 'Trigger Full Cloud Push & Pull'}</span>
-              </button>
-            </div>
-
-            {/* Sync Queue List */}
-            {syncQueueEvents.length > 0 && (
-              <div className="mt-6 border-t border-border pt-4">
-                <h3 className="text-sm font-bold text-foreground mb-3">Sync Queue ({syncQueueEvents.length})</h3>
-                <div className="space-y-2 max-h-[300px] overflow-y-auto pr-2">
-                  {syncQueueEvents.slice().reverse().map((evt) => (
-                    <div key={evt.id} className="p-3 bg-secondary/30 border border-border rounded-xl text-xs flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                      <div>
-                        <div className="font-bold text-foreground">{evt.operation} <span className="text-indigo-400">{evt.entity_type}</span></div>
-                        <div className="text-muted-foreground text-[10px] mt-0.5">{new Date(evt.timestamp).toLocaleString()}</div>
-                        {evt.status === 'failed' && <div className="text-red-400 text-[10px] mt-1 font-semibold">{evt.error_message || 'Sync failed'} (Retries: {evt.retry_count})</div>}
-                      </div>
-                      <div className="flex items-center gap-2 shrink-0">
-                        <span className={`px-2 py-0.5 rounded text-[10px] font-black uppercase ${
-                          evt.status === 'pending' ? 'bg-amber-500/10 text-amber-500' :
-                          evt.status === 'failed' ? 'bg-red-500/10 text-red-500' :
-                          'bg-emerald-500/10 text-emerald-500'
-                        }`}>
-                          {evt.status}
-                        </span>
-                        {evt.status === 'failed' && (
-                          <div className="flex gap-1 ml-2">
-                            <button onClick={() => handleRetrySyncEvent(evt.id)} className="px-2 py-1 bg-indigo-600 hover:bg-indigo-500 text-white rounded text-[10px] font-bold cursor-pointer">Retry</button>
-                            <button onClick={() => handleDeleteSyncEvent(evt.id)} className="px-2 py-1 bg-red-600 hover:bg-red-500 text-white rounded text-[10px] font-bold cursor-pointer">Drop</button>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
+        <LocalServerHub
+          pcs={pcs}
+          onTakeoverTatami={takeoverTatamiPC}
+          onDisconnectTatami={disconnectTatamiPC}
+          onReleaseLock={releaseCategoryFromTatami}
+          onTriggerSync={handleForceCloudSync}
+          isSyncing={syncingCloud}
+          pendingSyncCount={pendingSyncs}
+        />
       )}
 
       {/* TAB 5: ATHLETE TELEMETRY STATS */}

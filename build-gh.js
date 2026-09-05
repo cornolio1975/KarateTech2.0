@@ -16,6 +16,26 @@ function cleanNextCache() {
       console.log('  ✓ Cleared .next build cache');
     } catch (e) {
       console.warn('  ⚠ Could not fully clear .next cache:', e.message);
+      const staleTypeDirs = [
+        path.join(nextDir, 'dev', 'types'),
+        path.join(nextDir, 'types'),
+      ];
+      for (const staleTypeDir of staleTypeDirs) {
+        if (fs.existsSync(staleTypeDir)) {
+          fs.rmSync(staleTypeDir, { recursive: true, force: true });
+        }
+      }
+      console.log('  ✓ Cleared stale Next.js type validators');
+    }
+  }
+}
+
+function cleanDevTypeValidators() {
+  const nextDevDir = path.join(__dirname, '.next', 'dev');
+  const nextTypesDir = path.join(__dirname, '.next', 'types');
+  for (const generatedTypeDir of [nextDevDir, nextTypesDir]) {
+    if (fs.existsSync(generatedTypeDir)) {
+      fs.rmSync(generatedTypeDir, { recursive: true, force: true });
     }
   }
 }
@@ -70,6 +90,7 @@ function restoreApiDir() {
 
 try {
   moveApiDirForBuild();
+  cleanDevTypeValidators();
 
   execSync('npx next build', {
     stdio: 'inherit',

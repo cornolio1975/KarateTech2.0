@@ -20,6 +20,16 @@ function cleanNextCache() {
   }
 }
 
+function cleanDevTypeValidators() {
+  const nextDevDir = path.join(__dirname, '.next', 'dev');
+  const nextTypesDir = path.join(__dirname, '.next', 'types');
+  for (const generatedTypeDir of [nextDevDir, nextTypesDir]) {
+    if (fs.existsSync(generatedTypeDir)) {
+      fs.rmSync(generatedTypeDir, { recursive: true, force: true });
+    }
+  }
+}
+
 cleanNextCache();
 
 let buildError = null;
@@ -70,6 +80,7 @@ function restoreApiDir() {
 
 try {
   moveApiDirForBuild();
+  cleanDevTypeValidators();
 
   execSync('npx next build', {
     stdio: 'inherit',

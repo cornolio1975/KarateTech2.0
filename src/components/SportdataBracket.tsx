@@ -748,7 +748,7 @@ export const SportdataBracket: React.FC<SportdataBracketProps> = ({
 
       {/* Scrollable Zoom Wrapper */}
       <div
-        className="w-full overflow-auto absolute inset-0"
+        className={`w-full absolute inset-0 ${hideZoomControls ? 'print-bracket-scroll' : 'overflow-auto'}`}
         style={{ top: "45px", height: "calc(100% - 45px)" }}
       >
         <div

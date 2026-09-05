@@ -70,6 +70,7 @@ export const KumiteScoreboardControl = React.forwardRef<ScoreboardRef, { boutId?
   const [timeLeft, setTimeLeft] = useState<number>(1800);
   const [timerActive, setTimerActive] = useState<boolean>(false);
   const [matchDuration, setMatchDuration] = useState<number>(180);
+  const [readinessCountdown, setReadinessCountdown] = useState<number | null>(null);
 
   const [soundEnabled, setSoundEnabled] = useState<boolean>(true);
   const [hasTimerRun, setHasTimerRun] = useState<boolean>(false);
@@ -121,6 +122,7 @@ export const KumiteScoreboardControl = React.forwardRef<ScoreboardRef, { boutId?
   }, []);
 
   const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const readinessCountdownRef = useRef<NodeJS.Timeout | null>(null);
   const broadcastChannelRef = useRef<BroadcastChannel | null>(null);
   const soundPlayedRef = useRef<string | null>(null);
   const audioCtxRef = useRef<AudioContext | null>(null);
@@ -259,6 +261,17 @@ export const KumiteScoreboardControl = React.forwardRef<ScoreboardRef, { boutId?
               setC1Ao(parseInt(targetBout.penalties_c1_b || '0') || 0);
               setTimeLeft((targetBout.timer_seconds || 180) * 10);
               setTimerActive(false);
+              if (readinessCountdownRef.current) clearInterval(readinessCountdownRef.current);
+              setReadinessCountdown(5);
+              let remaining = 5;
+              readinessCountdownRef.current = setInterval(() => {
+                remaining -= 1;
+                setReadinessCountdown(remaining > 0 ? remaining : null);
+                if (remaining <= 0 && readinessCountdownRef.current) {
+                  clearInterval(readinessCountdownRef.current);
+                  readinessCountdownRef.current = null;
+                }
+              }, 1000);
               setWinnerSide(targetBout.winner_id ? (targetBout.winner_id === targetBout.participant_a_id ? 'aka' : 'ao') : null);
               setWinnerConfirmed(targetBout.status === 'Completed');
               setResultConfirmed(targetBout.status === 'Completed');
@@ -296,6 +309,7 @@ export const KumiteScoreboardControl = React.forwardRef<ScoreboardRef, { boutId?
       clearInterval(pingInterval);
       clearInterval(healthInterval);
       clearTimeout(autoOpenTimeout);
+      if (readinessCountdownRef.current) clearInterval(readinessCountdownRef.current);
       channel?.close();
     };
   }, [openSpectatorWindow]);
@@ -1676,7 +1690,7 @@ export const KumiteScoreboardControl = React.forwardRef<ScoreboardRef, { boutId?
   }
 
   return (
-    <div className="min-h-[100dvh] w-full overflow-y-auto bg-[#0b0b10] text-white flex flex-col">
+    <div className="relative min-h-[100dvh] w-full overflow-y-auto bg-[#0b0b10] text-white flex flex-col">
       {/* Header */}
       <header className="bg-[#0b0b10] border-b border-white/5 px-4 py-1.5 flex items-center justify-between shrink-0">
         <div className="flex items-center gap-3">
@@ -1755,6 +1769,12 @@ export const KumiteScoreboardControl = React.forwardRef<ScoreboardRef, { boutId?
           </button>
         </div>
       </header>
+      {readinessCountdown !== null && (
+        <div className="fixed bottom-5 right-5 z-50 rounded-lg border border-yellow-400/50 bg-black/90 px-4 py-2 text-right shadow-xl pointer-events-none" aria-live="polite">
+          <span className="block text-[10px] font-black uppercase tracking-wider text-yellow-300">Loading Match</span>
+          <span className="block font-mono text-3xl font-black text-white">{String(readinessCountdown).padStart(2, '0')}</span>
+        </div>
+      )}
 
       {/* Spectator View Management Modal */}
       {isSpectatorModalOpen && (

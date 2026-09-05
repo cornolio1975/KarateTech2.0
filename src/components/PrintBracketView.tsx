@@ -76,10 +76,11 @@ export const PrintBracketView: React.FC<PrintBracketViewProps> = ({
         width: 100% !important;
       }
       .print-container {
+        box-sizing: border-box !important;
         width: 100% !important;
         max-width: 100% !important;
-        height: 100% !important;
-        max-height: 100% !important;
+        height: auto !important;
+        max-height: none !important;
         padding: 0 !important;
         margin: 0 !important;
         /* Chrome does not reliably paginate flex containers when printing multiple
@@ -90,16 +91,23 @@ export const PrintBracketView: React.FC<PrintBracketViewProps> = ({
         overflow: hidden !important;
       }
       .print-bracket-page {
+        box-sizing: border-box !important;
+        width: 100% !important;
         page-break-inside: avoid !important;
         break-inside: avoid !important;
         page-break-after: avoid !important;
         break-after: avoid !important;
-        height: 100% !important;
-        max-height: 100% !important;
+        height: auto !important;
+        max-height: none !important;
         overflow: hidden !important;
       }
       .sportdata-header {
         display: none !important;
+      }
+      .print-bracket-scroll {
+        top: 0 !important;
+        height: 100% !important;
+        overflow: visible !important;
       }
     }
     .print-bracket-page, .print-bracket-page * {

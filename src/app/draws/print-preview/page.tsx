@@ -113,6 +113,26 @@ function PrintPreviewContent() {
     }
   }, [loading, printCatIds.length, autoPrint]);
 
+  // Fit the largest preview page inside the available viewport in both dimensions.
+  useEffect(() => {
+    if (loading || printCatIds.length === 0) return;
+
+    const frame = window.requestAnimationFrame(() => {
+      const pages = Array.from(document.querySelectorAll<HTMLElement>('.print-preview-page-shell'));
+      const tallestPage = Math.max(...pages.map(page => page.offsetHeight), 0);
+      const widestPage = Math.max(...pages.map(page => page.offsetWidth), 0);
+      const availableHeight = window.innerHeight - 150;
+      const availableWidth = window.innerWidth - 32;
+      if (tallestPage > 0 && widestPage > 0 && availableHeight > 0 && availableWidth > 0) {
+        const heightZoom = (availableHeight / tallestPage) * 100;
+        const widthZoom = (availableWidth / widestPage) * 100;
+        setPreviewZoom(Math.min(PREVIEW_ZOOM_MAX, Math.max(PREVIEW_ZOOM_MIN, Math.floor(Math.min(heightZoom, widthZoom)))));
+      }
+    });
+
+    return () => window.cancelAnimationFrame(frame);
+  }, [loading, printCatIds.length]);
+
   if (loading) {
     return (
       <div className="flex h-screen items-center justify-center bg-gray-100 text-gray-800">
@@ -161,9 +181,9 @@ function PrintPreviewContent() {
             <div className="flex items-center gap-2">
               <label className="text-slate-300">Margins:</label>
               <select value={marginSize} onChange={e => setMarginSize(e.target.value as MarginSize)} className="bg-slate-700 text-white rounded p-1 border-none focus:ring-2 focus:ring-blue-500 outline-none">
-                <option value="narrow">Narrow (10mm)</option>
-                <option value="normal">Normal (15mm)</option>
-                <option value="wide">Wide (20mm)</option>
+                <option value="narrow">Narrow (5mm)</option>
+                <option value="normal">Normal (8mm)</option>
+                <option value="wide">Wide (12mm)</option>
               </select>
             </div>
             <div className="flex items-center gap-2">
@@ -201,10 +221,16 @@ function PrintPreviewContent() {
       <div className="pt-16 pb-24 print:pt-0 print:pb-0 print:block">
         {/* Use `zoom` (not `transform`) for on-screen scaling — `transform` creates a print
             fragmentation boundary in Chrome that collapses multi-page output into one page. */}
-        <style dangerouslySetInnerHTML={{ __html: `@media print { #print-preview-zoom-wrapper { zoom: 1 !important; } }` }} />
+        <style dangerouslySetInnerHTML={{ __html: `
+          @media print {
+            html, body { overflow: visible !important; }
+            #print-preview-zoom-wrapper { zoom: 1 !important; }
+            .print-preview-page-shell { overflow: visible !important; }
+          }
+        ` }} />
         <div id="print-preview-zoom-wrapper" style={{ zoom: previewZoom / 100 } as React.CSSProperties}>
         {printCatIds.length === 0 && (
-          <p className="print:hidden text-center text-slate-500 py-16">No pages match "{pageRangeInput}". Try a range like 1-3 or a comma list like 1,3,5.</p>
+          <p className="print:hidden text-center text-slate-500 py-16">No pages match &quot;{pageRangeInput}&quot;. Try a range like 1-3 or a comma list like 1,3,5.</p>
         )}
         {printCatIds.map((catId, index) => (
           <React.Fragment key={catId}>
@@ -213,8 +239,14 @@ function PrintPreviewContent() {
               Page {index + 1} of {printCatIds.length}
             </p>
             <div 
-              className="relative mx-auto shadow-2xl print:shadow-none print:border-none print:max-w-none print:!w-full max-w-[95vw] border border-slate-200 bg-white print:block print:m-0 print:p-0"
-              style={{ breakInside: 'avoid', pageBreakInside: 'avoid' }}
+              className="print-preview-page-shell relative mx-auto shadow-2xl print:shadow-none print:border-none print:max-w-none print:!w-full max-w-[95vw] border border-slate-200 bg-white print:block print:m-0 print:p-0"
+              style={{
+                boxSizing: 'border-box',
+                breakInside: 'avoid',
+                pageBreakInside: 'avoid',
+                breakAfter: index < printCatIds.length - 1 ? 'page' : 'auto',
+                pageBreakAfter: index < printCatIds.length - 1 ? 'always' : 'auto',
+              }}
             >
               <PrintBracketView 
                 bouts={bouts}
@@ -231,11 +263,6 @@ function PrintPreviewContent() {
                 Page {index + 1} of {printCatIds.length}
               </div>
             </div>
-            
-            {/* The Page Break (Only in Print) */}
-            {index < printCatIds.length - 1 && (
-              <div className="hidden print:block" style={{ pageBreakAfter: 'always', breakAfter: 'page', height: '0px', margin: 0, padding: 0 }} />
-            )}
             
             {/* Spacing for Screen View (Hidden in Print) */}
             {index < printCatIds.length - 1 && (

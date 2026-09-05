@@ -34,6 +34,9 @@ export interface Category {
   created_at?: string;
   format?: 'knockout' | 'round_robin' | 'wkf_repechage';
   discipline?: 'Kumite' | 'Kata' | 'Team Kumite' | 'Team Kata';
+  category_timer_seconds?: number;
+  category_timer_source?: 'category';
+  category_timer_updated_at?: string;
 }
 
 export const isKataCategory = (cat: Category | undefined | null): boolean => {

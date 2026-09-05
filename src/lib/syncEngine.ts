@@ -16,42 +16,44 @@ export interface SyncEvent {
   error_message?: string;
 }
 
-const isDesktop = typeof window !== 'undefined' && (window as any).isElectron || process.env.BUILD_TARGET === 'electron';
-
 export const syncEngine = {
   queueMutation: async (tournamentId: string, entityType: string, entityId: string, operation: SyncOperation, payload: any) => {
-    if (!isDesktop) return; // Only desktop local server queues sync
+    try {
+      const event: Partial<SyncEvent> = {
+        id: `evt-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+        tournament_id: tournamentId || 'global',
+        entity_type: entityType,
+        entity_id: entityId,
+        operation,
+        payload: payload ? JSON.stringify(payload) : undefined,
+        timestamp: new Date().toISOString(),
+        status: 'pending',
+        retry_count: 0
+      };
 
-    const event: Partial<SyncEvent> = {
-      id: `evt-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-      tournament_id: tournamentId,
-      entity_type: entityType,
-      entity_id: entityId,
-      operation,
-      payload: payload ? JSON.stringify(payload) : undefined,
-      timestamp: new Date().toISOString(),
-      status: 'pending',
-      retry_count: 0
-    };
-
-    await sqliteClient.insert('sync_queue', event);
+      await sqliteClient.insert('sync_queue', event);
+    } catch (e) {
+      console.warn('Failed to queue mutation for sync:', e);
+    }
   },
 
   processQueue: async () => {
-    if (!supabase || !isDesktop) return;
+    if (!supabase || typeof window === 'undefined') return { synced: 0, failed: 0 };
 
     try {
-      // Fetch pending events
-      const pendingEvents = await sqliteClient.get('sync_queue');
-      const toProcess = pendingEvents.filter((e: any) => e.status === 'pending');
+      const pendingEvents = await sqliteClient.query('sync_queue', { status: 'pending' });
+      if (!pendingEvents || pendingEvents.length === 0) return { synced: 0, failed: 0 };
 
-      for (const event of toProcess) {
+      let synced = 0;
+      let failed = 0;
+
+      for (const event of pendingEvents) {
         try {
           let error = null;
           const payload = event.payload ? JSON.parse(event.payload) : null;
 
           if (event.operation === 'INSERT') {
-            const { error: insErr } = await supabase.from(event.entity_type).insert([payload]);
+            const { error: insErr } = await supabase.from(event.entity_type).upsert([payload]);
             error = insErr;
           } else if (event.operation === 'UPDATE') {
             const { error: updErr } = await supabase.from(event.entity_type).update(payload).eq('id', event.entity_id);
@@ -64,23 +66,42 @@ export const syncEngine = {
           if (error) throw new Error(error.message);
 
           // Mark as success
-          await sqliteClient.update('sync_queue', event.id, { status: 'success' });
+          await sqliteClient.update('sync_queue', event.id, { 
+            status: 'success',
+            error_message: null
+          });
+          synced++;
         } catch (e: any) {
-          // Mark as failed
+          failed++;
           await sqliteClient.update('sync_queue', event.id, { 
             status: 'failed', 
             error_message: e.message,
-            retry_count: event.retry_count + 1
+            retry_count: (event.retry_count || 0) + 1
           });
         }
       }
+
+      if (synced > 0) {
+        await sqliteClient.logEvent('CLOUD_SYNC_COMPLETED', `Successfully synced ${synced} mutations to Supabase.`);
+      }
+
+      return { synced, failed };
     } catch (e) {
-      console.error('Sync queue processing error:', e);
+      console.warn('Sync queue processing error:', e);
+      return { synced: 0, failed: 0 };
     }
+  },
+
+  syncNow: async () => {
+    return syncEngine.processQueue();
   }
 };
 
-// Start sync loop in background if running locally
-if (isDesktop && typeof window !== 'undefined') {
-  setInterval(syncEngine.processQueue, 15000); // Process every 15 seconds
+// Start sync loop in background in browser
+if (typeof window !== 'undefined') {
+  setInterval(() => {
+    if (navigator.onLine) {
+      syncEngine.processQueue();
+    }
+  }, 15000);
 }
