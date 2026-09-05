@@ -243,10 +243,19 @@ export const dbOriginal = {
     },
     update: async (id: string, updates: Partial<Category>): Promise<Category> => {
       if (supabase) {
-        await verifyCategoryLock(id);
-        const { data, error } = await supabase.from('categories').update(updates).eq('id', id).select().single();
-        if (error) throw new Error(describeError(error));
-        return data;
+        try {
+          await verifyCategoryLock(id);
+          const { data, error } = await supabase.from('categories').update(updates).eq('id', id).select().single();
+          if (error) throw new Error(describeError(error));
+          return data;
+        } catch (e: unknown) {
+          const msg = describeError(e);
+          // On network failure (fetch error / timeout) fall back to local store so the
+          // app keeps working offline. Re-throw for real Supabase errors (schema, auth, RLS).
+          const isNetworkError = msg.includes('Failed to fetch') || msg.includes('NetworkError') || msg.includes('network');
+          if (!isNetworkError) throw e;
+          console.warn('Supabase categories update — network error, falling back to local store:', msg);
+        }
       }
       return mockStore.categories.update(id, updates);
     },

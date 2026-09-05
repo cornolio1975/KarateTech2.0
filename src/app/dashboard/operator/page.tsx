@@ -726,12 +726,25 @@ export default function OperatorConsolePage() {
     const cArr = catList || categories;
     const pArr = pList || participants;
     const boutCat = cArr.find(c => c.id === bout.category_id);
-    setActiveBout(bout);
+    const configuredTimerSeconds = boutCat?.category_timer_seconds;
+    // Only preserve the existing bout timer when the clock is ACTIVELY TICKING mid-match.
+    // A paused or freshly loaded match (timer_active=false, even if status='Running') must
+    // always receive the admin-configured category timer.
+    const isTimerActivelyRunning = bout.status === 'Running' && bout.timer_active === true;
+    const resolvedTimerSeconds = (configuredTimerSeconds !== undefined && !isTimerActivelyRunning)
+      ? configuredTimerSeconds
+      : (bout.timer_seconds || configuredTimerSeconds || 180);
+    const loadedBout = resolvedTimerSeconds === bout.timer_seconds ? bout : { ...bout, timer_seconds: resolvedTimerSeconds };
+    if (loadedBout !== bout) {
+      await db.bouts.update(bout.id, { timer_seconds: resolvedTimerSeconds, timer_active: false });
+      setBouts(previous => previous.map(item => item.id === bout.id ? loadedBout : item));
+    }
+    setActiveBout(loadedBout);
     setLiveScoreAka(bout.score_a);
     setLiveScoreAo(bout.score_b);
     setSenshuAka(bout.senshu_a || false);
     setSenshuAo(bout.senshu_b || false);
-    setTimerSeconds(bout.timer_seconds || 180);
+    setTimerSeconds(resolvedTimerSeconds);
     setAkaFighter(pArr.find(p => p.id === bout.participant_a_id) || null);
     setAoFighter(pArr.find(p => p.id === bout.participant_b_id) || null);
     setActiveCat(cArr.find(c => c.id === bout.category_id) || null);
@@ -775,7 +788,7 @@ export default function OperatorConsolePage() {
           senshuAo: bout.senshu_b || false,
           c1Aka: parseInt(bout.penalties_c1_a || '0') || 0,
           c1Ao: parseInt(bout.penalties_c1_b || '0') || 0,
-          timeLeft: (bout.timer_seconds || 180) * 10,
+          timeLeft: resolvedTimerSeconds * 10,
           timerActive: false,
           winner: null,
           winMethod: '',

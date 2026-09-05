@@ -34,6 +34,13 @@ export default function AdminDashboard() {
   const [pendingSyncs, setPendingSyncs] = useState<number>(0);
   const [syncQueueEvents, setSyncQueueEvents] = useState<any[]>([]);
   const [isDesktopEnv, setIsDesktopEnv] = useState<boolean>(false);
+  const [selectedTimerCategoryIds, setSelectedTimerCategoryIds] = useState<string[]>([]);
+  const [expandedTimerGroups, setExpandedTimerGroups] = useState<Record<string, boolean>>({});
+  const [timerPreset, setTimerPreset] = useState('180');
+  const [customTimerMinutes, setCustomTimerMinutes] = useState('3');
+  const [customTimerSeconds, setCustomTimerSeconds] = useState('00');
+  const [overwriteTimers, setOverwriteTimers] = useState(false);
+  const [timerStatus, setTimerStatus] = useState<string | null>(null);
 
   const { 
     userRole, 
@@ -265,6 +272,75 @@ export default function AdminDashboard() {
       loadData();
     } catch (err: any) {
       alert("Error releasing lock: " + err.message);
+    }
+  };
+
+  const getAgeGroup = (category: Category) => {
+    if (category.max_age <= 7) return 'Children (5-7)';
+    if (category.max_age <= 12) return 'Junior (8-12)';
+    if (category.max_age <= 17) return 'Junior Cadet (13-17)';
+    return 'Senior (18+)';
+  };
+
+  const timerGroups = ['Children (5-7)', 'Junior (8-12)', 'Junior Cadet (13-17)', 'Senior (18+)'].map(name => ({
+    name,
+    categories: categories.filter(category => getAgeGroup(category) === name)
+  }));
+
+  const selectedTimerSeconds = timerPreset === 'custom'
+    ? Math.max(0, Number(customTimerMinutes || 0) * 60 + Number(customTimerSeconds || 0))
+    : Number(timerPreset);
+  const formatConfiguredTimer = (seconds: number) => `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`;
+
+  const toggleTimerGroup = (groupCategories: Category[], checked: boolean) => {
+    const groupIds = groupCategories.map(category => category.id);
+    setSelectedTimerCategoryIds(previous => checked
+      ? Array.from(new Set([...previous, ...groupIds]))
+      : previous.filter(id => !groupIds.includes(id))
+    );
+  };
+
+  const applyCategoryTimer = async () => {
+    const selectedCategories = categories.filter(category => selectedTimerCategoryIds.includes(category.id));
+    if (selectedCategories.length === 0 || selectedTimerSeconds <= 0) return;
+    if (overwriteTimers && selectedCategories.some(category => category.category_timer_seconds) && !window.confirm('Some selected categories already have timers. Do you want to overwrite them?')) return;
+    const categoriesToUpdate = overwriteTimers ? selectedCategories : selectedCategories.filter(category => !category.category_timer_seconds);
+    if (categoriesToUpdate.length === 0) {
+      setTimerStatus('No categories updated. Existing timers were preserved.');
+      return;
+    }
+    const updatedAt = new Date().toISOString();
+    try {
+      await Promise.all(categoriesToUpdate.map(category => db.categories.update(category.id, {
+        category_timer_seconds: selectedTimerSeconds,
+        category_timer_source: 'category',
+        category_timer_updated_at: updatedAt
+      })));
+      const updatedIds = new Set(categoriesToUpdate.map(category => category.id));
+      setCategories(previous => previous.map(category => updatedIds.has(category.id)
+        ? { ...category, category_timer_seconds: selectedTimerSeconds, category_timer_source: 'category', category_timer_updated_at: updatedAt }
+        : category
+      ));
+      setTimerStatus(`${formatConfiguredTimer(selectedTimerSeconds)} timer assigned to ${categoriesToUpdate.length} categories.`);
+      const channel = new BroadcastChannel('wkf-scoreboard-sync');
+      channel.postMessage({ type: 'CATEGORY_TIMER_UPDATED', categoryIds: [...updatedIds] });
+      channel.close();
+      window.setTimeout(() => setTimerStatus(null), 5000);
+    } catch (error) {
+      console.error('Failed to save category timers:', error);
+      setTimerStatus('Timer configuration could not be saved.');
+    }
+  };
+
+  const updateSingleCategoryTimer = async (category: Category, timerSeconds: number) => {
+    const updatedAt = new Date().toISOString();
+    try {
+      await db.categories.update(category.id, { category_timer_seconds: timerSeconds, category_timer_source: 'category', category_timer_updated_at: updatedAt });
+      setCategories(previous => previous.map(item => item.id === category.id ? { ...item, category_timer_seconds: timerSeconds, category_timer_source: 'category', category_timer_updated_at: updatedAt } : item));
+      setTimerStatus(`${category.name} timer set to ${formatConfiguredTimer(timerSeconds)}.`);
+    } catch (error) {
+      console.error('Failed to save category timer:', error);
+      setTimerStatus('Timer configuration could not be saved.');
     }
   };
 
@@ -745,139 +821,422 @@ export default function AdminDashboard() {
 
       {/* TAB 2: CATEGORY ASSIGNMENT & LOCKING MATRIX */}
       {activeTab === 'CATEGORIES_LOCK' && (
-        <div className="bg-card border border-border rounded-2xl p-6 shadow-sm space-y-4">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-border pb-4">
-            <div>
-              <h2 className="text-base font-black text-foreground">Category Assignment & Lock Architecture</h2>
-              <p className="text-xs text-muted-foreground">Assign divisions to Tatami 1 or Tatami 2. Locked categories are instantly protected from multi-tatami conflicts.</p>
+        <div className="space-y-6">
+
+          {/* ══════════ TIMER CONFIG PANEL ══════════ */}
+          <section className="bg-card border border-border rounded-2xl shadow-sm overflow-hidden">
+
+            {/* Panel Header */}
+            <div className="px-5 pt-5 pb-4 border-b border-border flex flex-col lg:flex-row lg:items-center justify-between gap-3">
+              <div>
+                <h2 className="text-base font-black text-foreground flex items-center gap-2">
+                  <span className="inline-flex items-center justify-center w-6 h-6 rounded-md bg-indigo-500/20 text-indigo-400 text-sm">⏱</span>
+                  Category Timer Setup
+                </h2>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  Select age groups, choose a duration and apply in one tap. Tatami operators get the timer automatically on match load.
+                </p>
+              </div>
+              {/* Live selected count */}
+              <div className="shrink-0">
+                <span className={`inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-black border transition-all ${
+                  selectedTimerCategoryIds.length > 0
+                    ? 'bg-indigo-500/15 text-indigo-300 border-indigo-500/30'
+                    : 'bg-secondary text-muted-foreground border-border'
+                }`}>
+                  <span className={`w-1.5 h-1.5 rounded-full inline-block ${selectedTimerCategoryIds.length > 0 ? 'bg-indigo-400' : 'bg-muted-foreground'}`} />
+                  Selected: {selectedTimerCategoryIds.length} {selectedTimerCategoryIds.length === 1 ? 'category' : 'categories'}
+                </span>
+              </div>
             </div>
-            <div className="flex items-center gap-2">
-              <span className="text-xs font-bold text-muted-foreground">Total: {categories.length} Categories</span>
-            </div>
-          </div>
 
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs border-collapse">
-              <thead>
-                <tr className="border-b border-border text-muted-foreground uppercase text-[10px] font-black tracking-wider bg-secondary/20">
-                  <th className="p-3">Category Name</th>
-                  <th className="p-3">Discipline</th>
-                  <th className="p-3">Assignment</th>
-                  <th className="p-3">Lock Status</th>
-                  <th className="p-3 text-right">Admin Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-border font-medium">
-                {[...categories].sort((a, b) => {
-                  if (a.min_age !== b.min_age) return a.min_age - b.min_age;
-                  if (a.max_age !== b.max_age) return a.max_age - b.max_age;
-                  // Same age: Kumite first, Kata second
-                  const isKumiteA = isKumiteCategory(a) ? 0 : 1;
-                  const isKumiteB = isKumiteCategory(b) ? 0 : 1;
-                  if (isKumiteA !== isKumiteB) return isKumiteA - isKumiteB;
-                  // Same age + discipline: alphabetical
-                  return (a.name || '').localeCompare(b.name || '');
-                }).map(cat => {
-                  const activeLock = locks.find(l => l.category_id === cat.id && l.is_active);
-                  const assignedTatami = activeLock ? activeLock.tatami : ((cat as any).assigned_tatami || null);
-                  const isLocked = !!activeLock || (cat as any).status === 'Locked';
-                  const isKumite = isKumiteCategory(cat);
+            <div className="p-5 space-y-5">
 
-                  // Calculate State
-                  let stateLabel = 'AVAILABLE';
-                  let stateColor = 'bg-slate-500/10 text-slate-400 border-slate-500/20';
-
-                  if (isLocked) {
-                    stateLabel = '🔒 LOCKED';
-                    stateColor = 'bg-red-500/10 text-red-400 border-red-500/30';
-                  } else if (assignedTatami) {
-                    stateLabel = `ASSIGNED (${assignedTatami.toUpperCase()})`;
-                    stateColor = 'bg-indigo-500/10 text-indigo-400 border-indigo-500/30';
-                  } else if ((cat as any).status === 'Completed') {
-                    stateLabel = 'COMPLETED';
-                    stateColor = 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30';
-                  }
-
+              {/* ── Quick Action Bar ── */}
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mr-1 shrink-0">Quick:</span>
+                <button
+                  onClick={() => setSelectedTimerCategoryIds(categories.map(c => c.id))}
+                  className="min-h-9 px-3.5 bg-secondary hover:bg-secondary/80 border border-border rounded-lg text-xs font-black uppercase tracking-wider transition cursor-pointer"
+                >
+                  Select All
+                </button>
+                <button
+                  onClick={() => setSelectedTimerCategoryIds([])}
+                  className="min-h-9 px-3.5 bg-secondary hover:bg-secondary/80 border border-border rounded-lg text-xs font-black uppercase tracking-wider transition cursor-pointer"
+                >
+                  Clear All
+                </button>
+                <div className="w-px h-6 bg-border mx-1 shrink-0" />
+                {timerGroups.map(group => {
+                  const allSel = group.categories.length > 0 && group.categories.every(c => selectedTimerCategoryIds.includes(c.id));
+                  const shortName = group.name.split(' ')[0];
                   return (
-                    <tr key={cat.id} className="hover:bg-secondary/30 transition-colors">
-                      <td className="p-3 font-bold text-foreground">{cat.name}</td>
-                      <td className="p-3">
-                        <span className={`px-2 py-0.5 rounded text-[10px] font-black uppercase ${
-                          isKumite ? 'bg-red-500/10 text-red-400' : 'bg-blue-500/10 text-blue-400'
-                        }`}>
-                          {isKumite ? 'Kumite' : 'Kata'}
-                        </span>
-                      </td>
-                      <td className="p-3">
-                        {assignedTatami ? (
-                          <span className="px-2.5 py-1 rounded-md bg-indigo-500/15 text-indigo-300 font-bold text-xs border border-indigo-500/30">
-                            {assignedTatami}
-                          </span>
-                        ) : (
-                          <span className="text-muted-foreground text-xs italic">Unassigned (Pool)</span>
-                        )}
-                      </td>
-                      <td className="p-3">
-                        <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-black border ${stateColor}`}>
-                          {stateLabel}
-                        </span>
-                      </td>
-                      <td className="p-3 text-right">
-                        <div className="flex items-center justify-end gap-1.5 flex-wrap">
-                          <button
-                            onClick={async () => { await assignCategoryToTatami(cat.id, 'Tatami 1'); refreshCategoriesFromMap(); }}
-                            className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition cursor-pointer border ${
-                              assignedTatami === 'Tatami 1'
-                                ? 'bg-indigo-600 text-white border-indigo-500'
-                                : 'bg-secondary hover:bg-secondary/80 text-foreground border-border'
-                            }`}
-                          >
-                            Tatami 1
-                          </button>
-                          <button
-                            onClick={async () => { await assignCategoryToTatami(cat.id, 'Tatami 2'); refreshCategoriesFromMap(); }}
-                            className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition cursor-pointer border ${
-                              assignedTatami === 'Tatami 2'
-                                ? 'bg-indigo-600 text-white border-indigo-500'
-                                : 'bg-secondary hover:bg-secondary/80 text-foreground border-border'
-                            }`}
-                          >
-                            Tatami 2
-                          </button>
-                          {assignedTatami && !isLocked && (
-                            <button
-                              onClick={async () => { await releaseCategoryFromTatami(cat.id); refreshCategoriesFromMap(); }}
-                              className="px-2.5 py-1 bg-yellow-500/10 hover:bg-yellow-500/20 text-yellow-400 border border-yellow-500/30 rounded-lg text-[11px] font-bold transition cursor-pointer"
-                              title="Release back to pool"
-                            >
-                              Release
-                            </button>
-                          )}
-                          {isLocked ? (
-                            <button
-                              onClick={() => handleForceReleaseLock(cat.id)}
-                              className="px-2.5 py-1 bg-red-600 hover:bg-red-500 text-white rounded-lg text-[11px] font-bold transition cursor-pointer flex items-center gap-1 shadow-xs"
-                            >
-                              <Unlock className="w-3 h-3" />
-                              <span>Unlock</span>
-                            </button>
-                          ) : (
-                            <button
-                              onClick={() => lockCategoryByAdmin(cat.id)}
-                              className="px-2.5 py-1 bg-secondary hover:bg-secondary/80 text-muted-foreground hover:text-foreground rounded-lg text-[11px] font-bold transition cursor-pointer border border-border flex items-center gap-1"
-                            >
-                              <Lock className="w-3 h-3" />
-                              <span>Lock</span>
-                            </button>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
+                    <button
+                      key={group.name}
+                      onClick={() => toggleTimerGroup(group.categories, !allSel)}
+                      className={`min-h-9 px-3.5 rounded-lg text-xs font-black uppercase tracking-wider transition cursor-pointer border ${
+                        allSel
+                          ? 'bg-indigo-600 text-white border-indigo-500 shadow-sm shadow-indigo-900/30'
+                          : 'bg-secondary hover:bg-secondary/80 text-foreground border-border'
+                      }`}
+                    >
+                      {allSel ? '✓ ' : ''}{shortName}
+                    </button>
                   );
                 })}
-              </tbody>
-            </table>
+              </div>
+
+              {/* ── Age-Group Panels ── */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                {timerGroups.map(group => {
+                  const selectedCount = group.categories.filter(c => selectedTimerCategoryIds.includes(c.id)).length;
+                  const allSelected = group.categories.length > 0 && selectedCount === group.categories.length;
+                  const someSelected = selectedCount > 0 && !allSelected;
+                  const isExpanded = expandedTimerGroups[group.name] ?? false;
+
+                  // Representative timer for the group (most common or first set)
+                  const setCats = group.categories.filter(c => c.category_timer_seconds);
+                  const groupTimerLabel = setCats.length > 0
+                    ? formatConfiguredTimer(setCats[0].category_timer_seconds!)
+                    : null;
+
+                  return (
+                    <div
+                      key={group.name}
+                      className={`border rounded-xl overflow-hidden transition-all ${
+                        allSelected
+                          ? 'border-indigo-500/60 bg-indigo-500/8'
+                          : someSelected
+                            ? 'border-indigo-500/30 bg-indigo-500/4'
+                            : 'border-border bg-secondary/20'
+                      }`}
+                    >
+                      {/* Group Header Row */}
+                      <div className="min-h-[3.5rem] px-4 flex items-center gap-3">
+                        <input
+                          type="checkbox"
+                          checked={allSelected}
+                          onChange={e => toggleTimerGroup(group.categories, e.target.checked)}
+                          className="h-6 w-6 accent-indigo-500 cursor-pointer shrink-0"
+                          aria-label={`Select all ${group.name}`}
+                        />
+                        <button
+                          onClick={() => setExpandedTimerGroups(prev => ({ ...prev, [group.name]: !isExpanded }))}
+                          className="flex-1 text-left min-w-0 cursor-pointer"
+                        >
+                          <span className="block text-xs font-black uppercase tracking-wider text-foreground">{group.name}</span>
+                          <div className="flex items-center gap-2 mt-0.5">
+                            <span className={`text-[11px] font-bold ${selectedCount > 0 ? 'text-indigo-400' : 'text-muted-foreground'}`}>
+                              {selectedCount} / {group.categories.length} selected
+                            </span>
+                            {groupTimerLabel && (
+                              <span className="text-[10px] text-muted-foreground">· {groupTimerLabel} configured</span>
+                            )}
+                          </div>
+                        </button>
+                        {group.categories.length > 0 && (
+                          <button
+                            onClick={() => setExpandedTimerGroups(prev => ({ ...prev, [group.name]: !isExpanded }))}
+                            className="h-10 w-10 grid place-items-center text-muted-foreground hover:text-foreground cursor-pointer rounded-lg hover:bg-secondary/60 transition"
+                            aria-label={`${isExpanded ? 'Collapse' : 'Expand'} ${group.name}`}
+                          >
+                            <ChevronRight className={`h-5 w-5 transition-transform duration-200 ${isExpanded ? 'rotate-90' : ''}`} />
+                          </button>
+                        )}
+                      </div>
+
+                      {/* Expanded Category List */}
+                      {isExpanded && (
+                        <div className="border-t border-border divide-y divide-border/60 max-h-52 overflow-y-auto">
+                          {group.categories.length === 0 ? (
+                            <p className="px-4 py-3 text-xs text-muted-foreground italic">No categories in this age group</p>
+                          ) : (
+                            group.categories.map(cat => {
+                              const isChecked = selectedTimerCategoryIds.includes(cat.id);
+                              return (
+                                <label
+                                  key={cat.id}
+                                  className={`min-h-11 px-4 flex items-center gap-3 text-xs cursor-pointer transition-colors ${
+                                    isChecked ? 'bg-indigo-500/8' : 'hover:bg-secondary/40'
+                                  }`}
+                                >
+                                  <input
+                                    type="checkbox"
+                                    checked={isChecked}
+                                    onChange={e => setSelectedTimerCategoryIds(prev =>
+                                      e.target.checked
+                                        ? Array.from(new Set([...prev, cat.id]))
+                                        : prev.filter(id => id !== cat.id)
+                                    )}
+                                    className="h-5 w-5 accent-indigo-500 shrink-0"
+                                  />
+                                  <span className="flex-1 truncate text-foreground font-medium">{cat.name}</span>
+                                  <span className={`text-[11px] font-black shrink-0 px-2 py-0.5 rounded ${
+                                    cat.category_timer_seconds
+                                      ? 'text-indigo-300 bg-indigo-500/10'
+                                      : 'text-muted-foreground bg-secondary'
+                                  }`}>
+                                    {cat.category_timer_seconds ? formatConfiguredTimer(cat.category_timer_seconds) : '—'}
+                                  </span>
+                                </label>
+                              );
+                            })
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* ── Bulk Timer Assignment Bar ── */}
+              <div className="border border-border rounded-xl bg-secondary/30 p-4 space-y-3">
+                <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Match Timer Assignment</p>
+                <div className="flex flex-wrap items-end gap-3">
+
+                  {/* Timer Dropdown */}
+                  <div className="space-y-1.5">
+                    <span className="block text-[10px] font-black uppercase tracking-wider text-muted-foreground">Timer Duration</span>
+                    <select
+                      value={timerPreset}
+                      onChange={e => setTimerPreset(e.target.value)}
+                      className="min-h-11 px-3 pr-8 rounded-lg bg-secondary border border-border text-sm font-black text-foreground cursor-pointer focus:outline-none focus:border-indigo-500 min-w-[120px]"
+                    >
+                      <option value="180">3:00</option>
+                      <option value="120">2:00</option>
+                      <option value="90">1:30</option>
+                      <option value="60">1:00</option>
+                      <option value="custom">Custom…</option>
+                    </select>
+                  </div>
+
+                  {/* Custom inputs */}
+                  {timerPreset === 'custom' && (
+                    <div className="flex gap-2">
+                      <div className="space-y-1.5">
+                        <span className="block text-[10px] font-black uppercase tracking-wider text-muted-foreground">Minutes</span>
+                        <input
+                          type="number" min="0" max="99"
+                          value={customTimerMinutes}
+                          onChange={e => setCustomTimerMinutes(e.target.value)}
+                          className="min-h-11 w-20 px-3 rounded-lg bg-secondary border border-border text-sm font-black text-foreground focus:outline-none focus:border-indigo-500"
+                        />
+                      </div>
+                      <div className="space-y-1.5">
+                        <span className="block text-[10px] font-black uppercase tracking-wider text-muted-foreground">Seconds</span>
+                        <input
+                          type="number" min="0" max="59"
+                          value={customTimerSeconds}
+                          onChange={e => setCustomTimerSeconds(e.target.value)}
+                          className="min-h-11 w-20 px-3 rounded-lg bg-secondary border border-border text-sm font-black text-foreground focus:outline-none focus:border-indigo-500"
+                        />
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Overwrite checkbox */}
+                  <label className="flex items-center gap-2 min-h-11 cursor-pointer select-none">
+                    <input
+                      type="checkbox"
+                      checked={overwriteTimers}
+                      onChange={e => setOverwriteTimers(e.target.checked)}
+                      className="h-5 w-5 accent-indigo-500"
+                    />
+                    <span className="text-xs font-bold text-foreground">Overwrite existing timers</span>
+                  </label>
+
+                  {/* APPLY button */}
+                  <button
+                    onClick={applyCategoryTimer}
+                    disabled={selectedTimerCategoryIds.length === 0 || selectedTimerSeconds <= 0}
+                    className="min-h-11 px-6 bg-indigo-600 hover:bg-indigo-500 active:bg-indigo-700 disabled:opacity-40 disabled:cursor-not-allowed text-white rounded-lg text-sm font-black uppercase tracking-wider cursor-pointer transition shadow-md shadow-indigo-900/30 flex items-center gap-2"
+                  >
+                    <Check className="w-4 h-4 shrink-0" />
+                    Apply Timer
+                  </button>
+
+                </div>
+
+                {/* Status Toast */}
+                {timerStatus && (
+                  <div className="flex items-center gap-2 px-3 py-2 bg-emerald-500/10 border border-emerald-500/30 rounded-lg text-xs font-bold text-emerald-400">
+                    <CheckCircle2 className="w-4 h-4 shrink-0" />
+                    <span>{timerStatus}</span>
+                  </div>
+                )}
+              </div>
+
+            </div>
+          </section>
+
+          {/* ══════════ CATEGORY ASSIGNMENT TABLE ══════════ */}
+          <div className="bg-card border border-border rounded-2xl p-6 shadow-sm space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-border pb-4">
+              <div>
+                <h2 className="text-base font-black text-foreground">Category Assignment & Lock Architecture</h2>
+                <p className="text-xs text-muted-foreground">Assign divisions to Tatami 1 or Tatami 2. Locked categories are instantly protected from multi-tatami conflicts.</p>
+              </div>
+              <span className="text-xs font-bold text-muted-foreground">Total: {categories.length} Categories</span>
+            </div>
+
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs border-collapse">
+                <thead>
+                  <tr className="border-b border-border text-muted-foreground uppercase text-[10px] font-black tracking-wider bg-secondary/20">
+                    <th className="p-3 w-10">
+                      <input
+                        type="checkbox"
+                        checked={categories.length > 0 && categories.every(c => selectedTimerCategoryIds.includes(c.id))}
+                        onChange={e => setSelectedTimerCategoryIds(e.target.checked ? categories.map(c => c.id) : [])}
+                        className="h-4 w-4 accent-indigo-500 cursor-pointer"
+                        title="Select all for timer"
+                      />
+                    </th>
+                    <th className="p-3">Category Name</th>
+                    <th className="p-3">Age Group</th>
+                    <th className="p-3">Discipline</th>
+                    <th className="p-3">Timer</th>
+                    <th className="p-3">Assignment</th>
+                    <th className="p-3">Lock Status</th>
+                    <th className="p-3 text-right">Admin Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border font-medium">
+                  {[...categories].sort((a, b) => {
+                    if (a.min_age !== b.min_age) return a.min_age - b.min_age;
+                    if (a.max_age !== b.max_age) return a.max_age - b.max_age;
+                    const isKumiteA = isKumiteCategory(a) ? 0 : 1;
+                    const isKumiteB = isKumiteCategory(b) ? 0 : 1;
+                    if (isKumiteA !== isKumiteB) return isKumiteA - isKumiteB;
+                    return (a.name || '').localeCompare(b.name || '');
+                  }).map(cat => {
+                    const activeLock = locks.find(l => l.category_id === cat.id && l.is_active);
+                    const assignedTatami = activeLock ? activeLock.tatami : ((cat as any).assigned_tatami || null);
+                    const isLocked = !!activeLock || (cat as any).status === 'Locked';
+                    const isKumite = isKumiteCategory(cat);
+                    const isRowSelected = selectedTimerCategoryIds.includes(cat.id);
+
+                    let stateLabel = 'AVAILABLE';
+                    let stateColor = 'bg-slate-500/10 text-slate-400 border-slate-500/20';
+                    if (isLocked) {
+                      stateLabel = '🔒 LOCKED';
+                      stateColor = 'bg-red-500/10 text-red-400 border-red-500/30';
+                    } else if (assignedTatami) {
+                      stateLabel = `ASSIGNED (${assignedTatami.toUpperCase()})`;
+                      stateColor = 'bg-indigo-500/10 text-indigo-400 border-indigo-500/30';
+                    } else if ((cat as any).status === 'Completed') {
+                      stateLabel = 'COMPLETED';
+                      stateColor = 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30';
+                    }
+
+                    return (
+                      <tr key={cat.id} className={`transition-colors ${isRowSelected ? 'bg-indigo-500/5' : 'hover:bg-secondary/30'}`}>
+                        <td className="p-3">
+                          <input
+                            type="checkbox"
+                            checked={isRowSelected}
+                            onChange={e => setSelectedTimerCategoryIds(prev =>
+                              e.target.checked
+                                ? Array.from(new Set([...prev, cat.id]))
+                                : prev.filter(id => id !== cat.id)
+                            )}
+                            className="h-4 w-4 accent-indigo-500 cursor-pointer"
+                          />
+                        </td>
+                        <td className="p-3 font-bold text-foreground">{cat.name}</td>
+                        <td className="p-3 text-muted-foreground text-[11px]">{getAgeGroup(cat)}</td>
+                        <td className="p-3">
+                          <span className={`px-2 py-0.5 rounded text-[10px] font-black uppercase ${
+                            isKumite ? 'bg-red-500/10 text-red-400' : 'bg-blue-500/10 text-blue-400'
+                          }`}>
+                            {isKumite ? 'Kumite' : 'Kata'}
+                          </span>
+                        </td>
+                        <td className="p-3">
+                          <select
+                            value={String(cat.category_timer_seconds || 180)}
+                            onChange={e => updateSingleCategoryTimer(cat, Number(e.target.value))}
+                            className="min-h-9 rounded-md bg-secondary border border-border px-2 text-xs font-bold text-foreground cursor-pointer"
+                          >
+                            <option value="180">3:00</option>
+                            <option value="120">2:00</option>
+                            <option value="90">1:30</option>
+                            <option value="60">1:00</option>
+                          </select>
+                        </td>
+                        <td className="p-3">
+                          {assignedTatami ? (
+                            <span className="px-2.5 py-1 rounded-md bg-indigo-500/15 text-indigo-300 font-bold text-xs border border-indigo-500/30">
+                              {assignedTatami}
+                            </span>
+                          ) : (
+                            <span className="text-muted-foreground text-xs italic">Unassigned (Pool)</span>
+                          )}
+                        </td>
+                        <td className="p-3">
+                          <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-black border ${stateColor}`}>
+                            {stateLabel}
+                          </span>
+                        </td>
+                        <td className="p-3 text-right">
+                          <div className="flex items-center justify-end gap-1.5 flex-wrap">
+                            <button
+                              onClick={async () => { await assignCategoryToTatami(cat.id, 'Tatami 1'); refreshCategoriesFromMap(); }}
+                              className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition cursor-pointer border ${
+                                assignedTatami === 'Tatami 1'
+                                  ? 'bg-indigo-600 text-white border-indigo-500'
+                                  : 'bg-secondary hover:bg-secondary/80 text-foreground border-border'
+                              }`}
+                            >
+                              Tatami 1
+                            </button>
+                            <button
+                              onClick={async () => { await assignCategoryToTatami(cat.id, 'Tatami 2'); refreshCategoriesFromMap(); }}
+                              className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition cursor-pointer border ${
+                                assignedTatami === 'Tatami 2'
+                                  ? 'bg-indigo-600 text-white border-indigo-500'
+                                  : 'bg-secondary hover:bg-secondary/80 text-foreground border-border'
+                              }`}
+                            >
+                              Tatami 2
+                            </button>
+                            {assignedTatami && !isLocked && (
+                              <button
+                                onClick={async () => { await releaseCategoryFromTatami(cat.id); refreshCategoriesFromMap(); }}
+                                className="px-2.5 py-1 bg-yellow-500/10 hover:bg-yellow-500/20 text-yellow-400 border border-yellow-500/30 rounded-lg text-[11px] font-bold transition cursor-pointer"
+                                title="Release back to pool"
+                              >
+                                Release
+                              </button>
+                            )}
+                            {isLocked ? (
+                              <button
+                                onClick={() => handleForceReleaseLock(cat.id)}
+                                className="px-2.5 py-1 bg-red-600 hover:bg-red-500 text-white rounded-lg text-[11px] font-bold transition cursor-pointer flex items-center gap-1 shadow-xs"
+                              >
+                                <Unlock className="w-3 h-3" />
+                                <span>Unlock</span>
+                              </button>
+                            ) : (
+                              <button
+                                onClick={() => lockCategoryByAdmin(cat.id)}
+                                className="px-2.5 py-1 bg-secondary hover:bg-secondary/80 text-muted-foreground hover:text-foreground rounded-lg text-[11px] font-bold transition cursor-pointer border border-border flex items-center gap-1"
+                              >
+                                <Lock className="w-3 h-3" />
+                                <span>Lock</span>
+                              </button>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
           </div>
+
         </div>
       )}
 
