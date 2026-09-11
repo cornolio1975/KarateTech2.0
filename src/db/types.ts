@@ -38,6 +38,7 @@ export interface Category {
   category_timer_source?: 'category';
   category_timer_updated_at?: string;
   tournament_id?: string;
+  draw_status?: 'Draft' | 'Confirmed';
 }
 
 export const isKataCategory = (cat: Category | undefined | null): boolean => {

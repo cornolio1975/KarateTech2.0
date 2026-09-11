@@ -167,6 +167,61 @@ export default function DrawsPage() {
     return { confirmed, total };
   };
 
+  const handleGenerateAllDraws = async () => {
+    if (confirm('Generate brackets for ALL categories? This will overwrite existing unconfirmed brackets.')) {
+      setLoading(true);
+      setPrintMode('all');
+      try {
+        const toGenerate = categories.filter(c => c.draw_status !== 'Confirmed');
+        for (const cat of toGenerate) {
+          const parts = participantCategories.filter(pc => pc.category_id === cat.id).map(pc => pc.participant_id);
+          if (parts.length > 0) {
+            await db.bouts.generateDraw(cat.id, parts, cat.format || 'knockout');
+          }
+        }
+        await loadData();
+        // Give UI a moment to render before printing
+        setTimeout(() => {
+          setPrintTarget('all');
+          // window.print();
+        }, 1000);
+      } catch (error) {
+        alert(describeError(error));
+        setLoading(false);
+      }
+    }
+  };
+
+  const handleLockBracket = async () => {
+    if (!currentCategory) return;
+    if (confirm('Lock this bracket? It will prevent further regeneration and manual seeding.')) {
+      setLoading(true);
+      try {
+        await db.categories.update(currentCategory.id, { draw_status: 'Confirmed' });
+        await loadData();
+      } catch (e) {
+        alert(describeError(e));
+      } finally {
+        setLoading(false);
+      }
+    }
+  };
+
+  const handleUnlockBracket = async () => {
+    if (!currentCategory) return;
+    if (confirm('Unlock this bracket? It will allow regeneration and manual seeding.')) {
+      setLoading(true);
+      try {
+        await db.categories.update(currentCategory.id, { draw_status: 'Draft' });
+        await loadData();
+      } catch (e) {
+        alert(describeError(e));
+      } finally {
+        setLoading(false);
+      }
+    }
+  };
+
   const getCategoryBracketStatus = (catId: string) => {
     const catBouts = bouts.filter(b => b.category_id === catId);
     if (catBouts.length === 0) return 'non-active';
@@ -220,39 +275,6 @@ export default function DrawsPage() {
       alert('WKF Repechage brackets generated successfully!');
     } catch (err: any) {
       alert(describeError(err));
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Generate All Brackets Trigger
-  const handleGenerateAllDraws = async () => {
-    try {
-      setLoading(true);
-      let generatedCount = 0;
-      for (const cat of displayCategories) {
-        const catBouts = bouts.filter(b => b.category_id === cat.id);
-        const count = getCategoryCountInfo(cat.id).confirmed;
-        if (catBouts.length === 0 && count > 0) {
-          try {
-            // WKF: standard knockout brackets include a 3rd-place (bronze) bout by default.
-            await db.bouts.generateDraw(cat.id, cat.format || 'knockout', true);
-            generatedCount++;
-          } catch (e: any) {
-            console.error('Failed to generate for category:', cat.id, e);
-            // Optionally, we can safely ignore the error since we already pre-checked count
-          }
-        }
-      }
-      const updatedBouts = await db.bouts.list();
-      setBouts(updatedBouts);
-      if (generatedCount > 0) {
-        alert(`Successfully generated brackets for ${generatedCount} categories!`);
-      } else {
-        alert('No new brackets generated. Please ensure participants are registered and confirmed in categories.');
-      }
-    } catch (err: any) {
-      alert(err?.message || describeError(err));
     } finally {
       setLoading(false);
     }
@@ -698,17 +720,27 @@ export default function DrawsPage() {
               </div>
 
               {/* Quick Generate Action Button inside left panel */}
-              {canModify && (
-                <div className="pt-1">
+              {canModify && currentCategory.draw_status !== 'Confirmed' && (
+                <div className="pt-1 space-y-1.5">
                   {bouts.filter(b => b.category_id === currentCategory.id).length > 0 ? (
-                    <button
-                      onClick={handleGenerateDraw}
-                      className="w-full py-1.5 px-3 bg-secondary hover:bg-secondary/80 border border-border text-foreground rounded-lg text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer"
-                      title="Regenerate bracket matches for this category"
-                    >
-                      <RefreshCw className="h-3.5 w-3.5 text-primary" />
-                      <span>Regenerate Bracket</span>
-                    </button>
+                    <>
+                      <button
+                        onClick={handleGenerateDraw}
+                        className="w-full py-1.5 px-3 bg-secondary hover:bg-secondary/80 border border-border text-foreground rounded-lg text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer"
+                        title="Regenerate bracket matches for this category"
+                      >
+                        <RefreshCw className="h-3.5 w-3.5 text-primary" />
+                        <span>Regenerate Bracket</span>
+                      </button>
+                      <button
+                        onClick={handleLockBracket}
+                        className="w-full py-1.5 px-3 bg-green-500 hover:bg-green-600 text-white rounded-lg text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer"
+                        title="Lock this bracket as Official"
+                      >
+                        <span className="text-[10px]">💾</span>
+                        <span>Save & Lock Bracket</span>
+                      </button>
+                    </>
                   ) : (
                     <button
                       onClick={handleGenerateDraw}
@@ -717,6 +749,22 @@ export default function DrawsPage() {
                     >
                       <Sparkles className="h-3.5 w-3.5 text-white" />
                       <span>⚡ Generate Bracket</span>
+                    </button>
+                  )}
+                </div>
+              )}
+              {currentCategory.draw_status === 'Confirmed' && (
+                <div className="pt-1 space-y-1.5">
+                  <div className="w-full py-2 px-3 bg-green-500/10 border border-green-500/20 text-green-500 rounded-lg text-xs font-bold flex flex-col items-center justify-center gap-1">
+                    <span className="text-base">🔒</span>
+                    <span>Bracket Confirmed & Locked</span>
+                  </div>
+                  {canModify && (
+                    <button
+                      onClick={handleUnlockBracket}
+                      className="w-full py-1 px-3 bg-secondary hover:bg-secondary/80 text-muted-foreground rounded-lg text-[10px] font-bold transition cursor-pointer"
+                    >
+                      Unlock for Editing
                     </button>
                   )}
                 </div>
