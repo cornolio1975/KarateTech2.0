@@ -157,6 +157,11 @@ function SpectatorDisplayContent() {
   useEffect(() => {
     if (urlBoutId) {
       setActiveBoutId(urlBoutId);
+    } else if (typeof window !== 'undefined') {
+      const storedBoutId = localStorage.getItem('kt_active_bout_id') || localStorage.getItem('ts_active_bout_id');
+      if (storedBoutId) {
+        setActiveBoutId(storedBoutId);
+      }
     }
     const urlMode = searchParams.get('mode');
     if (urlMode === 'Flags' || urlMode === 'flags') {
@@ -176,9 +181,9 @@ function SpectatorDisplayContent() {
 
   // Competitor info
   const [akaName, setAkaName] = useState<string>('TBD Red');
-  const [akaClub, setAkaClub] = useState<string>('Senshi Karate Academy');
+  const [akaClub, setAkaClub] = useState<string>('');
   const [aoName, setAoName] = useState<string>('TBD Blue');
-  const [aoClub, setAoClub] = useState<string>('Goju-Ryu Karate Club');
+  const [aoClub, setAoClub] = useState<string>('');
 
   // Match details
   const [categoryName, setCategoryName] = useState<string>('Kumite Championship');
@@ -753,43 +758,13 @@ function SpectatorDisplayContent() {
           return;
         }
 
-        if (data.type === 'SHOW_RESULT' || data.type === 'REFRESH_DISPLAY' || data.type === 'SYNC_MATCH_STATE') {
+        if (data.type === 'SHOW_RESULT' || data.type === 'REFRESH_DISPLAY' || data.type === 'SYNC_MATCH_STATE' || data.boutId) {
           if (data.isIdle !== undefined) {
             setIsIdle(Boolean(data.isIdle));
           }
           setShowPlayerDetails(false);
           setShowExtraTimer(false);
           if (data.boutId && data.boutId !== activeBoutId) {
-            setActiveBoutId(data.boutId);
-          }
-          if (data.akaName !== undefined && data.akaName !== null) setAkaName(data.akaName);
-          if (data.akaClub !== undefined && data.akaClub !== null) setAkaClub(data.akaClub);
-          if (data.aoName !== undefined && data.aoName !== null) setAoName(data.aoName);
-          if (data.aoClub !== undefined && data.aoClub !== null) setAoClub(data.aoClub);
-          if (data.scoreAka !== undefined) setScoreAka(data.scoreAka);
-          if (data.scoreAo !== undefined) setScoreAo(data.scoreAo);
-          if (data.senshuAka !== undefined) setSenshuAka(data.senshuAka);
-          if (data.senshuAo !== undefined) setSenshuAo(data.senshuAo);
-          if (data.c1Aka !== undefined) setC1Aka(data.c1Aka);
-          if (data.c1Ao !== undefined) setC1Ao(data.c1Ao);
-          if (data.winnerSide !== undefined || data.winner !== undefined) {
-            setWinnerSide(data.winnerSide || data.winner);
-          }
-          if (data.winMethod !== undefined && data.winMethod !== null) {
-            setWinMethod(data.winMethod);
-          }
-          if (data.resultConfirmed !== undefined) {
-            setResultConfirmed(data.resultConfirmed);
-          }
-          return;
-        }
-
-        if (data.boutId) {
-          if (data.isIdle !== undefined) {
-            setIsIdle(Boolean(data.isIdle));
-          }
-          // If the controller shifted to a new match, update our active target boutId
-          if (data.boutId !== activeBoutId) {
             setActiveBoutId(data.boutId);
           }
 
@@ -813,6 +788,11 @@ function SpectatorDisplayContent() {
           if (data.panelSize !== undefined) setPanelSize(data.panelSize);
           if (data.scoringMethod !== undefined) setScoringMethod(data.scoringMethod);
 
+          if (data.categoryName !== undefined && data.categoryName !== null) setCategoryName(data.categoryName);
+          if (data.tatami !== undefined && data.tatami !== null) setTatamiName(data.tatami);
+          if (data.boutNo !== undefined && data.boutNo !== null) setBoutNo(data.boutNo);
+          if (data.roundNo !== undefined && data.roundNo !== null) setRoundNo(data.roundNo);
+
           if (data.akaName !== undefined && data.akaName !== null) setAkaName(data.akaName);
           if (data.akaClub !== undefined && data.akaClub !== null) setAkaClub(data.akaClub);
           if (data.aoName !== undefined && data.aoName !== null) setAoName(data.aoName);
@@ -833,12 +813,17 @@ function SpectatorDisplayContent() {
           if (data.showPointHistory !== undefined) {
             setShowPointHistory(data.showPointHistory || searchParams.get('history') === 'true');
           }
-          if (data.winner !== undefined) setWinnerSide(data.winner);
-          if (data.winMethod !== undefined && data.winMethod !== null) setWinMethod(data.winMethod);
+          if (data.winnerSide !== undefined || data.winner !== undefined) {
+            setWinnerSide(data.winnerSide || data.winner);
+          }
+          if (data.winMethod !== undefined && data.winMethod !== null) {
+            setWinMethod(data.winMethod);
+          }
           if (data.resultConfirmed !== undefined && data.resultConfirmed !== null) {
             setResultConfirmed(data.resultConfirmed);
           }
           if (data.penaltyH !== undefined) setPenaltyH(data.penaltyH);
+          return;
         }
       };
 
@@ -855,11 +840,24 @@ function SpectatorDisplayContent() {
     if (!activeBoutId) return;
     try {
       setLoading(true);
-      const [boutsList, partsList, categoriesList] = await Promise.all([
+      const [boutsList, partsList, categoriesList, clubsList] = await Promise.all([
         db.bouts.list(),
         db.participants.list(),
-        db.categories.list()
+        db.categories.list(),
+        db.clubs.list()
       ]);
+      setAllClubs(clubsList);
+
+      const resolveClubName = (p: Participant | null | undefined): string => {
+        if (!p) return '';
+        if (p.club_id) {
+          const found = clubsList.find(c => c.id === p.club_id);
+          if (found?.name) return found.name;
+        }
+        if ((p as any).dojo) return (p as any).dojo;
+        if ((p as any).club) return (p as any).club;
+        return '';
+      };
 
       const bout = boutsList.find(b => b.id === activeBoutId);
       if (bout) {
@@ -904,9 +902,9 @@ function SpectatorDisplayContent() {
         }
 
         setAkaName(compAka?.full_name || 'TBD Red');
-        setAkaClub(compAka?.club_id ? 'Senshi Karate Academy' : 'Senshi Club');
+        setAkaClub(resolveClubName(compAka));
         setAoName(compAo?.full_name || 'TBD Blue');
-        setAoClub(compAo?.club_id ? 'Goju-Ryu Karate Club' : 'Goju-Ryu Club');
+        setAoClub(resolveClubName(compAo));
         
         setCategoryName(cat?.name || 'Kumite Open Division');
         setTatamiName(bout.tatami || 'Tatami 1');
@@ -2072,7 +2070,15 @@ function SpectatorDisplayContent() {
                   </div>
                   {/* Exit Standby Button */}
                   <button
-                    onClick={() => setIsIdle(false)}
+                    onClick={() => {
+                      setIsIdle(false);
+                      try {
+                        localStorage.removeItem('kt_display_idle');
+                        const channel = new BroadcastChannel('wkf-scoreboard-sync');
+                        channel.postMessage({ type: 'REQUEST_FULL_STATE' });
+                        channel.close();
+                      } catch (e) {}
+                    }}
                     className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/10 hover:bg-white/20 border border-white/20 hover:border-white/40 text-white/70 hover:text-white font-black text-xs uppercase tracking-widest transition-all duration-200 cursor-pointer"
                     title="Exit Standby"
                   >

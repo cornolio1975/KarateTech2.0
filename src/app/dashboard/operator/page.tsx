@@ -908,15 +908,46 @@ export default function OperatorConsolePage() {
     return () => channel.close();
   }, []);
 
+  const boutIsKata = activeCat ? isKataCategory(activeCat) : false;
+
+  const broadcastOperatorTimer = useCallback((secs: number, running: boolean) => {
+    if (!activeBout || typeof window === 'undefined') return;
+    try {
+      const channel = new BroadcastChannel('wkf-scoreboard-sync');
+      channel.postMessage({
+        type: 'SYNC_MATCH_STATE',
+        boutId: activeBout.id,
+        categoryId: activeBout.category_id,
+        akaName: akaFighter?.full_name || 'AKA Red',
+        aoName: aoFighter?.full_name || 'AO Blue',
+        scoreAka: boutIsKata ? Number(activeBout.total_score_a || activeBout.score_a || 0) : liveScoreAka,
+        scoreAo: boutIsKata ? Number(activeBout.total_score_b || activeBout.score_b || 0) : liveScoreAo,
+        senshuAka,
+        senshuAo,
+        c1Aka: parseInt(activeBout.penalties_c1_a || '0') || 0,
+        c1Ao: parseInt(activeBout.penalties_c1_b || '0') || 0,
+        timeLeft: secs * 10,
+        timerActive: running,
+        winner: null,
+        winMethod: '',
+        resultConfirmed: activeBout.status === 'Completed'
+      });
+      channel.close();
+    } catch (e) {}
+  }, [activeBout, akaFighter, aoFighter, boutIsKata, liveScoreAka, liveScoreAo, senshuAka, senshuAo]);
+
   const handleTimerToggle = () => {
     if (!activeBout) return;
     setTimerRunning(prev => {
       const isNowRunning = !prev;
       addLog('TIMER', isNowRunning ? 'Timer started' : 'Timer paused');
+      broadcastOperatorTimer(timerSeconds, isNowRunning);
       if (!isNowRunning) {
-        updateBout({ timer_seconds: timerSeconds });
+        updateBout({ timer_seconds: timerSeconds, timer_active: false });
       } else if (activeBout.status !== 'Running') {
-        updateBout({ status: 'Running' });
+        updateBout({ status: 'Running', timer_active: true });
+      } else {
+        updateBout({ timer_active: true });
       }
       return isNowRunning;
     });
@@ -927,7 +958,8 @@ export default function OperatorConsolePage() {
     const defaultTime = (activeCat as any)?.time_duration || activeBout.timer_seconds || 180;
     setTimerSeconds(defaultTime);
     setTimerRunning(false);
-    updateBout({ timer_seconds: defaultTime });
+    broadcastOperatorTimer(defaultTime, false);
+    updateBout({ timer_seconds: defaultTime, timer_active: false });
     addLog('TIMER', 'Timer reset');
   };
 
@@ -936,16 +968,24 @@ export default function OperatorConsolePage() {
     addLogRef.current = addLog;
   }, [addLog]);
 
+  const broadcastOperatorTimerRef = useRef(broadcastOperatorTimer);
+  useEffect(() => {
+    broadcastOperatorTimerRef.current = broadcastOperatorTimer;
+  }, [broadcastOperatorTimer]);
+
   useEffect(() => {
     if (timerRunning) {
       timerRef.current = setInterval(() => {
         setTimerSeconds(prev => {
           if (prev <= 0) { 
             setTimerRunning(false); 
+            broadcastOperatorTimerRef.current(0, false);
             addLogRef.current('TIMER', 'Match time expired'); 
             return 0; 
           }
-          return prev - 1;
+          const next = prev - 1;
+          broadcastOperatorTimerRef.current(next, true);
+          return next;
         });
       }, 1000);
     } else if (timerRef.current) clearInterval(timerRef.current);
@@ -1042,7 +1082,6 @@ export default function OperatorConsolePage() {
 
   const filteredLog = keyLog.filter(e => (keyLogTab === 'ALL' || e.category === keyLogTab) && (!keyLogSearch || e.message.toLowerCase().includes(keyLogSearch.toLowerCase())));
 
-  const boutIsKata = activeCat ? isKataCategory(activeCat) : false;
   const controlPath = activeBout ? (boutIsKata ? `/dashboard/kata-control?boutId=${activeBout.id}` : `/dashboard/control?boutId=${activeBout.id}`) : '/dashboard/scoreboard';
   const activeIdx = activeBout ? allBoutsFiltered.findIndex(b => b.id === activeBout.id) : -1;
   const prevBout = activeIdx > 0 ? allBoutsFiltered[activeIdx - 1] : null;
@@ -1634,6 +1673,12 @@ export default function OperatorConsolePage() {
             const channel = new BroadcastChannel('wkf-scoreboard-sync');
             channel.postMessage({ type: 'SET_IDLE', isIdle: nextStandby });
             channel.close();
+            if (!nextStandby) {
+              if ((window as any)._broadcastFullState) {
+                (window as any)._broadcastFullState();
+              }
+              broadcastOperatorTimer(timerSeconds, timerRunning);
+            }
           } catch (err) {}
         }
         addLog('SYSTEM', nextStandby

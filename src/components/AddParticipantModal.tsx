@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { useTournament } from '@/context/TournamentContext';
 import { db } from '@/db/dbClient';
-import { Club, Coach, Country, Category } from '@/db/types';
+import { Club, Coach, Country, Category, isKataCategory, isKumiteCategory } from '@/db/types';
 import { X, Upload, Check, RefreshCw } from 'lucide-react';
 import confetti from 'canvas-confetti';
 
@@ -34,11 +34,11 @@ export default function AddParticipantModal() {
   const [paymentStatus, setPaymentStatus] = useState<'Paid' | 'Unpaid' | 'Pending'>('Unpaid');
   const [remarks, setRemarks] = useState('');
   const [photoUrl, setPhotoUrl] = useState('');
-  const [isKumite, setIsKumite] = useState(false);
+  const [isKumite, setIsKumite] = useState(true);
   const [isKata, setIsKata] = useState(false);
 
   // Auto assignment preview
-  const [previewCat, setPreviewCat] = useState<Category | null>(null);
+  const [previewCats, setPreviewCats] = useState<Category[]>([]);
   const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
@@ -66,10 +66,10 @@ export default function AddParticipantModal() {
     }
   }, [isAddOpen]);
 
-  // Recalculate auto assignment preview when gender, dob, or weight changes
+  // Recalculate auto assignment preview when gender, dob, weight, isKumite, or isKata changes
   useEffect(() => {
-    if (!dob || !weight || !gender) {
-      setPreviewCat(null);
+    if (!dob || !gender) {
+      setPreviewCats([]);
       return;
     }
 
@@ -86,18 +86,38 @@ export default function AddParticipantModal() {
 
     const age = calculatedAge();
     const w = parseFloat(weight) || 0;
+    const pGenderNorm = gender.toLowerCase().startsWith('f') ? 'Female' : 'Male';
 
-    const matched = categories.find(c => {
-      return (
-        c.gender === gender &&
-        age >= c.min_age && age <= c.max_age &&
-        w >= c.min_weight && w <= c.max_weight &&
-        c.status !== 'Closed'
-      );
+    const matched = categories.filter(c => {
+      if (c.status === 'Closed') return false;
+
+      const cGenderNorm = c.gender || 'Male';
+      const genderMatches = cGenderNorm === 'Mixed' || cGenderNorm === pGenderNorm;
+      if (!genderMatches) return false;
+
+      const ageMatches = age >= c.min_age && age <= c.max_age;
+      if (!ageMatches) return false;
+
+      const isKataCat = isKataCategory(c);
+      const isKumiteCat = isKumiteCategory(c);
+
+      if (isKumite || isKata) {
+        if (isKataCat && !isKata) return false;
+        if (isKumiteCat && !isKumite) return false;
+      } else {
+        return false;
+      }
+
+      if (isKataCat) {
+        return true;
+      }
+
+      const isWeightFree = (c.min_weight === 0 && (c.max_weight === 0 || c.max_weight >= 100));
+      return isWeightFree || (w >= c.min_weight && w <= c.max_weight);
     });
 
-    setPreviewCat(matched || null);
-  }, [gender, dob, weight, categories]);
+    setPreviewCats(matched);
+  }, [gender, dob, weight, isKumite, isKata, categories]);
 
   if (!isAddOpen) return null;
 
@@ -168,9 +188,9 @@ export default function AddParticipantModal() {
     setPaymentStatus('Unpaid');
     setRemarks('');
     setPhotoUrl('');
-    setIsKumite(false);
+    setIsKumite(true);
     setIsKata(false);
-    setPreviewCat(null);
+    setPreviewCats([]);
   };
 
   // Quick photo selection simulation
@@ -511,24 +531,28 @@ export default function AddParticipantModal() {
               <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
                 Real-Time Category Auto-Assignment
               </span>
-              {previewCat ? (
+              {previewCats.length > 0 ? (
                 <div className="space-y-2">
                   <div className="flex items-center gap-2 text-emerald-600 dark:text-emerald-400">
                     <Check className="h-4.5 w-4.5 bg-emerald-500/10 rounded-full p-0.5 shrink-0" />
-                    <span className="text-xs font-bold">Matching Category Found</span>
+                    <span className="text-xs font-bold">{previewCats.length} Category Matched (Auto-Assigned)</span>
                   </div>
-                  <div className="bg-card border border-border p-3.5 rounded-lg space-y-1">
-                    <span className="font-extrabold text-sm block">{previewCat.name}</span>
-                    <span className="text-[10px] text-muted-foreground block">
-                      Gender: {previewCat.gender} • Age: {previewCat.min_age}-{previewCat.max_age} yr • Weight: {previewCat.min_weight}-{previewCat.max_weight}kg
-                    </span>
+                  <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
+                    {previewCats.map(cat => (
+                      <div key={cat.id} className="bg-card border border-border p-3 rounded-lg space-y-1">
+                        <span className="font-extrabold text-xs block text-foreground">{cat.name}</span>
+                        <span className="text-[10px] text-muted-foreground block">
+                          Discipline: {isKataCategory(cat) ? 'Kata' : 'Kumite'} • Gender: {cat.gender} • Age: {cat.min_age}-{cat.max_age} yr {isKataCategory(cat) ? '' : `• Weight: ${cat.min_weight}-${cat.max_weight}kg`}
+                        </span>
+                      </div>
+                    ))}
                   </div>
                 </div>
               ) : (
                 <div className="text-xs text-muted-foreground py-6 text-center space-y-1.5 border border-dashed border-border rounded-lg">
                   <span className="block font-semibold">No Category Matched</span>
                   <span className="block text-[10px] max-w-[220px] mx-auto leading-relaxed">
-                    Fill in Gender, DOB, and Weight. The matching Kumite/Kata category rules will display here automatically.
+                    Select Kumite and/or Kata events and enter Gender, DOB, and Weight to auto-match categories.
                   </span>
                 </div>
               )}

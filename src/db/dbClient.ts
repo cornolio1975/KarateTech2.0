@@ -2,7 +2,8 @@ import { createClient } from '@/utils/supabase/client';
 import { mockStore } from './mockStore';
 import { 
   Country, Club, Coach, Category, Team, Participant, 
-  TeamMember, ParticipantCategory, Payment, MedicalRecord, Document, ActivityLog, AuditLog, Bout, Official, Tournament, DisplayPlaylist, DisplayPlaylistSlide, TournamentPC, CategoryLock
+  TeamMember, ParticipantCategory, Payment, MedicalRecord, Document, ActivityLog, AuditLog, Bout, Official, Tournament, DisplayPlaylist, DisplayPlaylistSlide, TournamentPC, CategoryLock,
+  isKataCategory, isKumiteCategory
 } from './types';
 import * as pcActions from '@/app/actions/pcControl';
 import { desktopOverrides } from './desktopClient';
@@ -63,14 +64,28 @@ import { localStore } from './localStore';
 import { TournamentDatabase } from './types';
 import { setActiveTournamentDb, activeTournamentDb } from './mockStore';
 
+// Tournament-specific localStorage keys that must be cleared when switching tournaments
+const TOURNAMENT_CACHE_KEYS = [
+  'ts_bouts', 'ts_categories', 'ts_participants', 'ts_clubs',
+  'ts_coaches', 'ts_cat_tatami_map', 'ts_participant_categories',
+  'ts_teams', 'ts_team_members', 'ts_officials', 'ts_payments',
+  'ts_medical_records', 'ts_documents', 'ts_activity_logs',
+  'ts_display_playlists'
+] as const;
+
 export const dbManager = {
   async setActiveTournament(id: string): Promise<boolean> {
     const db = await localStore.loadTournament(id);
     if (db) {
-      setActiveTournamentDb(db);
+      // Clear stale tournament-specific localStorage caches BEFORE setting new DB
+      // This prevents stale data from the previous tournament appearing during load
       if (typeof window !== 'undefined') {
+        TOURNAMENT_CACHE_KEYS.forEach(key => {
+          try { localStorage.removeItem(key); } catch (e) {}
+        });
         localStorage.setItem('ts_active_tournament_id', id);
       }
+      setActiveTournamentDb(db);
       return true;
     }
     return false;
@@ -81,6 +96,12 @@ export const dbManager = {
   },
 
   closeTournament() {
+    if (typeof window !== 'undefined') {
+      TOURNAMENT_CACHE_KEYS.forEach(key => {
+        try { localStorage.removeItem(key); } catch (e) {}
+      });
+      localStorage.removeItem('ts_active_tournament_id');
+    }
     setActiveTournamentDb(null);
   },
   
@@ -110,10 +131,31 @@ export const dbManager = {
       display_playlists: []
     };
     await localStore.saveTournament(newDb);
+    if (typeof window !== 'undefined') {
+      TOURNAMENT_CACHE_KEYS.forEach(key => {
+        try { localStorage.removeItem(key); } catch (e) {}
+      });
+      localStorage.setItem('ts_active_tournament_id', id);
+    }
     setActiveTournamentDb(newDb);
     return id;
   }
 };
+
+/**
+ * Returns the active tournament ID synchronously.
+ * Primary source: in-memory activeTournamentDb (set when a tournament is opened).
+ * Fallback: localStorage (survives hard browser refresh).
+ */
+export function getActiveTournamentIdSync(): string | null {
+  if (activeTournamentDb?.tournament?.id) {
+    return activeTournamentDb.tournament.id;
+  }
+  if (typeof window !== 'undefined') {
+    return localStorage.getItem('ts_active_tournament_id');
+  }
+  return null;
+}
 
 const resolveActiveTournamentDb = async (): Promise<TournamentDatabase | null> => {
   const activeDb = dbManager.getActiveTournament();
@@ -167,17 +209,32 @@ export const dbOriginal = {
     }
   },
 
-  // 2. Clubs
+  // 2. Clubs — shared global reference data, not tournament-scoped
   clubs: {
     list: async (): Promise<Club[]> => {
+      // Clubs are shared reference data. When an activeTournamentDb is loaded, also
+      // include any clubs stored in the tournament DB so offline data is visible.
       if (supabase) {
         try {
           const { data, error } = await supabase.from('clubs').select('*').order('name');
           if (error) throw new Error(describeError(error));
+          // Merge with local tournament clubs (in case of offline additions)
+          const localClubs = activeTournamentDb?.clubs || [];
+          if (localClubs.length > 0) {
+            const merged = [...(data || [])];
+            for (const lc of localClubs) {
+              if (!merged.find(c => c.id === lc.id)) merged.push(lc);
+            }
+            return merged.sort((a, b) => a.name.localeCompare(b.name));
+          }
           return data || [];
         } catch (e: unknown) {
           console.warn('Supabase clubs list error, falling back to mockStore:', describeError(e));
         }
+      }
+      // When no Supabase, read from active tournament DB first
+      if (activeTournamentDb?.clubs && activeTournamentDb.clubs.length > 0) {
+        return activeTournamentDb.clubs;
       }
       return mockStore.clubs.list();
     },
@@ -230,9 +287,19 @@ export const dbOriginal = {
   // 4. Categories
   categories: {
     list: async (): Promise<Category[]> => {
+      // ISOLATION: When a tournament is loaded, read categories from that tournament's DB.
+      // This prevents cross-tournament data leakage.
+      if (activeTournamentDb) {
+        return mockStore.categories.list();
+      }
       if (supabase) {
         try {
-          const { data, error } = await supabase.from('categories').select('*').order('min_age', { ascending: true }).order('name');
+          const activeTournamentId = getActiveTournamentIdSync();
+          let query = supabase.from('categories').select('*');
+          if (activeTournamentId) {
+            query = query.eq('tournament_id', activeTournamentId);
+          }
+          const { data, error } = await query.order('min_age', { ascending: true }).order('name');
           if (error) throw new Error(describeError(error));
           return data || [];
         } catch (e: unknown) {
@@ -260,8 +327,14 @@ export const dbOriginal = {
       return mockStore.categories.update(id, updates);
     },
     add: async (cat: Omit<Category, 'id'> & { id?: string }): Promise<Category> => {
+      // ISOLATION: When a tournament is loaded, save to that tournament's local DB.
+      if (activeTournamentDb) {
+        return mockStore.categories.add(cat);
+      }
       if (supabase) {
-        const { data, error } = await supabase.from('categories').insert([cat]).select().single();
+        const activeTournamentId = getActiveTournamentIdSync();
+        const payload = activeTournamentId ? { ...cat, tournament_id: activeTournamentId } : cat;
+        const { data, error } = await supabase.from('categories').insert([payload]).select().single();
         if (error) throw new Error(describeError(error));
         return data;
       }
@@ -360,6 +433,9 @@ export const dbOriginal = {
       return mockStore.categories.split(catId, split1 as any, split2 as any);
     },
     delete: async (id: string): Promise<void> => {
+      if (activeTournamentDb) {
+        return mockStore.categories.delete(id);
+      }
       if (supabase) {
         const { error } = await supabase.from('categories').delete().eq('id', id);
         if (error) throw new Error(describeError(error));
@@ -469,8 +545,17 @@ export const dbOriginal = {
   // 5b. Participant Categories Mappings
   participantCategories: {
     list: async (): Promise<ParticipantCategory[]> => {
+      // ISOLATION: Route through active tournament DB to prevent cross-tournament leakage
+      if (activeTournamentDb) {
+        return mockStore.participantCategories.list();
+      }
       if (supabase) {
-        const { data, error } = await supabase.from('participant_categories').select('*');
+        const activeTournamentId = getActiveTournamentIdSync();
+        let query = supabase.from('participant_categories').select('*');
+        if (activeTournamentId) {
+          query = query.eq('tournament_id', activeTournamentId);
+        }
+        const { data, error } = await query;
         if (error) throw new Error(describeError(error));
         return data || [];
       }
@@ -481,9 +566,18 @@ export const dbOriginal = {
   // 6. Participants
   participants: {
     list: async (): Promise<Participant[]> => {
+      // ISOLATION: When a tournament is loaded, read participants from that tournament's DB only.
+      if (activeTournamentDb) {
+        return mockStore.participants.list();
+      }
       if (supabase) {
         try {
-          const { data, error } = await supabase.from('participants').select('*').is('deleted_at', null).order('created_at', { ascending: false });
+          const activeTournamentId = getActiveTournamentIdSync();
+          let query = supabase.from('participants').select('*').is('deleted_at', null);
+          if (activeTournamentId) {
+            query = query.eq('tournament_id', activeTournamentId);
+          }
+          const { data, error } = await query.order('created_at', { ascending: false });
           if (error) throw new Error(describeError(error));
           return data || [];
         } catch (e: unknown) {
@@ -493,28 +587,50 @@ export const dbOriginal = {
       return mockStore.participants.list();
     },
     listDeleted: async (): Promise<Participant[]> => {
+      if (activeTournamentDb) {
+        return mockStore.participants.listDeleted();
+      }
       if (supabase) {
-        const { data, error } = await supabase.from('participants').select('*').not('deleted_at', 'is', null).order('created_at', { ascending: false });
+        const activeTournamentId = getActiveTournamentIdSync();
+        let query = supabase.from('participants').select('*').not('deleted_at', 'is', null);
+        if (activeTournamentId) {
+          query = query.eq('tournament_id', activeTournamentId);
+        }
+        const { data, error } = await query.order('created_at', { ascending: false });
         if (error) throw new Error(describeError(error));
         return data || [];
       }
       return mockStore.participants.listDeleted();
     },
     get: async (id: string): Promise<Participant | undefined> => {
+      // ISOLATION: Route through active tournament DB when one is open
+      if (activeTournamentDb) {
+        return mockStore.participants.get(id);
+      }
       if (supabase) {
-        const { data, error } = await supabase.from('participants').select('*').eq('id', id).single();
+        const isUuid = id && /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(id);
+        if (!isUuid) {
+          return mockStore.participants.get(id);
+        }
+        const { data, error } = await supabase.from('participants').select('*').eq('id', id).maybeSingle();
         if (error) throw new Error(describeError(error));
-        return data;
+        return data || undefined;
       }
       return mockStore.participants.get(id);
     },
     add: async (participant: Omit<Participant, 'id' | 'registration_no' | 'created_at'> & { id?: string; registration_no?: string }): Promise<Participant> => {
+      // ISOLATION: Route through active tournament DB when one is open
+      if (activeTournamentDb) {
+        return mockStore.participants.add(participant);
+      }
       if (supabase) {
+        const activeTournamentId = getActiveTournamentIdSync();
         // Preserve a supplied registration_no (CSV round-trip); otherwise generate: REG-YYYY-<timestamp5>-<random4>
         if (participant.registration_no) {
+          const payload = activeTournamentId ? { ...participant, tournament_id: activeTournamentId } : participant;
           const { data: insertData, error } = await supabase
             .from('participants')
-            .insert([participant])
+            .insert([payload])
             .select()
             .single();
           if (error) throw new Error(describeError(error));
@@ -534,9 +650,12 @@ export const dbOriginal = {
         let lastError: Error | null = null;
         for (let attempt = 0; attempt < 5; attempt++) {
           const regNo = generateRegNo();
+          const payload = activeTournamentId
+            ? { ...participant, registration_no: regNo, tournament_id: activeTournamentId }
+            : { ...participant, registration_no: regNo };
           const { data: insertData, error } = await supabase
             .from('participants')
-            .insert([{ ...participant, registration_no: regNo }])
+            .insert([payload])
             .select()
             .single();
           if (!error) {
@@ -565,6 +684,10 @@ export const dbOriginal = {
       return mockStore.participants.add(participant);
     },
     update: async (id: string, updates: Partial<Participant>, operator = 'Admin'): Promise<Participant> => {
+      // ISOLATION: Route through active tournament DB when one is open
+      if (activeTournamentDb) {
+        return mockStore.participants.update(id, updates, operator);
+      }
       if (supabase) {
         const original = await db.participants.get(id);
         const { data, error } = await supabase
@@ -577,8 +700,8 @@ export const dbOriginal = {
         if (error) throw new Error(describeError(error));
         const p = data as Participant;
 
-        // Auto re-assign category if criteria changed
-        if (updates.dob || updates.weight || updates.gender) {
+        // Auto re-assign category if criteria or event selections changed
+        if (updates.dob || updates.weight || updates.gender || updates.isKumite !== undefined || updates.isKata !== undefined) {
           await db.participants.autoAssignCategory(p);
         }
 
@@ -589,7 +712,16 @@ export const dbOriginal = {
       return mockStore.participants.update(id, updates, operator);
     },
     delete: async (id: string, operator = 'Admin'): Promise<void> => {
+      if (activeTournamentDb) {
+        mockStore.participants.delete(id, operator);
+        return;
+      }
       if (supabase) {
+        const isUuid = id && /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(id);
+        if (!isUuid) {
+          mockStore.participants.delete(id, operator);
+          return;
+        }
         const original = await db.participants.get(id);
         const { error } = await supabase
           .from('participants')
@@ -604,32 +736,34 @@ export const dbOriginal = {
       return mockStore.participants.delete(id, operator);
     },
     deleteAll: async (operator = 'Admin'): Promise<number> => {
+      let count = 0;
+      // ISOLATION: When a tournament is active, clear all participants from active DB
+      if (activeTournamentDb) {
+        count = mockStore.participants.deleteAll(operator);
+      }
       if (supabase) {
-        // Hard delete all participants (permanent clear)
-        const { data: all, error: listErr } = await supabase
-          .from('participants')
-          .select('id')
-          .is('deleted_at', null);
-        if (listErr) throw new Error(describeError(listErr));
-        const ids = (all || []).map(p => p.id);
-        if (ids.length === 0) return 0;
-
-        // Delete related participant_categories first
-        await supabase.from('participant_categories').delete().in('participant_id', ids);
-
-        // Hard delete all participants
-        const { error } = await supabase.from('participants').delete().in('id', ids);
-        if (error) throw new Error(describeError(error));
-
-        await db.activityLogs.log(null, operator, 'Bulk Delete', `Cleared ${ids.length} participants from database`);
-        return ids.length;
+        try {
+          const activeTournamentId = getActiveTournamentIdSync();
+          let query = supabase.from('participants').select('id');
+          if (activeTournamentId) {
+            query = query.eq('tournament_id', activeTournamentId);
+          }
+          const { data: all, error: listErr } = await query;
+          if (!listErr && all && all.length > 0) {
+            const ids = all.map((p: any) => p.id);
+            if (!count) count = ids.length;
+            await supabase.from('participant_categories').delete().in('participant_id', ids);
+            await supabase.from('participants').delete().in('id', ids);
+          }
+          await db.activityLogs.log(null, operator, 'Bulk Delete', `Cleared ${count} participants from database`);
+        } catch (e) {
+          console.warn('Supabase bulk delete participants error:', describeError(e));
+        }
       }
-      // Mock store: clear all
-      const all = mockStore.participants.list();
-      for (const p of all) {
-        mockStore.participants.delete(p.id, operator);
+      if (!activeTournamentDb && !supabase) {
+        count = mockStore.participants.deleteAll(operator);
       }
-      return all.length;
+      return count;
     },
     restore: async (id: string, operator = 'Admin'): Promise<Participant> => {
       if (supabase) {
@@ -648,38 +782,58 @@ export const dbOriginal = {
       return mockStore.participants.restore(id, operator);
     },
     autoAssignCategory: async (p: Participant): Promise<Category[]> => {
+      // ISOLATION: Route through active tournament DB when one is open
+      if (activeTournamentDb) {
+        return mockStore.participants.autoAssignCategory(p);
+      }
       if (supabase) {
+        const activeTournamentId = getActiveTournamentIdSync();
         const categories = await db.categories.list();
         const age = mockStore.helpers.calculateAge(p.dob);
         const pGenderNorm = (p.gender || '').toLowerCase().startsWith('f') ? 'Female' : (p.gender || '').toLowerCase().startsWith('m') ? 'Male' : 'Mixed';
 
+        const wantKumite = p.isKumite === true;
+        const wantKata = p.isKata === true;
+
         const matchedCategories = categories.filter(c => {
+          if (c.status === 'Closed') return false;
+
           const cGenderNorm = c.gender || 'Male';
           const genderMatches = cGenderNorm === 'Mixed' || cGenderNorm === pGenderNorm;
+          if (!genderMatches) return false;
           
           const ageMatches = age >= c.min_age && age <= c.max_age;
+          if (!ageMatches) return false;
           
-          const isKataCat = c.discipline === 'Kata' || c.name.toLowerCase().includes('kata');
-          const isKumiteCat = c.discipline === 'Kumite' || (!isKataCat && !c.name.toLowerCase().includes('team'));
+          const isKataCat = isKataCategory(c);
+          const isKumiteCat = isKumiteCategory(c);
           
-          const disciplineMatches = (p.isKata && isKataCat) || (p.isKumite && isKumiteCat);
-          if (!disciplineMatches && (p.isKata !== undefined || p.isKumite !== undefined)) return false;
+          if (wantKumite || wantKata) {
+            if (isKataCat && !wantKata) return false;
+            if (isKumiteCat && !wantKumite) return false;
+          } else if (p.isKumite === false && p.isKata === false) {
+            return false;
+          }
 
-          const isKataOrOpenWeight = (c.min_weight === 0 && (c.max_weight === 0 || c.max_weight >= 100)) || isKataCat;
-          const weightMatches = isKataOrOpenWeight || (p.weight >= c.min_weight && p.weight <= c.max_weight);
+          if (isKataCat) {
+            return true;
+          }
 
-          return genderMatches && ageMatches && weightMatches && c.status !== 'Closed';
+          const isWeightFree = (c.min_weight === 0 && (c.max_weight === 0 || c.max_weight >= 100));
+          const weightMatches = isWeightFree || (p.weight >= c.min_weight && p.weight <= c.max_weight);
+          return weightMatches;
         });
 
         // Remove old mapping ALWAYS
         await supabase.from('participant_categories').delete().eq('participant_id', p.id);
         
         if (matchedCategories.length > 0) {
-          // Insert new mappings
+          // Insert new mappings with tournament_id for isolation
           const inserts = matchedCategories.map(matched => ({
             participant_id: p.id,
             category_id: matched.id,
-            manual_override: false
+            manual_override: false,
+            ...(activeTournamentId ? { tournament_id: activeTournamentId } : {})
           }));
           await supabase.from('participant_categories').insert(inserts);
         }
@@ -736,6 +890,9 @@ export const dbOriginal = {
   // 7. Payments
   payments: {
     list: async (): Promise<Payment[]> => {
+      if (activeTournamentDb) {
+        return mockStore.payments.list();
+      }
       if (supabase) {
         const { data, error } = await supabase.from('payments').select('*');
         if (error) throw new Error(describeError(error));
@@ -744,7 +901,12 @@ export const dbOriginal = {
       return mockStore.payments.list();
     },
     create: async (participantId: string, pay: Partial<Payment>): Promise<Payment> => {
+      if (activeTournamentDb) {
+        return mockStore.payments.create(participantId, pay);
+      }
       if (supabase) {
+        const isUuid = participantId && /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(participantId);
+        if (!isUuid) return mockStore.payments.create(participantId, pay);
         const { data, error } = await supabase
           .from('payments')
           .insert([{ participant_id: participantId, amount: pay.amount || 150, status: pay.status || 'Unpaid', payment_method: pay.payment_method }])
@@ -756,6 +918,9 @@ export const dbOriginal = {
       return mockStore.payments.create(participantId, pay);
     },
     update: async (id: string, updates: Partial<Payment>): Promise<Payment> => {
+      if (activeTournamentDb) {
+        return mockStore.payments.update(id, updates);
+      }
       if (supabase) {
         const { data, error } = await supabase.from('payments').update(updates).eq('id', id).select().single();
         if (error) throw new Error(describeError(error));
@@ -768,7 +933,12 @@ export const dbOriginal = {
   // 8. Medical Records
   medical: {
     get: async (participantId: string): Promise<MedicalRecord | undefined> => {
+      if (activeTournamentDb) {
+        return mockStore.medical.get(participantId);
+      }
       if (supabase) {
+        const isUuid = participantId && /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(participantId);
+        if (!isUuid) return mockStore.medical.get(participantId);
         const { data, error } = await supabase.from('medical_records').select('*').eq('participant_id', participantId).maybeSingle();
         if (error) throw new Error(describeError(error));
         return data || undefined;
@@ -776,7 +946,12 @@ export const dbOriginal = {
       return mockStore.medical.get(participantId);
     },
     create: async (participantId: string, med: Partial<MedicalRecord>): Promise<MedicalRecord> => {
+      if (activeTournamentDb) {
+        return mockStore.medical.create(participantId, med);
+      }
       if (supabase) {
+        const isUuid = participantId && /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(participantId);
+        if (!isUuid) return mockStore.medical.create(participantId, med);
         const { data, error } = await supabase
           .from('medical_records')
           .insert([{ participant_id: participantId, conditions: med.conditions || 'None', allergies: med.allergies || 'None', blood_type: med.blood_type || 'O+', has_clearance: med.has_clearance }])
@@ -788,6 +963,9 @@ export const dbOriginal = {
       return mockStore.medical.create(participantId, med);
     },
     update: async (id: string, updates: Partial<MedicalRecord>): Promise<MedicalRecord> => {
+      if (activeTournamentDb) {
+        return mockStore.medical.update(id, updates);
+      }
       if (supabase) {
         const { data, error } = await supabase.from('medical_records').update(updates).eq('id', id).select().single();
         if (error) throw new Error(describeError(error));
@@ -800,7 +978,12 @@ export const dbOriginal = {
   // 9. Documents
   documents: {
     list: async (participantId: string): Promise<Document[]> => {
+      if (activeTournamentDb) {
+        return mockStore.documents.list(participantId);
+      }
       if (supabase) {
+        const isUuid = participantId && /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(participantId);
+        if (!isUuid) return mockStore.documents.list(participantId);
         const { data, error } = await supabase.from('documents').select('*').eq('participant_id', participantId);
         if (error) throw new Error(describeError(error));
         return data || [];
@@ -808,7 +991,12 @@ export const dbOriginal = {
       return mockStore.documents.list(participantId);
     },
     upload: async (participantId: string, name: string, docType: string, fileUrl: string): Promise<Document> => {
+      if (activeTournamentDb) {
+        return mockStore.documents.upload(participantId, name, docType, fileUrl);
+      }
       if (supabase) {
+        const isUuid = participantId && /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(participantId);
+        if (!isUuid) return mockStore.documents.upload(participantId, name, docType, fileUrl);
         const { data, error } = await supabase
           .from('documents')
           .insert([{ participant_id: participantId, name, doc_type: docType, file_url: fileUrl }])
@@ -820,6 +1008,9 @@ export const dbOriginal = {
       return mockStore.documents.upload(participantId, name, docType, fileUrl);
     },
     delete: async (id: string): Promise<void> => {
+      if (activeTournamentDb) {
+        return mockStore.documents.delete(id);
+      }
       if (supabase) {
         const { error } = await supabase.from('documents').delete().eq('id', id);
         if (error) throw new Error(describeError(error));
@@ -832,9 +1023,12 @@ export const dbOriginal = {
   // 10. Activity Logs
   activityLogs: {
     list: async (participantId: string): Promise<ActivityLog[]> => {
+      if (activeTournamentDb) {
+        return mockStore.activityLogs.list(participantId);
+      }
       if (supabase) {
         const isUuid = participantId && /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(participantId);
-        if (!isUuid) return [];
+        if (!isUuid) return mockStore.activityLogs.list(participantId);
         const { data, error } = await supabase
           .from('activity_logs')
           .select('*')
@@ -898,9 +1092,18 @@ export const dbOriginal = {
   // 12. Bouts & Brackets
   bouts: {
     list: async (): Promise<Bout[]> => {
+      // ISOLATION: Route through active tournament DB to prevent cross-tournament leakage
+      if (activeTournamentDb) {
+        return mockStore.bouts.list();
+      }
       if (supabase) {
         try {
-          const { data, error } = await supabase.from('bouts').select('*');
+          const activeTournamentId = getActiveTournamentIdSync();
+          let query = supabase.from('bouts').select('*');
+          if (activeTournamentId) {
+            query = query.eq('tournament_id', activeTournamentId);
+          }
+          const { data, error } = await query;
           if (error) throw new Error(describeError(error));
           return data || [];
         } catch (e: unknown) {
@@ -910,8 +1113,16 @@ export const dbOriginal = {
       return mockStore.bouts.list();
     },
     listForCategory: async (catId: string): Promise<Bout[]> => {
+      if (activeTournamentDb) {
+        return mockStore.bouts.listForCategory(catId);
+      }
       if (supabase) {
-        const { data, error } = await supabase.from('bouts').select('*').eq('category_id', catId).order('bout_no');
+        const activeTournamentId = getActiveTournamentIdSync();
+        let query = supabase.from('bouts').select('*').eq('category_id', catId);
+        if (activeTournamentId) {
+          query = query.eq('tournament_id', activeTournamentId);
+        }
+        const { data, error } = await query.order('bout_no');
         if (error) throw new Error(describeError(error));
         return data || [];
       }
@@ -926,11 +1137,20 @@ export const dbOriginal = {
       return mockStore.bouts.clearDraw(catId);
     },
     clearAllBouts: async (): Promise<void> => {
+      if (activeTournamentDb) {
+        mockStore.bouts.clearAllBouts();
+        return;
+      }
       if (supabase) {
         try {
-          const { data } = await supabase.from('bouts').select('id');
+          const activeTournamentId = getActiveTournamentIdSync();
+          let query = supabase.from('bouts').select('id');
+          if (activeTournamentId) {
+            query = (query as any).eq('tournament_id', activeTournamentId);
+          }
+          const { data } = await query;
           if (data && data.length > 0) {
-            const ids = data.map(b => b.id);
+            const ids = data.map((b: any) => b.id);
             await supabase.from('bouts').delete().in('id', ids);
           }
         } catch (e) {
@@ -943,11 +1163,20 @@ export const dbOriginal = {
       }
     },
     resetAllSchedules: async (): Promise<void> => {
+      if (activeTournamentDb) {
+        mockStore.bouts.resetAllSchedules();
+        return;
+      }
       if (supabase) {
         try {
-          const { data } = await supabase.from('bouts').select('id');
+          const activeTournamentId = getActiveTournamentIdSync();
+          let query = supabase.from('bouts').select('id');
+          if (activeTournamentId) {
+            query = (query as any).eq('tournament_id', activeTournamentId);
+          }
+          const { data } = await query;
           if (data && data.length > 0) {
-            const ids = data.map(b => b.id);
+            const ids = data.map((b: any) => b.id);
             await supabase.from('bouts').update({ tatami: null, scheduled_time: null }).in('id', ids);
           }
         } catch (e) {
@@ -999,24 +1228,38 @@ export const dbOriginal = {
         }
       }
 
+      // ISOLATION: Route through active tournament DB when one is open
+      if (activeTournamentDb) {
+        return mockStore.bouts.generateDraw(catId, drawType, hasThirdPlace, undefined, resolvedTatami);
+      }
+
       if (supabase) {
-        // Fetch active mappings from Supabase
-        const { data: mappings, error: mapErr } = await supabase
+        const activeTournamentId = getActiveTournamentIdSync();
+        // Fetch active mappings from Supabase (scoped to active tournament)
+        let mappingQuery = supabase
           .from('participant_categories')
           .select('participant_id')
           .eq('category_id', catId);
+        if (activeTournamentId) {
+          mappingQuery = mappingQuery.eq('tournament_id', activeTournamentId);
+        }
+        const { data: mappings, error: mapErr } = await mappingQuery;
         if (mapErr) throw new Error(describeError(mapErr));
 
         console.log('[dbClient.generateDraw] Supabase mappings fetched count:', mappings?.length || 0);
         const participantIds = (mappings || []).map(m => m.participant_id);
         let athletes: Participant[] = [];
         if (participantIds.length > 0) {
-          const { data: partData, error: partErr } = await supabase
+          let partQuery = supabase
             .from('participants')
             .select('*')
             .in('id', participantIds)
             .is('deleted_at', null)
             .neq('status', 'Cancelled');
+          if (activeTournamentId) {
+            partQuery = partQuery.eq('tournament_id', activeTournamentId);
+          }
+          const { data: partData, error: partErr } = await partQuery;
           if (partErr) throw partErr;
           athletes = partData || [];
         }
@@ -1025,7 +1268,11 @@ export const dbOriginal = {
         const generated = mockStore.bouts.generateDraw(catId, drawType, hasThirdPlace, athletes, resolvedTatami);
         
         // Remove the 'id' field so Supabase can generate proper UUIDs
-        const generatedWithoutId = generated.map(({ id, ...rest }) => rest);
+        // Inject tournament_id for isolation
+        const generatedWithoutId = generated.map(({ id, ...rest }) => ({
+          ...rest,
+          ...(activeTournamentId ? { tournament_id: activeTournamentId } : {})
+        }));
 
         await supabase.from('bouts').delete().eq('category_id', catId);
         const { data, error } = await supabase.from('bouts').insert(generatedWithoutId).select();
@@ -1039,15 +1286,28 @@ export const dbOriginal = {
       return mockStore.bouts.generateDraw(catId, drawType, hasThirdPlace, undefined, resolvedTatami);
     },
     generateRepechage: async (catId: string): Promise<Bout[]> => {
+      // ISOLATION: Route through active tournament DB when one is open
+      if (activeTournamentDb) {
+        return mockStore.bouts.generateRepechage(catId);
+      }
       if (supabase) {
         try {
+          const activeTournamentId = getActiveTournamentIdSync();
           const generated = mockStore.bouts.generateRepechage(catId);
           await supabase.from('bouts').delete().eq('category_id', catId).eq('round_no', 98);
-          const generatedWithoutId = generated.map(({ id, ...rest }) => rest);
+          const generatedWithoutId = generated.map(({ id, ...rest }) => ({
+            ...rest,
+            ...(activeTournamentId ? { tournament_id: activeTournamentId } : {})
+          }));
           const { data, error } = await supabase.from('bouts').insert(generatedWithoutId).select();
           if (error) throw new Error(describeError(error));
           const saved = data || [];
-          const { data: allDbBouts } = await supabase.from('bouts').select('*');
+          // Reload only bouts scoped to active tournament
+          let allQuery = supabase.from('bouts').select('*');
+          if (activeTournamentId) {
+            allQuery = allQuery.eq('tournament_id', activeTournamentId);
+          }
+          const { data: allDbBouts } = await allQuery;
           if (allDbBouts) {
             localStorage.setItem('ts_bouts', JSON.stringify(allDbBouts));
           }
@@ -1326,8 +1586,17 @@ export const dbOriginal = {
   // 13. Officials
   officials: {
     list: async (): Promise<Official[]> => {
+      // ISOLATION: Officials are tournament-specific
+      if (activeTournamentDb) {
+        return mockStore.officials.list();
+      }
       if (supabase) {
-        const { data, error } = await supabase.from('officials').select('*');
+        const activeTournamentId = getActiveTournamentIdSync();
+        let query = supabase.from('officials').select('*');
+        if (activeTournamentId) {
+          query = query.eq('tournament_id', activeTournamentId);
+        }
+        const { data, error } = await query;
         if (error) throw new Error(describeError(error));
         return data || [];
       }

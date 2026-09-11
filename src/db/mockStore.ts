@@ -1,7 +1,8 @@
 import { 
   Country, Club, Coach, Category, Team, Participant, 
   TeamMember, ParticipantCategory, Payment, MedicalRecord, 
-  Document, ActivityLog, AuditLog, Bout, Official, Tournament, DisplayPlaylist
+  Document, ActivityLog, AuditLog, Bout, Official, Tournament, DisplayPlaylist,
+  isKataCategory, isKumiteCategory
 } from './types';
 
 // Seed data
@@ -801,12 +802,28 @@ export const mockStore = {
   participants: {
     list: (): Participant[] => {
       const list = getStoreData('ts_participants', SEED_PARTICIPANTS);
-      // Filter out soft-deleted
-      return list.filter(p => !p.deleted_at);
+      // Filter out soft-deleted and deduplicate by id
+      const seen = new Set<string>();
+      const result: Participant[] = [];
+      for (const p of list) {
+        if (!p.deleted_at && p.id && !seen.has(p.id)) {
+          seen.add(p.id);
+          result.push(p);
+        }
+      }
+      return result;
     },
     listDeleted: (): Participant[] => {
       const list = getStoreData('ts_participants', SEED_PARTICIPANTS);
-      return list.filter(p => !!p.deleted_at);
+      const seen = new Set<string>();
+      const result: Participant[] = [];
+      for (const p of list) {
+        if (p.deleted_at && p.id && !seen.has(p.id)) {
+          seen.add(p.id);
+          result.push(p);
+        }
+      }
+      return result;
     },
     get: (id: string): Participant | undefined => {
       return getStoreData('ts_participants', SEED_PARTICIPANTS).find(p => p.id === id);
@@ -815,7 +832,7 @@ export const mockStore = {
       const list = getStoreData('ts_participants', SEED_PARTICIPANTS);
       const count = list.length + 1;
       const regNo = participant.registration_no || `REG-2026-${String(count).padStart(3, '0')}`;
-      const id = participant.id || `part-${Date.now()}`;
+      const id = participant.id || `part-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
       
       const newParticipant: Participant = {
         ...participant,
@@ -824,7 +841,12 @@ export const mockStore = {
         created_at: new Date().toISOString()
       };
 
-      list.push(newParticipant);
+      const existingIdx = list.findIndex(p => p.id === id);
+      if (existingIdx !== -1) {
+        list[existingIdx] = newParticipant;
+      } else {
+        list.push(newParticipant);
+      }
       saveStoreData('ts_participants', list);
 
       // Initialize medical clearance & payments automatically
@@ -862,12 +884,13 @@ export const mockStore = {
       list[idx] = updated;
       saveStoreData('ts_participants', list);
 
-      // Check if age, weight, or gender changed - recalculate category
+      // Check if age, weight, gender, or Kumite/Kata event participation changed - recalculate category
       const dobChanged = updates.dob && updates.dob !== original.dob;
       const weightChanged = updates.weight && updates.weight !== original.weight;
       const genderChanged = updates.gender && updates.gender !== original.gender;
+      const eventsChanged = updates.isKumite !== undefined || updates.isKata !== undefined;
 
-      if (dobChanged || weightChanged || genderChanged) {
+      if (dobChanged || weightChanged || genderChanged || eventsChanged) {
         mockStore.participants.autoAssignCategory(updated);
       }
 
@@ -894,6 +917,8 @@ export const mockStore = {
       if (updates.status && updates.status !== original.status) changeDesc.push(`status changed from ${original.status} to ${updates.status}`);
       if (updates.weight && updates.weight !== original.weight) changeDesc.push(`weight updated to ${updates.weight}kg`);
       if (updates.club_id && updates.club_id !== original.club_id) changeDesc.push(`club reassigned`);
+      if (updates.isKumite !== undefined) changeDesc.push(`Kumite set to ${updates.isKumite}`);
+      if (updates.isKata !== undefined) changeDesc.push(`Kata set to ${updates.isKata}`);
       
       mockStore.activityLogs.log(
         id, 
@@ -932,31 +957,60 @@ export const mockStore = {
 
       return list[idx];
     },
+    deleteAll: (operator = 'Admin'): number => {
+      const list = getStoreData('ts_participants', SEED_PARTICIPANTS);
+      const count = list.length;
+      saveStoreData('ts_participants', []);
+      saveStoreData('ts_participant_categories', []);
+      if (typeof window !== 'undefined') {
+        try {
+          localStorage.removeItem('ts_participants');
+          localStorage.removeItem('ts_participant_categories');
+        } catch (e) {}
+      }
+      mockStore.audit.log(operator, 'DELETE', 'participants', 'ALL', null, null);
+      return count;
+    },
     autoAssignCategory: (p: Participant): Category[] => {
       const categories = mockStore.categories.list();
       const age = mockStore.helpers.calculateAge(p.dob);
       const pGenderNorm = (p.gender || '').toLowerCase().startsWith('f') ? 'Female' : (p.gender || '').toLowerCase().startsWith('m') ? 'Male' : 'Mixed';
 
+      const wantKumite = p.isKumite === true;
+      const wantKata = p.isKata === true;
+
       // Find ALL matching categories based on age, weight, gender, and selected disciplines
       const matchedCategories = categories.filter(c => {
+        if (c.status === 'Closed') return false;
+
         const cGenderNorm = c.gender || 'Male';
         const genderMatches = cGenderNorm === 'Mixed' || cGenderNorm === pGenderNorm;
+        if (!genderMatches) return false;
         
         // Age validation
         const ageMatches = age >= c.min_age && age <= c.max_age;
+        if (!ageMatches) return false;
         
         // Discipline validation
-        const isKataCat = c.discipline === 'Kata' || c.name.toLowerCase().includes('kata');
-        const isKumiteCat = c.discipline === 'Kumite' || (!isKataCat && !c.name.toLowerCase().includes('team'));
-        
-        const disciplineMatches = (p.isKata && isKataCat) || (p.isKumite && isKumiteCat);
-        if (!disciplineMatches && (p.isKata !== undefined || p.isKumite !== undefined)) return false;
+        const isKataCat = isKataCategory(c);
+        const isKumiteCat = isKumiteCategory(c);
 
-        // Weight validation (Kata has no weight limits usually, or open weight)
-        const isKataOrOpenWeight = (c.min_weight === 0 && (c.max_weight === 0 || c.max_weight >= 100)) || isKataCat;
-        const weightMatches = isKataOrOpenWeight || (p.weight >= c.min_weight && p.weight <= c.max_weight);
+        if (wantKumite || wantKata) {
+          if (isKataCat && !wantKata) return false;
+          if (isKumiteCat && !wantKumite) return false;
+        } else if (p.isKumite === false && p.isKata === false) {
+          // Both explicitly unchecked
+          return false;
+        }
 
-        return genderMatches && ageMatches && weightMatches && c.status !== 'Closed';
+        // Weight validation (Kata has no weight limits)
+        if (isKataCat) {
+          return true;
+        }
+
+        const isWeightFree = (c.min_weight === 0 && (c.max_weight === 0 || c.max_weight >= 100));
+        const weightMatches = isWeightFree || (p.weight >= c.min_weight && p.weight <= c.max_weight);
+        return weightMatches;
       });
 
       // Clear previous mappings ALWAYS

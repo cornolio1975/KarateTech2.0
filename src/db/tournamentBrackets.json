@@ -1,0 +1,5902 @@
+{
+  "schemaVersion": "1.0",
+  "databaseType": "KarateTech Bracket Database",
+  "tournament": {
+    "name": "SENSHI GOJU-RYU KARATE CHAMPIONSHIP 2026",
+    "drawSheetPrinted": "2026-09-05",
+    "source": "Official Draw Sheet"
+  },
+  "categories": [
+    {
+      "categoryId": "CAT-001",
+      "sourcePage": 1,
+      "name": "5-7 YEARS MALE KATA (3 ATHLETES)",
+      "gender": "Male",
+      "discipline": "Kata",
+      "format": "single_elimination",
+      "athleteCount": 3,
+      "participants": [
+        {
+          "participantId": "p01-01",
+          "seed": 1,
+          "name": "MANI SHANKARAA AN…",
+          "club": "ITOSURYU KARATEDO"
+        },
+        {
+          "participantId": "p01-02",
+          "seed": 2,
+          "name": "THIYAASH VINOTH",
+          "club": "ITOSURYU KARATEDO"
+        },
+        {
+          "participantId": "p01-03",
+          "seed": 3,
+          "name": "KARTIGAN MURUGAN",
+          "club": "ITOSURYU KARATEDO"
+        }
+      ],
+      "rounds": [
+        {
+          "round": 1,
+          "name": "Semifinal",
+          "bouts": [
+            {
+              "boutId": "R1-B1",
+              "round": 1,
+              "position": 1,
+              "red": "p01-01",
+              "blue": "p01-02",
+              "status": "pending",
+              "winnerId": null
+            },
+            {
+              "boutId": "R1-B2",
+              "round": 1,
+              "position": 2,
+              "red": "p01-03",
+              "blue": null,
+              "status": "bye",
+              "winnerId": "p01-03"
+            }
+          ]
+        },
+        {
+          "round": 2,
+          "name": "Final",
+          "bouts": [
+            {
+              "boutId": "R2-B1",
+              "round": 2,
+              "position": 1,
+              "red": "R1-B1",
+              "blue": "R1-B2",
+              "status": "pending",
+              "winnerId": null
+            }
+          ]
+        }
+      ],
+      "finalStandings": {
+        "gold": null,
+        "silver": null,
+        "bronze1": null,
+        "bronze2": null
+      }
+    },
+    {
+      "categoryId": "CAT-002",
+      "sourcePage": 2,
+      "name": "5 YEARS MALE KUMITE (7 ATHLETES)",
+      "gender": "Male",
+      "discipline": "Kumite",
+      "format": "single_elimination",
+      "athleteCount": 7,
+      "participants": [
+        {
+          "participantId": "p02-01",
+          "seed": 1,
+          "name": "CHARVIK SRIRAM G",
+          "club": "SENSHI GOJU-RYU"
+        },
+        {
+          "participantId": "p02-02",
+          "seed": 2,
+          "name": "DEERANDEV SHARVIEEN",
+          "club": "TRADITIONAL SHITO-KAI"
+        },
+        {
+          "participantId": "p02-03",
+          "seed": 3,
+          "name": "CHERITH SRIRAM G",
+          "club": "SENSHI GOJU-RYU"
+        },
+        {
+          "participantId": "p02-04",
+          "seed": 4,
+          "name": "THARVIN THANABALAN",
+          "club": "TRADITIONAL SHITO-KAI"
+        },
+        {
+          "participantId": "p02-05",
+          "seed": 5,
+          "name": "LIVINESH DASS MOHANA …",
+          "club": "SENSHI GOJU-RYU"
+        },
+        {
+          "participantId": "p02-06",
+          "seed": 6,
+          "name": "LAXSHAN ARUNJEYASILAN",
+          "club": "ITOSURYU KARATEDO"
+        },
+        {
+          "participantId": "p02-07",
+          "seed": 7,
+          "name": "KOHAVPARAKH NITISH",
+          "club": "SENSHI GOJU-RYU"
+        }
+      ],
+      "rounds": [
+        {
+          "round": 1,
+          "name": "Round 1",
+          "bouts": [
+            {
+              "boutId": "R1-B1",
+              "round": 1,
+              "position": 1,
+              "red": "p02-01",
+              "blue": "p02-02",
+              "status": "pending",
+              "winnerId": null
+            },
+            {
+              "boutId": "R1-B2",
+              "round": 1,
+              "position": 2,
+              "red": "p02-03",
+              "blue": "p02-04",
+              "status": "pending",
+              "winnerId": null
+            },
+            {
+              "boutId": "R1-B3",
+              "round": 1,
+              "position": 3,
+              "red": "p02-05",
+              "blue": "p02-06",
+              "status": "pending",
+              "winnerId": null
+            },
+            {
+              "boutId": "R1-B4",
+              "round": 1,
+              "position": 4,
+              "red": "p02-07",
+              "blue": null,
+              "status": "bye",
+              "winnerId": "p02-07"
+            }
+          ]
+        },
+        {
+          "round": 2,
+          "name": "Semifinal",
+          "bouts": [
+            {
+              "boutId": "R2-B1",
+              "round": 2,
+              "position": 1,
+              "red": "R1-B1",
+              "blue": "R1-B2",
+              "status": "pending",
+              "winnerId": null
+            },
+            {
+              "boutId": "R2-B2",
+              "round": 2,
+              "position": 2,
+              "red": "R1-B3",
+              "blue": "R1-B4",
+              "status": "pending",
+              "winnerId": null
+            }
+          ]
+        },
+        {
+          "round": 3,
+          "name": "Final",
+          "bouts": [
+            {
+              "boutId": "R3-B1",
+              "round": 3,
+              "position": 1,
+              "red": "R2-B1",
+              "blue": "R2-B2",
+              "status": "pending",
+              "winnerId": null
+            }
+          ]
+        }
+      ],
+      "finalStandings": {
+        "gold": null,
+        "silver": null,
+        "bronze1": null,
+        "bronze2": null
+      }
+    },
+    {
+      "categoryId": "CAT-003",
+      "sourcePage": 3,
+      "name": "5 YEARS FEMALE KUMITE (4 ATHLETES)",
+      "gender": "Female",
+      "discipline": "Kumite",
+      "format": "single_elimination",
+      "athleteCount": 4,
+      "participants": [
+        {
+          "participantId": "p03-01",
+          "seed": 1,
+          "name": "SAMMIKSHA SREE HARI C…",
+          "club": "TRADITIONAL SHITO-KAI"
+        },
+        {
+          "participantId": "p03-02",
+          "seed": 2,
+          "name": "DEEPTHI POOVENDRAN",
+          "club": "SHOTOKAN HAYAIDESU KARATE"
+        },
+        {
+          "participantId": "p03-03",
+          "seed": 3,
+          "name": "MITRA KESAVAN",
+          "club": "SENSHI GOJU-RYU"
+        },
+        {
+          "participantId": "p03-04",
+          "seed": 4,
+          "name": "LEENASHA KUMARI PURA…",
+          "club": "ITOSURYU KARATEDO"
+        }
+      ],
+      "rounds": [
+        {
+          "round": 1,
+          "name": "Semifinal",
+          "bouts": [
+            {
+              "boutId": "R1-B1",
+              "round": 1,
+              "position": 1,
+              "red": "p03-01",
+              "blue": "p03-02",
+              "status": "pending",
+              "winnerId": null
+            },
+            {
+              "boutId": "R1-B2",
+              "round": 1,
+              "position": 2,
+              "red": "p03-03",
+              "blue": "p03-04",
+              "status": "pending",
+              "winnerId": null
+            }
+          ]
+        },
+        {
+          "round": 2,
+          "name": "Final",
+          "bouts": [
+            {
+              "boutId": "R2-B1",
+              "round": 2,
+              "position": 1,
+              "red": "R1-B1",
+              "blue": "R1-B2",
+              "status": "pending",
+              "winnerId": null
+            }
+          ]
+        }
+      ],
+      "finalStandings": {
+        "gold": null,
+        "silver": null,
+        "bronze1": null,
+        "bronze2": null
+      }
+    },
+    {
+      "categoryId": "CAT-004",
+      "sourcePage": 4,
+      "name": "6-7 YEARS MALE KUMITE (ABOVE 24KG) (6 ATHLETES)",
+      "gender": "Male",
+      "discipline": "Kumite",
+      "format": "single_elimination",
+      "athleteCount": 6,
+      "participants": [
+        {
+          "participantId": "p04-01",
+          "seed": 1,
+          "name": "MOHD TAIMUR KHAN",
+          "club": "SENSHI GOJU-RYU"
+        },
+        {
+          "participantId": "p04-02",
+          "seed": 2,
+          "name": "SHREY NHIRAV PREMANA…",
+          "club": "GOJU-KAI SEL"
+        },
+        {
+          "participantId": "p04-03",
+          "seed": 3,
+          "name": "NITHIA SHRIVARTHAN PIL…",
+          "club": "SHOTOKAN HAYAIDESU KARATE"
+        },
+        {
+          "participantId": "p04-04",
+          "seed": 4,
+          "name": "SANTHOSH RAJ KOMA…",
+          "club": "SENSHI GOJU-RYU"
+        },
+        {
+          "participantId": "p04-05",
+          "seed": 5,
+          "name": "VIGNESH VENKET",
+          "club": "SENSHI GOJU-RYU"
+        },
+        {
+          "participantId": "p04-06",
+          "seed": 6,
+          "name": "NAYDEN ADITHYA INTHIRAN",
+          "club": "TRADITIONAL SHITO-KAI"
+        }
+      ],
+      "rounds": [
+        {
+          "round": 1,
+          "name": "Round 1",
+          "bouts": [
+            {
+              "boutId": "R1-B1",
+              "round": 1,
+              "position": 1,
+              "red": "p04-01",
+              "blue": "p04-02",
+              "status": "pending",
+              "winnerId": null
+            },
+            {
+              "boutId": "R1-B2",
+              "round": 1,
+              "position": 2,
+              "red": "p04-03",
+              "blue": "p04-04",
+              "status": "pending",
+              "winnerId": null
+            },
+            {
+              "boutId": "R1-B3",
+              "round": 1,
+              "position": 3,
+              "red": "p04-05",
+              "blue": "p04-06",
+              "status": "pending",
+              "winnerId": null
+            }
+          ]
+        },
+        {
+          "round": 2,
+          "name": "Semifinal",
+          "bouts": [
+            {
+              "boutId": "R2-B1",
+              "round": 2,
+              "position": 1,
+              "red": "R1-B1",
+              "blue": "R1-B2",
+              "status": "pending",
+              "winnerId": null
+            },
+            {
+              "boutId": "R2-B2",
+              "round": 2,
+              "position": 2,
+              "red": "R1-B3",
+              "blue": null,
+              "status": "bye",
+              "winnerId": "R1-B3"
+            }
+          ]
+        },
+        {
+          "round": 3,
+          "name": "Final",
+          "bouts": [
+            {
+              "boutId": "R3-B1",
+              "round": 3,
+              "position": 1,
+              "red": "R2-B1",
+              "blue": "R2-B2",
+              "status": "pending",
+              "winnerId": null
+            }
+          ]
+        }
+      ],
+      "finalStandings": {
+        "gold": null,
+        "silver": null,
+        "bronze1": null,
+        "bronze2": null
+      }
+    },
+    {
+      "categoryId": "CAT-005",
+      "sourcePage": 5,
+      "name": "6-7 YEARS MALE KUMITE (BELOW 24KG) (13 ATHLETES)",
+      "gender": "Male",
+      "discipline": "Kumite",
+      "format": "single_elimination",
+      "athleteCount": 13,
+      "participants": [
+        {
+          "participantId": "p05-01",
+          "seed": 1,
+          "name": "PUGAL OVIYAN NITIN …",
+          "club": "SENSHI GOJU-RYU"
+        },
+        {
+          "participantId": "p05-02",
+          "seed": 2,
+          "name": "JAYVION JETHRO LAWR…",
+          "club": "GOJU-KAI SEL"
+        },
+        {
+          "participantId": "p05-03",
+          "seed": 3,
+          "name": "VAIDIK MEHTA",
+          "club": "SENSHI GOJU-RYU"
+        },
+        {
+          "participantId": "p05-04",
+          "seed": 4,
+          "name": "DARRSHAN KAVINDRAN",
+          "club": "SENSHI GOJU-RYU"
+        },
+        {
+          "participantId": "p05-05",
+          "seed": 5,
+          "name": "MANI SHANKARAA ANAN…",
+          "club": "ITOSURYU KARATEDO"
+        },
+        {
+          "participantId": "p05-06",
+          "seed": 6,
+          "name": "THIYAASH VINOTH",
+          "club": "ITOSURYU KARATEDO"
+        },
+        {
+          "participantId": "p05-07",
+          "seed": 7,
+          "name": "DHRUV",
+          "club": "SENSHI GOJU-RYU"
+        },
+        {
+          "participantId": "p05-08",
+          "seed": 8,
+          "name": "AVYAN RAJ ARBIND K…",
+          "club": "SENSHI GOJU-RYU"
+        },
+        {
+          "participantId": "p05-09",
+          "seed": 9,
+          "name": "SHIVAAN RAO VESSNUR…",
+          "club": "ITOSURYU KARATEDO"
+        },
+        {
+          "participantId": "p05-10",
+          "seed": 10,
+          "name": "CHERALATHAN TILIP",
+          "club": "SENSHI GOJU-RYU"
+        },
+        {
+          "participantId": "p05-11",
+          "seed": 11,
+          "name": "JAYSHWIN JETHRO L…",
+          "club": "GOJU-KAI SEL"
+        },
+        {
+          "participantId": "p05-12",
+          "seed": 12,
+          "name": "KAKERU TABATA",
+          "club": "SENSHI GOJU-RYU"
+        },
+        {
+          "participantId": "p05-13",
+          "seed": 13,
+          "name": "KARTIGAN MURUGAN",
+          "club": "ITOSURYU KARATEDO"
+        }
+      ],
+      "rounds": [
+        {
+          "round": 1,
+          "name": "Round 1",
+          "bouts": [
+            {
+              "boutId": "R1-B1",
+              "round": 1,
+              "position": 1,
+              "red": "p05-01",
+              "blue": "p05-02",
+              "status": "pending",
+              "winnerId": null
+            },
+            {
+              "boutId": "R1-B2",
+              "round": 1,
+              "position": 2,
+              "red": "p05-03",
+              "blue": "p05-04",
+              "status": "pending",
+              "winnerId": null
+            },
+            {
+              "boutId": "R1-B3",
+              "round": 1,
+              "position": 3,
+              "red": "p05-05",
+              "blue": "p05-06",
+              "status": "pending",
+              "winnerId": null
+            },
+            {
+              "boutId": "R1-B4",
+              "round": 1,
+              "position": 4,
+              "red": "p05-07",
+              "blue": "p05-08",
+              "status": "pending",
+              "winnerId": null
+            },
+            {
+              "boutId": "R1-B5",
+              "round": 1,
+              "position": 5,
+              "red": "p05-09",
+              "blue": "p05-10",
+              "status": "pending",
+              "winnerId": null
+            },
+            {
+              "boutId": "R1-B6",
+              "round": 1,
+              "position": 6,
+              "red": "p05-11",
+              "blue": "p05-12",
+              "status": "pending",
+              "winnerId": null
+            },
+            {
+              "boutId": "R1-B7",
+              "round": 1,
+              "position": 7,
+              "red": "p05-13",
+              "blue": null,
+              "status": "bye",
+              "winnerId": "p05-13"
+            }
+          ]
+        },
+        {
+          "round": 2,
+          "name": "Round 2",
+          "bouts": [
+            {
+              "boutId": "R2-B1",
+              "round": 2,
+              "position": 1,
+              "red": "R1-B1",
+              "blue": "R1-B2",
+              "status": "pending",
+              "winnerId": null
+            },
+            {
+              "boutId": "R2-B2",
+              "round": 2,
+              "position": 2,
+              "red": "R1-B3",
+              "blue": "R1-B4",
+              "status": "pending",
+              "winnerId": null
+            },
+            {
+              "boutId": "R2-B3",
+              "round": 2,
+              "position": 3,
+              "red": "R1-B5",
+              "blue": "R1-B6",
+              "status": "pending",
+              "winnerId": null
+            },
+            {
+              "boutId": "R2-B4",
+              "round": 2,
+              "position": 4,
+              "red": "R1-B7",
+              "blue": null,
+              "status": "bye",
+              "winnerId": "R1-B7"
+            }
+          ]
+        },
+        {
+          "round": 3,
+          "name": "Semifinal",
+          "bouts": [
+            {
+              "boutId": "R3-B1",
+              "round": 3,
+              "position": 1,
+              "red": "R2-B1",
+              "blue": "R2-B2",
+              "status": "pending",
+              "winnerId": null
+            },
+            {
+              "boutId": "R3-B2",
+              "round": 3,
+              "position": 2,
+              "red": "R2-B3",
+              "blue": "R2-B4",
+              "status": "pending",
+              "winnerId": null
+            }
+          ]
+        },
+        {
+          "round": 4,
+          "name": "Final",
+          "bouts": [
+            {
+              "boutId": "R4-B1",
+              "round": 4,
+              "position": 1,
+              "red": "R3-B1",
+              "blue": "R3-B2",
+              "status": "pending",
+              "winnerId": null
+            }
+          ]
+        }
+      ],
+      "finalStandings": {
+        "gold": null,
+        "silver": null,
+        "bronze1": null,
+        "bronze2": null
+      }
+    },
+    {
+      "categoryId": "CAT-006",
+      "sourcePage": 6,
+      "name": "6-7 YEARS FEMALE KUMITE (ABOVE 23KG) (4 ATHLETES)",
+      "gender": "Female",
+      "discipline": "Kumite",
+      "format": "single_elimination",
+      "athleteCount": 4,
+      "participants": [
+        {
+          "participantId": "p06-01",
+          "seed": 1,
+          "name": "YESHARLINNI MURALI",
+          "club": "SENSHI GOJU-RYU"
+        },
+        {
+          "participantId": "p06-02",
+          "seed": 2,
+          "name": "THEEKSHANAA VIMALD",
+          "club": "TRADITIONAL SHITO-KAI"
+        },
+        {
+          "participantId": "p06-03",
+          "seed": 3,
+          "name": "DHARMIKA NAVEEN",
+          "club": "SENSHI GOJU-RYU"
+        },
+        {
+          "participantId": "p06-04",
+          "seed": 4,
+          "name": "RAJA YASHITHA RAJASE…",
+          "club": "SHOTOKAN HAYAIDESU KARATE"
+        }
+      ],
+      "rounds": [
+        {
+          "round": 1,
+          "name": "Semifinal",
+          "bouts": [
+            {
+              "boutId": "R1-B1",
+              "round": 1,
+              "position": 1,
+              "red": "p06-01",
+              "blue": "p06-02",
+              "status": "pending",
+              "winnerId": null
+            },
+            {
+              "boutId": "R1-B2",
+              "round": 1,
+              "position": 2,
+              "red": "p06-03",
+              "blue": "p06-04",
+              "status": "pending",
+              "winnerId": null
+            }
+          ]
+        },
+        {
+          "round": 2,
+          "name": "Final",
+          "bouts": [
+            {
+              "boutId": "R2-B1",
+              "round": 2,
+              "position": 1,
+              "red": "R1-B1",
+              "blue": "R1-B2",
+              "status": "pending",
+              "winnerId": null
+            }
+          ]
+        }
+      ],
+      "finalStandings": {
+        "gold": null,
+        "silver": null,
+        "bronze1": null,
+        "bronze2": null
+      }
+    },
+    {
+      "categoryId": "CAT-007",
+      "sourcePage": 7,
+      "name": "6-7 YEARS FEMALE KUMITE (BELOW 23KG) (6 ATHLETES)",
+      "gender": "Female",
+      "discipline": "Kumite",
+      "format": "single_elimination",
+      "athleteCount": 6,
+      "participants": [
+        {
+          "participantId": "p07-01",
+          "seed": 1,
+          "name": "AGELIA KENISHA YOG…",
+          "club": "SENSHI GOJU-RYU"
+        },
+        {
+          "participantId": "p07-02",
+          "seed": 2,
+          "name": "DHEVANESWARRY RAGU…",
+          "club": "GOJU-KAI SEL"
+        },
+        {
+          "participantId": "p07-03",
+          "seed": 3,
+          "name": "RAJA YASHRITHA RAJAS…",
+          "club": "SHOTOKAN HAYAIDESU KARATE"
+        },
+        {
+          "participantId": "p07-04",
+          "seed": 4,
+          "name": "SEEVANI SRI NAIDU VA…",
+          "club": "ITOSURYU KARATEDO"
+        },
+        {
+          "participantId": "p07-05",
+          "seed": 5,
+          "name": "NIVEESHKA SHANMUGAR…",
+          "club": "SENSHI GOJU-RYU"
+        },
+        {
+          "participantId": "p07-06",
+          "seed": 6,
+          "name": "LESHNAA ATHIKUMANAN",
+          "club": "TRADITIONAL SHITO-KAI"
+        }
+      ],
+      "rounds": [
+        {
+          "round": 1,
+          "name": "Round 1",
+          "bouts": [
+            {
+              "boutId": "R1-B1",
+              "round": 1,
+              "position": 1,
+              "red": "p07-01",
+              "blue": "p07-02",
+              "status": "pending",
+              "winnerId": null
+            },
+            {
+              "boutId": "R1-B2",
+              "round": 1,
+              "position": 2,
+              "red": "p07-03",
+              "blue": "p07-04",
+              "status": "pending",
+              "winnerId": null
+            },
+            {
+              "boutId": "R1-B3",
+              "round": 1,
+              "position": 3,
+              "red": "p07-05",
+              "blue": "p07-06",
+              "status": "pending",
+              "winnerId": null
+            }
+          ]
+        },
+        {
+          "round": 2,
+          "name": "Semifinal",
+          "bouts": [
+            {
+              "boutId": "R2-B1",
+              "round": 2,
+              "position": 1,
+              "red": "R1-B1",
+              "blue": "R1-B2",
+              "status": "pending",
+              "winnerId": null
+            },
+            {
+              "boutId": "R2-B2",
+              "round": 2,
+              "position": 2,
+              "red": "R1-B3",
+              "blue": null,
+              "status": "bye",
+              "winnerId": "R1-B3"
+            }
+          ]
+        },
+        {
+          "round": 3,
+          "name": "Final",
+          "bouts": [
+            {
+              "boutId": "R3-B1",
+              "round": 3,
+              "position": 1,
+              "red": "R2-B1",
+              "blue": "R2-B2",
+              "status": "pending",
+              "winnerId": null
+            }
+          ]
+        }
+      ],
+      "finalStandings": {
+        "gold": null,
+        "silver": null,
+        "bronze1": null,
+        "bronze2": null
+      }
+    },
+    {
+      "categoryId": "CAT-008",
+      "sourcePage": 8,
+      "name": "8-10 YEARS MALE KATA (10 ATHLETES)",
+      "gender": "Male",
+      "discipline": "Kata",
+      "format": "single_elimination",
+      "athleteCount": 10,
+      "participants": [
+        {
+          "participantId": "p08-01",
+          "seed": 1,
+          "name": "THISHAN GANESAN",
+          "club": "SENSHI GOJU-RYU"
+        },
+        {
+          "participantId": "p08-02",
+          "seed": 2,
+          "name": "HAARAN THIAKU",
+          "club": "SENSHI GOJU-RYU"
+        },
+        {
+          "participantId": "p08-03",
+          "seed": 3,
+          "name": "VEELAN ANANTHA KUMAR",
+          "club": "ITOSURYU KARATEDO"
+        },
+        {
+          "participantId": "p08-04",
+          "seed": 4,
+          "name": "KAMLESH A/L PUVAN…",
+          "club": "SENSHI GOJU-RYU"
+        },
+        {
+          "participantId": "p08-05",
+          "seed": 5,
+          "name": "VARSHAN KAMAL",
+          "club": "ITOSURYU KARATEDO"
+        },
+        {
+          "participantId": "p08-06",
+          "seed": 6,
+          "name": "DEEVANESH KRISHNA",
+          "club": "SENSHI GOJU-RYU"
+        },
+        {
+          "participantId": "p08-07",
+          "seed": 7,
+          "name": "VETRIANANTHAN NITHIA…",
+          "club": "ITOSURYU KARATEDO"
+        },
+        {
+          "participantId": "p08-08",
+          "seed": 8,
+          "name": "KAVINEESH A/L CHANDR…",
+          "club": "SENSHI GOJU-RYU"
+        },
+        {
+          "participantId": "p08-09",
+          "seed": 9,
+          "name": "DHEIVIKAN SATHIYAS…",
+          "club": "ITOSURYU KARATEDO"
+        },
+        {
+          "participantId": "p08-10",
+          "seed": 10,
+          "name": "KAASHISH LAL PURA…",
+          "club": "ITOSURYU KARATEDO"
+        }
+      ],
+      "rounds": [
+        {
+          "round": 1,
+          "name": "Round 1",
+          "bouts": [
+            {
+              "boutId": "R1-B1",
+              "round": 1,
+              "position": 1,
+              "red": "p08-01",
+              "blue": "p08-02",
+              "status": "pending",
+              "winnerId": null
+            },
+            {
+              "boutId": "R1-B2",
+              "round": 1,
+              "position": 2,
+              "red": "p08-03",
+              "blue": "p08-04",
+              "status": "pending",
+              "winnerId": null
+            },
+            {
+              "boutId": "R1-B3",
+              "round": 1,
+              "position": 3,
+              "red": "p08-05",
+              "blue": "p08-06",
+              "status": "pending",
+              "winnerId": null
+            },
+            {
+              "boutId": "R1-B4",
+              "round": 1,
+              "position": 4,
+              "red": "p08-07",
+              "blue": "p08-08",
+              "status": "pending",
+              "winnerId": null
+            },
+            {
+              "boutId": "R1-B5",
+              "round": 1,
+              "position": 5,
+              "red": "p08-09",
+              "blue": "p08-10",
+              "status": "pending",
+              "winnerId": null
+            }
+          ]
+        },
+        {
+          "round": 2,
+          "name": "Round 2",
+          "bouts": [
+            {
+              "boutId": "R2-B1",
+              "round": 2,
+              "position": 1,
+              "red": "R1-B1",
+              "blue": "R1-B2",
+              "status": "pending",
+              "winnerId": null
+            },
+            {
+              "boutId": "R2-B2",
+              "round": 2,
+              "position": 2,
+              "red": "R1-B3",
+              "blue": "R1-B4",
+              "status": "pending",
+              "winnerId": null
+            },
+            {
+              "boutId": "R2-B3",
+              "round": 2,
+              "position": 3,
+              "red": "R1-B5",
+              "blue": null,
+              "status": "bye",
+              "winnerId": "R1-B5"
+            }
+          ]
+        },
+        {
+          "round": 3,
+          "name": "Semifinal",
+          "bouts": [
+            {
+              "boutId": "R3-B1",
+              "round": 3,
+              "position": 1,
+              "red": "R2-B1",
+              "blue": "R2-B2",
+              "status": "pending",
+              "winnerId": null
+            },
+            {
+              "boutId": "R3-B2",
+              "round": 3,
+              "position": 2,
+              "red": "R2-B3",
+              "blue": null,
+              "status": "bye",
+              "winnerId": "R2-B3"
+            }
+          ]
+        },
+        {
+          "round": 4,
+          "name": "Final",
+          "bouts": [
+            {
+              "boutId": "R4-B1",
+              "round": 4,
+              "position": 1,
+              "red": "R3-B1",
+              "blue": "R3-B2",
+              "status": "pending",
+              "winnerId": null
+            }
+          ]
+        }
+      ],
+      "finalStandings": {
+        "gold": null,
+        "silver": null,
+        "bronze1": null,
+        "bronze2": null
+      }
+    },
+    {
+      "categoryId": "CAT-009",
+      "sourcePage": 9,
+      "name": "8-10 YEARS FEMALE KATA (4 ATHLETES)",
+      "gender": "Female",
+      "discipline": "Kata",
+      "format": "single_elimination",
+      "athleteCount": 4,
+      "participants": [
+        {
+          "participantId": "p09-01",
+          "seed": 1,
+          "name": "PRAVEENA SATHISH",
+          "club": "ITOSURYU KARATEDO"
+        },
+        {
+          "participantId": "p09-02",
+          "seed": 2,
+          "name": "RAYTISHAA THIAKU",
+          "club": "SENSHI GOJU-RYU"
+        },
+        {
+          "participantId": "p09-03",
+          "seed": 3,
+          "name": "DHAYASRII GOPAL",
+          "club": "SENSHI GOJU-RYU"
+        },
+        {
+          "participantId": "p09-04",
+          "seed": 4,
+          "name": "AARTHI BALAVIGNISVARAN",
+          "club": "ITOSURYU KARATEDO"
+        }
+      ],
+      "rounds": [
+        {
+          "round": 1,
+          "name": "Semifinal",
+          "bouts": [
+            {
+              "boutId": "R1-B1",
+              "round": 1,
+              "position": 1,
+              "red": "p09-01",
+              "blue": "p09-02",
+              "status": "pending",
+              "winnerId": null
+            },
+            {
+              "boutId": "R1-B2",
+              "round": 1,
+              "position": 2,
+              "red": "p09-03",
+              "blue": "p09-04",
+              "status": "pending",
+              "winnerId": null
+            }
+          ]
+        },
+        {
+          "round": 2,
+          "name": "Final",
+          "bouts": [
+            {
+              "boutId": "R2-B1",
+              "round": 2,
+              "position": 1,
+              "red": "R1-B1",
+              "blue": "R1-B2",
+              "status": "pending",
+              "winnerId": null
+            }
+          ]
+        }
+      ],
+      "finalStandings": {
+        "gold": null,
+        "silver": null,
+        "bronze1": null,
+        "bronze2": null
+      }
+    },
+    {
+      "categoryId": "CAT-010",
+      "sourcePage": 10,
+      "name": "8-9 YEARS MALE KUMITE (ABOVE 25KG) (15 ATHLETES)",
+      "gender": "Male",
+      "discipline": "Kumite",
+      "format": "single_elimination",
+      "athleteCount": 15,
+      "participants": [
+        {
+          "participantId": "p10-01",
+          "seed": 1,
+          "name": "SHRI VIGNESH SUTH…",
+          "club": "GOJU-KAI SEL"
+        },
+        {
+          "participantId": "p10-02",
+          "seed": 2,
+          "name": "NITESH",
+          "club": "SENSHI GOJU-RYU"
+        },
+        {
+          "participantId": "p10-03",
+          "seed": 3,
+          "name": "DURUVAN SELVAKUMAR…",
+          "club": "GOJU-KAI SEL"
+        },
+        {
+          "participantId": "p10-04",
+          "seed": 4,
+          "name": "RUHAN BALASUBRAMA…",
+          "club": "SENSHI GOJU-RYU"
+        },
+        {
+          "participantId": "p10-05",
+          "seed": 5,
+          "name": "VEELAN ANANTHA KUMAR",
+          "club": "ITOSURYU KARATEDO"
+        },
+        {
+          "participantId": "p10-06",
+          "seed": 6,
+          "name": "SHASWIN PRASATH",
+          "club": "SENSHI GOJU-RYU"
+        },
+        {
+          "participantId": "p10-07",
+          "seed": 7,
+          "name": "TISYAN JIVANANTHAN",
+          "club": "ITOSURYU KARATEDO"
+        },
+        {
+          "participantId": "p10-08",
+          "seed": 8,
+          "name": "AIDEN PRABAGAR",
+          "club": "SENSHI GOJU-RYU"
+        },
+        {
+          "participantId": "p10-09",
+          "seed": 9,
+          "name": "NIVASHKUMAR",
+          "club": "GOJU-KAI SEL"
+        },
+        {
+          "participantId": "p10-10",
+          "seed": 10,
+          "name": "DHEIVIKAN SATHIYASEE…",
+          "club": "ITOSURYU KARATEDO"
+        },
+        {
+          "participantId": "p10-11",
+          "seed": 11,
+          "name": "RAASHVANT KANTHAN",
+          "club": "SENSHI GOJU-RYU"
+        },
+        {
+          "participantId": "p10-12",
+          "seed": 12,
+          "name": "PRAGADESH",
+          "club": "SENSHI GOJU-RYU"
+        },
+        {
+          "participantId": "p10-13",
+          "seed": 13,
+          "name": "SHAIILEESH VINOTH ELA…",
+          "club": "SHOTOKAN HAYAIDESU KARATE"
+        },
+        {
+          "participantId": "p10-14",
+          "seed": 14,
+          "name": "HARSHA THOGARLA PR…",
+          "club": "SENSHI GOJU-RYU"
+        },
+        {
+          "participantId": "p10-15",
+          "seed": 15,
+          "name": "YADHAV KUMAR SHASHI …",
+          "club": "TRADITIONAL SHITO-KAI"
+        }
+      ],
+      "rounds": [
+        {
+          "round": 1,
+          "name": "Round 1",
+          "bouts": [
+            {
+              "boutId": "R1-B1",
+              "round": 1,
+              "position": 1,
+              "red": "p10-01",
+              "blue": "p10-02",
+              "status": "pending",
+              "winnerId": null
+            },
+            {
+              "boutId": "R1-B2",
+              "round": 1,
+              "position": 2,
+              "red": "p10-03",
+              "blue": "p10-04",
+              "status": "pending",
+              "winnerId": null
+            },
+            {
+              "boutId": "R1-B3",
+              "round": 1,
+              "position": 3,
+              "red": "p10-05",
+              "blue": "p10-06",
+              "status": "pending",
+              "winnerId": null
+            },
+            {
+              "boutId": "R1-B4",
+              "round": 1,
+              "position": 4,
+              "red": "p10-07",
+              "blue": "p10-08",
+              "status": "pending",
+              "winnerId": null
+            },
+            {
+              "boutId": "R1-B5",
+              "round": 1,
+              "position": 5,
+              "red": "p10-09",
+              "blue": "p10-10",
+              "status": "pending",
+              "winnerId": null
+            },
+            {
+              "boutId": "R1-B6",
+              "round": 1,
+              "position": 6,
+              "red": "p10-11",
+              "blue": "p10-12",
+              "status": "pending",
+              "winnerId": null
+            },
+            {
+              "boutId": "R1-B7",
+              "round": 1,
+              "position": 7,
+              "red": "p10-13",
+              "blue": "p10-14",
+              "status": "pending",
+              "winnerId": null
+            },
+            {
+              "boutId": "R1-B8",
+              "round": 1,
+              "position": 8,
+              "red": "p10-15",
+              "blue": null,
+              "status": "bye",
+              "winnerId": "p10-15"
+            }
+          ]
+        },
+        {
+          "round": 2,
+          "name": "Round 2",
+          "bouts": [
+            {
+              "boutId": "R2-B1",
+              "round": 2,
+              "position": 1,
+              "red": "R1-B1",
+              "blue": "R1-B2",
+              "status": "pending",
+              "winnerId": null
+            },
+            {
+              "boutId": "R2-B2",
+              "round": 2,
+              "position": 2,
+              "red": "R1-B3",
+              "blue": "R1-B4",
+              "status": "pending",
+              "winnerId": null
+            },
+            {
+              "boutId": "R2-B3",
+              "round": 2,
+              "position": 3,
+              "red": "R1-B5",
+              "blue": "R1-B6",
+              "status": "pending",
+              "winnerId": null
+            },
+            {
+              "boutId": "R2-B4",
+              "round": 2,
+              "position": 4,
+              "red": "R1-B7",
+              "blue": "R1-B8",
+              "status": "pending",
+              "winnerId": null
+            }
+          ]
+        },
+        {
+          "round": 3,
+          "name": "Semifinal",
+          "bouts": [
+            {
+              "boutId": "R3-B1",
+              "round": 3,
+              "position": 1,
+              "red": "R2-B1",
+              "blue": "R2-B2",
+              "status": "pending",
+              "winnerId": null
+            },
+            {
+              "boutId": "R3-B2",
+              "round": 3,
+              "position": 2,
+              "red": "R2-B3",
+              "blue": "R2-B4",
+              "status": "pending",
+              "winnerId": null
+            }
+          ]
+        },
+        {
+          "round": 4,
+          "name": "Final",
+          "bouts": [
+            {
+              "boutId": "R4-B1",
+              "round": 4,
+              "position": 1,
+              "red": "R3-B1",
+              "blue": "R3-B2",
+              "status": "pending",
+              "winnerId": null
+            }
+          ]
+        }
+      ],
+      "finalStandings": {
+        "gold": null,
+        "silver": null,
+        "bronze1": null,
+        "bronze2": null
+      }
+    },
+    {
+      "categoryId": "CAT-011",
+      "sourcePage": 11,
+      "name": "8-9 YEARS MALE KUMITE (BELOW 25KG) (8 ATHLETES)",
+      "gender": "Male",
+      "discipline": "Kumite",
+      "format": "single_elimination",
+      "athleteCount": 8,
+      "participants": [
+        {
+          "participantId": "p11-01",
+          "seed": 1,
+          "name": "HAARAN THIAKU",
+          "club": "SENSHI GOJU-RYU"
+        },
+        {
+          "participantId": "p11-02",
+          "seed": 2,
+          "name": "SHAJUNAN KOUNDAR DE…",
+          "club": "GOJU-KAI SEL"
+        },
+        {
+          "participantId": "p11-03",
+          "seed": 3,
+          "name": "SRIHAN",
+          "club": "SENSHI GOJU-RYU"
+        },
+        {
+          "participantId": "p11-04",
+          "seed": 4,
+          "name": "VETRIANANTHAN NITHIAN…",
+          "club": "ITOSURYU KARATEDO"
+        },
+        {
+          "participantId": "p11-05",
+          "seed": 5,
+          "name": "KAMLESH A/L PUVANESW…",
+          "club": "SENSHI GOJU-RYU"
+        },
+        {
+          "participantId": "p11-06",
+          "seed": 6,
+          "name": "GAVENESH NAIDU TENES…",
+          "club": "GOJU-KAI SEL"
+        },
+        {
+          "participantId": "p11-07",
+          "seed": 7,
+          "name": "KAVINEESH A/L CHANDRA…",
+          "club": "SENSHI GOJU-RYU"
+        },
+        {
+          "participantId": "p11-08",
+          "seed": 8,
+          "name": "DARWIN KANTHAN",
+          "club": "SHOTOKAN HAYAIDESU KARATE"
+        }
+      ],
+      "rounds": [
+        {
+          "round": 1,
+          "name": "Round 1",
+          "bouts": [
+            {
+              "boutId": "R1-B1",
+              "round": 1,
+              "position": 1,
+              "red": "p11-01",
+              "blue": "p11-02",
+              "status": "pending",
+              "winnerId": null
+            },
+            {
+              "boutId": "R1-B2",
+              "round": 1,
+              "position": 2,
+              "red": "p11-03",
+              "blue": "p11-04",
+              "status": "pending",
+              "winnerId": null
+            },
+            {
+              "boutId": "R1-B3",
+              "round": 1,
+              "position": 3,
+              "red": "p11-05",
+              "blue": "p11-06",
+              "status": "pending",
+              "winnerId": null
+            },
+            {
+              "boutId": "R1-B4",
+              "round": 1,
+              "position": 4,
+              "red": "p11-07",
+              "blue": "p11-08",
+              "status": "pending",
+              "winnerId": null
+            }
+          ]
+        },
+        {
+          "round": 2,
+          "name": "Semifinal",
+          "bouts": [
+            {
+              "boutId": "R2-B1",
+              "round": 2,
+              "position": 1,
+              "red": "R1-B1",
+              "blue": "R1-B2",
+              "status": "pending",
+              "winnerId": null
+            },
+            {
+              "boutId": "R2-B2",
+              "round": 2,
+              "position": 2,
+              "red": "R1-B3",
+              "blue": "R1-B4",
+              "status": "pending",
+              "winnerId": null
+            }
+          ]
+        },
+        {
+          "round": 3,
+          "name": "Final",
+          "bouts": [
+            {
+              "boutId": "R3-B1",
+              "round": 3,
+              "position": 1,
+              "red": "R2-B1",
+              "blue": "R2-B2",
+              "status": "pending",
+              "winnerId": null
+            }
+          ]
+        }
+      ],
+      "finalStandings": {
+        "gold": null,
+        "silver": null,
+        "bronze1": null,
+        "bronze2": null
+      }
+    },
+    {
+      "categoryId": "CAT-012",
+      "sourcePage": 12,
+      "name": "8-9 YEARS FEMALE KUMITE (ABOVE 25KG) (11 ATHLETES)",
+      "gender": "Female",
+      "discipline": "Kumite",
+      "format": "single_elimination",
+      "athleteCount": 11,
+      "participants": [
+        {
+          "participantId": "p12-01",
+          "seed": 1,
+          "name": "KOSYIKA KOMAGAR…",
+          "club": "SENSHI GOJU-RYU"
+        },
+        {
+          "participantId": "p12-02",
+          "seed": 2,
+          "name": "AYU KHALYA CAMELIA",
+          "club": "GOJU-KAI SEL"
+        },
+        {
+          "participantId": "p12-03",
+          "seed": 3,
+          "name": "DHIVESHREE NEELENDR…",
+          "club": "SENSHI GOJU-RYU"
+        },
+        {
+          "participantId": "p12-04",
+          "seed": 4,
+          "name": "AARTHI BALAVIGNISV…",
+          "club": "ITOSURYU KARATEDO"
+        },
+        {
+          "participantId": "p12-05",
+          "seed": 5,
+          "name": "PREVYA NAIR VIJAYA…",
+          "club": "SENSHI GOJU-RYU"
+        },
+        {
+          "participantId": "p12-06",
+          "seed": 6,
+          "name": "THANISHKA SHANMU…",
+          "club": "SENSHI GOJU-RYU"
+        },
+        {
+          "participantId": "p12-07",
+          "seed": 7,
+          "name": "PRASHANTHINI VISU",
+          "club": "ITOSURYU KARATEDO"
+        },
+        {
+          "participantId": "p12-08",
+          "seed": 8,
+          "name": "RUPINI RAMANE",
+          "club": "SENSHI GOJU-RYU"
+        },
+        {
+          "participantId": "p12-09",
+          "seed": 9,
+          "name": "KIRISHNAVI PALANIA…",
+          "club": "GOJU-KAI SEL"
+        },
+        {
+          "participantId": "p12-10",
+          "seed": 10,
+          "name": "SESHNAA RATHNA MURELI",
+          "club": "GOJU-KAI SEL"
+        },
+        {
+          "participantId": "p12-11",
+          "seed": 11,
+          "name": "SHANVIKA VISU",
+          "club": "ITOSURYU KARATEDO"
+        }
+      ],
+      "rounds": [
+        {
+          "round": 1,
+          "name": "Round 1",
+          "bouts": [
+            {
+              "boutId": "R1-B1",
+              "round": 1,
+              "position": 1,
+              "red": "p12-01",
+              "blue": "p12-02",
+              "status": "pending",
+              "winnerId": null
+            },
+            {
+              "boutId": "R1-B2",
+              "round": 1,
+              "position": 2,
+              "red": "p12-03",
+              "blue": "p12-04",
+              "status": "pending",
+              "winnerId": null
+            },
+            {
+              "boutId": "R1-B3",
+              "round": 1,
+              "position": 3,
+              "red": "p12-05",
+              "blue": "p12-06",
+              "status": "pending",
+              "winnerId": null
+            },
+            {
+              "boutId": "R1-B4",
+              "round": 1,
+              "position": 4,
+              "red": "p12-07",
+              "blue": "p12-08",
+              "status": "pending",
+              "winnerId": null
+            },
+            {
+              "boutId": "R1-B5",
+              "round": 1,
+              "position": 5,
+              "red": "p12-09",
+              "blue": "p12-10",
+              "status": "pending",
+              "winnerId": null
+            },
+            {
+              "boutId": "R1-B6",
+              "round": 1,
+              "position": 6,
+              "red": "p12-11",
+              "blue": null,
+              "status": "bye",
+              "winnerId": "p12-11"
+            }
+          ]
+        },
+        {
+          "round": 2,
+          "name": "Round 2",
+          "bouts": [
+            {
+              "boutId": "R2-B1",
+              "round": 2,
+              "position": 1,
+              "red": "R1-B1",
+              "blue": "R1-B2",
+              "status": "pending",
+              "winnerId": null
+            },
+            {
+              "boutId": "R2-B2",
+              "round": 2,
+              "position": 2,
+              "red": "R1-B3",
+              "blue": "R1-B4",
+              "status": "pending",
+              "winnerId": null
+            },
+            {
+              "boutId": "R2-B3",
+              "round": 2,
+              "position": 3,
+              "red": "R1-B5",
+              "blue": "R1-B6",
+              "status": "pending",
+              "winnerId": null
+            }
+          ]
+        },
+        {
+          "round": 3,
+          "name": "Semifinal",
+          "bouts": [
+            {
+              "boutId": "R3-B1",
+              "round": 3,
+              "position": 1,
+              "red": "R2-B1",
+              "blue": "R2-B2",
+              "status": "pending",
+              "winnerId": null
+            },
+            {
+              "boutId": "R3-B2",
+              "round": 3,
+              "position": 2,
+              "red": "R2-B3",
+              "blue": null,
+              "status": "bye",
+              "winnerId": "R2-B3"
+            }
+          ]
+        },
+        {
+          "round": 4,
+          "name": "Final",
+          "bouts": [
+            {
+              "boutId": "R4-B1",
+              "round": 4,
+              "position": 1,
+              "red": "R3-B1",
+              "blue": "R3-B2",
+              "status": "pending",
+              "winnerId": null
+            }
+          ]
+        }
+      ],
+      "finalStandings": {
+        "gold": null,
+        "silver": null,
+        "bronze1": null,
+        "bronze2": null
+      }
+    },
+    {
+      "categoryId": "CAT-013",
+      "sourcePage": 13,
+      "name": "8-9 YEARS FEMALE KUMITE (BELOW 25KG) (5 ATHLETES)",
+      "gender": "Female",
+      "discipline": "Kumite",
+      "format": "single_elimination",
+      "athleteCount": 5,
+      "participants": [
+        {
+          "participantId": "p13-01",
+          "seed": 1,
+          "name": "K.HAYLAN SAAMYUKT…",
+          "club": "GOJU-KAI SEL"
+        },
+        {
+          "participantId": "p13-02",
+          "seed": 2,
+          "name": "DHAKKSHA ATHIKUMANA…",
+          "club": "TRADITIONAL SHITO-KAI"
+        },
+        {
+          "participantId": "p13-03",
+          "seed": 3,
+          "name": "DHAYASRII GOPAL",
+          "club": "SENSHI GOJU-RYU"
+        },
+        {
+          "participantId": "p13-04",
+          "seed": 4,
+          "name": "YAANVI NATHANI VASU",
+          "club": "SENSHI GOJU-RYU"
+        },
+        {
+          "participantId": "p13-05",
+          "seed": 5,
+          "name": "MERYVNA NIIKITHA RA…",
+          "club": "TRADITIONAL SHITO-KAI"
+        }
+      ],
+      "rounds": [
+        {
+          "round": 1,
+          "name": "Round 1",
+          "bouts": [
+            {
+              "boutId": "R1-B1",
+              "round": 1,
+              "position": 1,
+              "red": "p13-01",
+              "blue": "p13-02",
+              "status": "pending",
+              "winnerId": null
+            },
+            {
+              "boutId": "R1-B2",
+              "round": 1,
+              "position": 2,
+              "red": "p13-03",
+              "blue": "p13-04",
+              "status": "pending",
+              "winnerId": null
+            },
+            {
+              "boutId": "R1-B3",
+              "round": 1,
+              "position": 3,
+              "red": "p13-05",
+              "blue": null,
+              "status": "bye",
+              "winnerId": "p13-05"
+            }
+          ]
+        },
+        {
+          "round": 2,
+          "name": "Semifinal",
+          "bouts": [
+            {
+              "boutId": "R2-B1",
+              "round": 2,
+              "position": 1,
+              "red": "R1-B1",
+              "blue": "R1-B2",
+              "status": "pending",
+              "winnerId": null
+            },
+            {
+              "boutId": "R2-B2",
+              "round": 2,
+              "position": 2,
+              "red": "R1-B3",
+              "blue": null,
+              "status": "bye",
+              "winnerId": "R1-B3"
+            }
+          ]
+        },
+        {
+          "round": 3,
+          "name": "Final",
+          "bouts": [
+            {
+              "boutId": "R3-B1",
+              "round": 3,
+              "position": 1,
+              "red": "R2-B1",
+              "blue": "R2-B2",
+              "status": "pending",
+              "winnerId": null
+            }
+          ]
+        }
+      ],
+      "finalStandings": {
+        "gold": null,
+        "silver": null,
+        "bronze1": null,
+        "bronze2": null
+      }
+    },
+    {
+      "categoryId": "CAT-014",
+      "sourcePage": 14,
+      "name": "10-11 YEARS MALE KUMITE (ABOVE 40KG) (9 ATHLETES)",
+      "gender": "Male",
+      "discipline": "Kumite",
+      "format": "single_elimination",
+      "athleteCount": 9,
+      "participants": [
+        {
+          "participantId": "p14-01",
+          "seed": 1,
+          "name": "VISHRUTH VIMALD VI…",
+          "club": "TRADITIONAL SHITO-KAI"
+        },
+        {
+          "participantId": "p14-02",
+          "seed": 2,
+          "name": "LAKSHIVIN PALANIAPPAN",
+          "club": "GOJU-KAI SEL"
+        },
+        {
+          "participantId": "p14-03",
+          "seed": 3,
+          "name": "RISHI",
+          "club": "SENSHI GOJU-RYU"
+        },
+        {
+          "participantId": "p14-04",
+          "seed": 4,
+          "name": "YADHVEN TANABALAN",
+          "club": "SENSHI GOJU-RYU"
+        },
+        {
+          "participantId": "p14-05",
+          "seed": 5,
+          "name": "KAVISH VARMAN VAM…",
+          "club": "SENSHI GOJU-RYU"
+        },
+        {
+          "participantId": "p14-06",
+          "seed": 6,
+          "name": "DHEYASH KALITHASAN",
+          "club": "SENSHI GOJU-RYU"
+        },
+        {
+          "participantId": "p14-07",
+          "seed": 7,
+          "name": "MOHAMMAD TANVEER",
+          "club": "SENSHI GOJU-RYU"
+        },
+        {
+          "participantId": "p14-08",
+          "seed": 8,
+          "name": "JAYDEN JETHRO LA…",
+          "club": "GOJU-KAI SEL"
+        },
+        {
+          "participantId": "p14-09",
+          "seed": 9,
+          "name": "THISHAN GANESAN",
+          "club": "SENSHI GOJU-RYU"
+        }
+      ],
+      "rounds": [
+        {
+          "round": 1,
+          "name": "Round 1",
+          "bouts": [
+            {
+              "boutId": "R1-B1",
+              "round": 1,
+              "position": 1,
+              "red": "p14-01",
+              "blue": "p14-02",
+              "status": "pending",
+              "winnerId": null
+            },
+            {
+              "boutId": "R1-B2",
+              "round": 1,
+              "position": 2,
+              "red": "p14-03",
+              "blue": "p14-04",
+              "status": "pending",
+              "winnerId": null
+            },
+            {
+              "boutId": "R1-B3",
+              "round": 1,
+              "position": 3,
+              "red": "p14-05",
+              "blue": "p14-06",
+              "status": "pending",
+              "winnerId": null
+            },
+            {
+              "boutId": "R1-B4",
+              "round": 1,
+              "position": 4,
+              "red": "p14-07",
+              "blue": "p14-08",
+              "status": "pending",
+              "winnerId": null
+            },
+            {
+              "boutId": "R1-B5",
+              "round": 1,
+              "position": 5,
+              "red": "p14-09",
+              "blue": null,
+              "status": "bye",
+              "winnerId": "p14-09"
+            }
+          ]
+        },
+        {
+          "round": 2,
+          "name": "Round 2",
+          "bouts": [
+            {
+              "boutId": "R2-B1",
+              "round": 2,
+              "position": 1,
+              "red": "R1-B1",
+              "blue": "R1-B2",
+              "status": "pending",
+              "winnerId": null
+            },
+            {
+              "boutId": "R2-B2",
+              "round": 2,
+              "position": 2,
+              "red": "R1-B3",
+              "blue": "R1-B4",
+              "status": "pending",
+              "winnerId": null
+            },
+            {
+              "boutId": "R2-B3",
+              "round": 2,
+              "position": 3,
+              "red": "R1-B5",
+              "blue": null,
+              "status": "bye",
+              "winnerId": "R1-B5"
+            }
+          ]
+        },
+        {
+          "round": 3,
+          "name": "Semifinal",
+          "bouts": [
+            {
+              "boutId": "R3-B1",
+              "round": 3,
+              "position": 1,
+              "red": "R2-B1",
+              "blue": "R2-B2",
+              "status": "pending",
+              "winnerId": null
+            },
+            {
+              "boutId": "R3-B2",
+              "round": 3,
+              "position": 2,
+              "red": "R2-B3",
+              "blue": null,
+              "status": "bye",
+              "winnerId": "R2-B3"
+            }
+          ]
+        },
+        {
+          "round": 4,
+          "name": "Final",
+          "bouts": [
+            {
+              "boutId": "R4-B1",
+              "round": 4,
+              "position": 1,
+              "red": "R3-B1",
+              "blue": "R3-B2",
+              "status": "pending",
+              "winnerId": null
+            }
+          ]
+        }
+      ],
+      "finalStandings": {
+        "gold": null,
+        "silver": null,
+        "bronze1": null,
+        "bronze2": null
+      }
+    },
+    {
+      "categoryId": "CAT-015",
+      "sourcePage": 15,
+      "name": "10-11 YEARS MALE KUMITE (BELOW 30KG) (9 ATHLETES)",
+      "gender": "Male",
+      "discipline": "Kumite",
+      "format": "single_elimination",
+      "athleteCount": 9,
+      "participants": [
+        {
+          "participantId": "p15-01",
+          "seed": 1,
+          "name": "THISHANRAJ JAYRAJ",
+          "club": "ITOSURYU KARATEDO"
+        },
+        {
+          "participantId": "p15-02",
+          "seed": 2,
+          "name": "LOGANN A/L LOGANATH…",
+          "club": "SENSHI GOJU-RYU"
+        },
+        {
+          "participantId": "p15-03",
+          "seed": 3,
+          "name": "AVINEISH SIVAN",
+          "club": "GOJU-KAI SEL"
+        },
+        {
+          "participantId": "p15-04",
+          "seed": 4,
+          "name": "LAVENESH MOHAND…",
+          "club": "GOJU-KAI SEL"
+        },
+        {
+          "participantId": "p15-05",
+          "seed": 5,
+          "name": "PYESHAARAN MURALI",
+          "club": "SENSHI GOJU-RYU"
+        },
+        {
+          "participantId": "p15-06",
+          "seed": 6,
+          "name": "TEERAAN KUMARESAN",
+          "club": "SENSHI GOJU-RYU"
+        },
+        {
+          "participantId": "p15-07",
+          "seed": 7,
+          "name": "MAVENASH G",
+          "club": "SENSHI GOJU-RYU"
+        },
+        {
+          "participantId": "p15-08",
+          "seed": 8,
+          "name": "KIESHANTRUTRAN A/…",
+          "club": "SENSHI GOJU-RYU"
+        },
+        {
+          "participantId": "p15-09",
+          "seed": 9,
+          "name": "KISHAN PRAKASH SI…",
+          "club": "GOJU-KAI SEL"
+        }
+      ],
+      "rounds": [
+        {
+          "round": 1,
+          "name": "Round 1",
+          "bouts": [
+            {
+              "boutId": "R1-B1",
+              "round": 1,
+              "position": 1,
+              "red": "p15-01",
+              "blue": "p15-02",
+              "status": "pending",
+              "winnerId": null
+            },
+            {
+              "boutId": "R1-B2",
+              "round": 1,
+              "position": 2,
+              "red": "p15-03",
+              "blue": "p15-04",
+              "status": "pending",
+              "winnerId": null
+            },
+            {
+              "boutId": "R1-B3",
+              "round": 1,
+              "position": 3,
+              "red": "p15-05",
+              "blue": "p15-06",
+              "status": "pending",
+              "winnerId": null
+            },
+            {
+              "boutId": "R1-B4",
+              "round": 1,
+              "position": 4,
+              "red": "p15-07",
+              "blue": "p15-08",
+              "status": "pending",
+              "winnerId": null
+            },
+            {
+              "boutId": "R1-B5",
+              "round": 1,
+              "position": 5,
+              "red": "p15-09",
+              "blue": null,
+              "status": "bye",
+              "winnerId": "p15-09"
+            }
+          ]
+        },
+        {
+          "round": 2,
+          "name": "Round 2",
+          "bouts": [
+            {
+              "boutId": "R2-B1",
+              "round": 2,
+              "position": 1,
+              "red": "R1-B1",
+              "blue": "R1-B2",
+              "status": "pending",
+              "winnerId": null
+            },
+            {
+              "boutId": "R2-B2",
+              "round": 2,
+              "position": 2,
+              "red": "R1-B3",
+              "blue": "R1-B4",
+              "status": "pending",
+              "winnerId": null
+            },
+            {
+              "boutId": "R2-B3",
+              "round": 2,
+              "position": 3,
+              "red": "R1-B5",
+              "blue": null,
+              "status": "bye",
+              "winnerId": "R1-B5"
+            }
+          ]
+        },
+        {
+          "round": 3,
+          "name": "Semifinal",
+          "bouts": [
+            {
+              "boutId": "R3-B1",
+              "round": 3,
+              "position": 1,
+              "red": "R2-B1",
+              "blue": "R2-B2",
+              "status": "pending",
+              "winnerId": null
+            },
+            {
+              "boutId": "R3-B2",
+              "round": 3,
+              "position": 2,
+              "red": "R2-B3",
+              "blue": null,
+              "status": "bye",
+              "winnerId": "R2-B3"
+            }
+          ]
+        },
+        {
+          "round": 4,
+          "name": "Final",
+          "bouts": [
+            {
+              "boutId": "R4-B1",
+              "round": 4,
+              "position": 1,
+              "red": "R3-B1",
+              "blue": "R3-B2",
+              "status": "pending",
+              "winnerId": null
+            }
+          ]
+        }
+      ],
+      "finalStandings": {
+        "gold": null,
+        "silver": null,
+        "bronze1": null,
+        "bronze2": null
+      }
+    },
+    {
+      "categoryId": "CAT-016",
+      "sourcePage": 16,
+      "name": "10-11 YEARS MALE KUMITE (BELOW 40KG) (13 ATHLETES)",
+      "gender": "Male",
+      "discipline": "Kumite",
+      "format": "single_elimination",
+      "athleteCount": 13,
+      "participants": [
+        {
+          "participantId": "p16-01",
+          "seed": 1,
+          "name": "MOHD NAVED KHAN",
+          "club": "SENSHI GOJU-RYU"
+        },
+        {
+          "participantId": "p16-02",
+          "seed": 2,
+          "name": "AKSHAD KRISHNA MOHAN",
+          "club": "SENSHI GOJU-RYU"
+        },
+        {
+          "participantId": "p16-03",
+          "seed": 3,
+          "name": "KAASHISH LAL PURANC…",
+          "club": "ITOSURYU KARATEDO"
+        },
+        {
+          "participantId": "p16-04",
+          "seed": 4,
+          "name": "SIDDHARTHA ANIJ",
+          "club": "SENSHI GOJU-RYU"
+        },
+        {
+          "participantId": "p16-05",
+          "seed": 5,
+          "name": "VARSHAN KAMAL",
+          "club": "ITOSURYU KARATEDO"
+        },
+        {
+          "participantId": "p16-06",
+          "seed": 6,
+          "name": "GAUTHAM POOVENDRAN",
+          "club": "SHOTOKAN HAYAIDESU KARATE"
+        },
+        {
+          "participantId": "p16-07",
+          "seed": 7,
+          "name": "MUHAMMAD IMRAN ZHA…",
+          "club": "TRADITIONAL SHITO-KAI"
+        },
+        {
+          "participantId": "p16-08",
+          "seed": 8,
+          "name": "MITRAN RAJ SEGAR",
+          "club": "SENSHI GOJU-RYU"
+        },
+        {
+          "participantId": "p16-09",
+          "seed": 9,
+          "name": "NASHWIN RUBEN",
+          "club": "ITOSURYU KARATEDO"
+        },
+        {
+          "participantId": "p16-10",
+          "seed": 10,
+          "name": "DEEVANESH KRISHNA",
+          "club": "SENSHI GOJU-RYU"
+        },
+        {
+          "participantId": "p16-11",
+          "seed": 11,
+          "name": "NERMALISWARAN B…",
+          "club": "ITOSURYU KARATEDO"
+        },
+        {
+          "participantId": "p16-12",
+          "seed": 12,
+          "name": "SAHEERTHIYA KATHERE…",
+          "club": "SENSHI GOJU-RYU"
+        },
+        {
+          "participantId": "p16-13",
+          "seed": 13,
+          "name": "YAASHVAN LOGESH",
+          "club": "ITOSURYU KARATEDO"
+        }
+      ],
+      "rounds": [
+        {
+          "round": 1,
+          "name": "Round 1",
+          "bouts": [
+            {
+              "boutId": "R1-B1",
+              "round": 1,
+              "position": 1,
+              "red": "p16-01",
+              "blue": "p16-02",
+              "status": "pending",
+              "winnerId": null
+            },
+            {
+              "boutId": "R1-B2",
+              "round": 1,
+              "position": 2,
+              "red": "p16-03",
+              "blue": "p16-04",
+              "status": "pending",
+              "winnerId": null
+            },
+            {
+              "boutId": "R1-B3",
+              "round": 1,
+              "position": 3,
+              "red": "p16-05",
+              "blue": "p16-06",
+              "status": "pending",
+              "winnerId": null
+            },
+            {
+              "boutId": "R1-B4",
+              "round": 1,
+              "position": 4,
+              "red": "p16-07",
+              "blue": "p16-08",
+              "status": "pending",
+              "winnerId": null
+            },
+            {
+              "boutId": "R1-B5",
+              "round": 1,
+              "position": 5,
+              "red": "p16-09",
+              "blue": "p16-10",
+              "status": "pending",
+              "winnerId": null
+            },
+            {
+              "boutId": "R1-B6",
+              "round": 1,
+              "position": 6,
+              "red": "p16-11",
+              "blue": "p16-12",
+              "status": "pending",
+              "winnerId": null
+            },
+            {
+              "boutId": "R1-B7",
+              "round": 1,
+              "position": 7,
+              "red": "p16-13",
+              "blue": null,
+              "status": "bye",
+              "winnerId": "p16-13"
+            }
+          ]
+        },
+        {
+          "round": 2,
+          "name": "Round 2",
+          "bouts": [
+            {
+              "boutId": "R2-B1",
+              "round": 2,
+              "position": 1,
+              "red": "R1-B1",
+              "blue": "R1-B2",
+              "status": "pending",
+              "winnerId": null
+            },
+            {
+              "boutId": "R2-B2",
+              "round": 2,
+              "position": 2,
+              "red": "R1-B3",
+              "blue": "R1-B4",
+              "status": "pending",
+              "winnerId": null
+            },
+            {
+              "boutId": "R2-B3",
+              "round": 2,
+              "position": 3,
+              "red": "R1-B5",
+              "blue": "R1-B6",
+              "status": "pending",
+              "winnerId": null
+            },
+            {
+              "boutId": "R2-B4",
+              "round": 2,
+              "position": 4,
+              "red": "R1-B7",
+              "blue": null,
+              "status": "bye",
+              "winnerId": "R1-B7"
+            }
+          ]
+        },
+        {
+          "round": 3,
+          "name": "Semifinal",
+          "bouts": [
+            {
+              "boutId": "R3-B1",
+              "round": 3,
+              "position": 1,
+              "red": "R2-B1",
+              "blue": "R2-B2",
+              "status": "pending",
+              "winnerId": null
+            },
+            {
+              "boutId": "R3-B2",
+              "round": 3,
+              "position": 2,
+              "red": "R2-B3",
+              "blue": "R2-B4",
+              "status": "pending",
+              "winnerId": null
+            }
+          ]
+        },
+        {
+          "round": 4,
+          "name": "Final",
+          "bouts": [
+            {
+              "boutId": "R4-B1",
+              "round": 4,
+              "position": 1,
+              "red": "R3-B1",
+              "blue": "R3-B2",
+              "status": "pending",
+              "winnerId": null
+            }
+          ]
+        }
+      ],
+      "finalStandings": {
+        "gold": null,
+        "silver": null,
+        "bronze1": null,
+        "bronze2": null
+      }
+    },
+    {
+      "categoryId": "CAT-017",
+      "sourcePage": 17,
+      "name": "10-11 YEARS FEMALE KUMITE (ABOVE 40KG) (9 ATHLETES)",
+      "gender": "Female",
+      "discipline": "Kumite",
+      "format": "single_elimination",
+      "athleteCount": 9,
+      "participants": [
+        {
+          "participantId": "p17-01",
+          "seed": 1,
+          "name": "AAIRA ALI",
+          "club": "SENSHI GOJU-RYU"
+        },
+        {
+          "participantId": "p17-02",
+          "seed": 2,
+          "name": "SUSHMITHA BALAKRISH…",
+          "club": "SENSHI GOJU-RYU"
+        },
+        {
+          "participantId": "p17-03",
+          "seed": 3,
+          "name": "PRAVEENA SATHISH",
+          "club": "ITOSURYU KARATEDO"
+        },
+        {
+          "participantId": "p17-04",
+          "seed": 4,
+          "name": "ISHANVI GUPTA",
+          "club": "SENSHI GOJU-RYU"
+        },
+        {
+          "participantId": "p17-05",
+          "seed": 5,
+          "name": "MERCY OLUWAJIMIS…",
+          "club": "TRADITIONAL SHITO-KAI"
+        },
+        {
+          "participantId": "p17-06",
+          "seed": 6,
+          "name": "PONNARASI PUVANE…",
+          "club": "SENSHI GOJU-RYU"
+        },
+        {
+          "participantId": "p17-07",
+          "seed": 7,
+          "name": "ADRA ZAHIYA BINTI S…",
+          "club": "TRADITIONAL SHITO-KAI"
+        },
+        {
+          "participantId": "p17-08",
+          "seed": 8,
+          "name": "YATIKA GADE SURESH",
+          "club": "SENSHI GOJU-RYU"
+        },
+        {
+          "participantId": "p17-09",
+          "seed": 9,
+          "name": "NASHWINA RUBEN",
+          "club": "ITOSURYU KARATEDO"
+        }
+      ],
+      "rounds": [
+        {
+          "round": 1,
+          "name": "Round 1",
+          "bouts": [
+            {
+              "boutId": "R1-B1",
+              "round": 1,
+              "position": 1,
+              "red": "p17-01",
+              "blue": "p17-02",
+              "status": "pending",
+              "winnerId": null
+            },
+            {
+              "boutId": "R1-B2",
+              "round": 1,
+              "position": 2,
+              "red": "p17-03",
+              "blue": "p17-04",
+              "status": "pending",
+              "winnerId": null
+            },
+            {
+              "boutId": "R1-B3",
+              "round": 1,
+              "position": 3,
+              "red": "p17-05",
+              "blue": "p17-06",
+              "status": "pending",
+              "winnerId": null
+            },
+            {
+              "boutId": "R1-B4",
+              "round": 1,
+              "position": 4,
+              "red": "p17-07",
+              "blue": "p17-08",
+              "status": "pending",
+              "winnerId": null
+            },
+            {
+              "boutId": "R1-B5",
+              "round": 1,
+              "position": 5,
+              "red": "p17-09",
+              "blue": null,
+              "status": "bye",
+              "winnerId": "p17-09"
+            }
+          ]
+        },
+        {
+          "round": 2,
+          "name": "Round 2",
+          "bouts": [
+            {
+              "boutId": "R2-B1",
+              "round": 2,
+              "position": 1,
+              "red": "R1-B1",
+              "blue": "R1-B2",
+              "status": "pending",
+              "winnerId": null
+            },
+            {
+              "boutId": "R2-B2",
+              "round": 2,
+              "position": 2,
+              "red": "R1-B3",
+              "blue": "R1-B4",
+              "status": "pending",
+              "winnerId": null
+            },
+            {
+              "boutId": "R2-B3",
+              "round": 2,
+              "position": 3,
+              "red": "R1-B5",
+              "blue": null,
+              "status": "bye",
+              "winnerId": "R1-B5"
+            }
+          ]
+        },
+        {
+          "round": 3,
+          "name": "Semifinal",
+          "bouts": [
+            {
+              "boutId": "R3-B1",
+              "round": 3,
+              "position": 1,
+              "red": "R2-B1",
+              "blue": "R2-B2",
+              "status": "pending",
+              "winnerId": null
+            },
+            {
+              "boutId": "R3-B2",
+              "round": 3,
+              "position": 2,
+              "red": "R2-B3",
+              "blue": null,
+              "status": "bye",
+              "winnerId": "R2-B3"
+            }
+          ]
+        },
+        {
+          "round": 4,
+          "name": "Final",
+          "bouts": [
+            {
+              "boutId": "R4-B1",
+              "round": 4,
+              "position": 1,
+              "red": "R3-B1",
+              "blue": "R3-B2",
+              "status": "pending",
+              "winnerId": null
+            }
+          ]
+        }
+      ],
+      "finalStandings": {
+        "gold": null,
+        "silver": null,
+        "bronze1": null,
+        "bronze2": null
+      }
+    },
+    {
+      "categoryId": "CAT-018",
+      "sourcePage": 18,
+      "name": "10-11 YEARS FEMALE KUMITE (BELOW 30KG) (5 ATHLETES)",
+      "gender": "Female",
+      "discipline": "Kumite",
+      "format": "single_elimination",
+      "athleteCount": 5,
+      "participants": [
+        {
+          "participantId": "p18-01",
+          "seed": 1,
+          "name": "ZOEYA LANA BINTI MO…",
+          "club": "TRADITIONAL SHITO-KAI"
+        },
+        {
+          "participantId": "p18-02",
+          "seed": 2,
+          "name": "EASHA AMITRA VIJAY KU…",
+          "club": "SHOTOKAN HAYAIDESU KARATE"
+        },
+        {
+          "participantId": "p18-03",
+          "seed": 3,
+          "name": "ADVIKA KRISHNA MOHAN",
+          "club": "SENSHI GOJU-RYU"
+        },
+        {
+          "participantId": "p18-04",
+          "seed": 4,
+          "name": "BHUVANESHWARI KRI…",
+          "club": "SENSHI GOJU-RYU"
+        },
+        {
+          "participantId": "p18-05",
+          "seed": 5,
+          "name": "VALENTYN PRITHA RA…",
+          "club": "TRADITIONAL SHITO-KAI"
+        }
+      ],
+      "rounds": [
+        {
+          "round": 1,
+          "name": "Round 1",
+          "bouts": [
+            {
+              "boutId": "R1-B1",
+              "round": 1,
+              "position": 1,
+              "red": "p18-01",
+              "blue": "p18-02",
+              "status": "pending",
+              "winnerId": null
+            },
+            {
+              "boutId": "R1-B2",
+              "round": 1,
+              "position": 2,
+              "red": "p18-03",
+              "blue": "p18-04",
+              "status": "pending",
+              "winnerId": null
+            },
+            {
+              "boutId": "R1-B3",
+              "round": 1,
+              "position": 3,
+              "red": "p18-05",
+              "blue": null,
+              "status": "bye",
+              "winnerId": "p18-05"
+            }
+          ]
+        },
+        {
+          "round": 2,
+          "name": "Semifinal",
+          "bouts": [
+            {
+              "boutId": "R2-B1",
+              "round": 2,
+              "position": 1,
+              "red": "R1-B1",
+              "blue": "R1-B2",
+              "status": "pending",
+              "winnerId": null
+            },
+            {
+              "boutId": "R2-B2",
+              "round": 2,
+              "position": 2,
+              "red": "R1-B3",
+              "blue": null,
+              "status": "bye",
+              "winnerId": "R1-B3"
+            }
+          ]
+        },
+        {
+          "round": 3,
+          "name": "Final",
+          "bouts": [
+            {
+              "boutId": "R3-B1",
+              "round": 3,
+              "position": 1,
+              "red": "R2-B1",
+              "blue": "R2-B2",
+              "status": "pending",
+              "winnerId": null
+            }
+          ]
+        }
+      ],
+      "finalStandings": {
+        "gold": null,
+        "silver": null,
+        "bronze1": null,
+        "bronze2": null
+      }
+    },
+    {
+      "categoryId": "CAT-019",
+      "sourcePage": 19,
+      "name": "10-11 YEARS FEMALE KUMITE (BELOW 40KG) (6 ATHLETES)",
+      "gender": "Female",
+      "discipline": "Kumite",
+      "format": "single_elimination",
+      "athleteCount": 6,
+      "participants": [
+        {
+          "participantId": "p19-01",
+          "seed": 1,
+          "name": "BRIDGET OLUWAFIKA…",
+          "club": "TRADITIONAL SHITO-KAI"
+        },
+        {
+          "participantId": "p19-02",
+          "seed": 2,
+          "name": "YASHAWINI",
+          "club": "SHOTOKAN HAYAIDESU KARATE"
+        },
+        {
+          "participantId": "p19-03",
+          "seed": 3,
+          "name": "RAYTISHAA THIAKU",
+          "club": "SENSHI GOJU-RYU"
+        },
+        {
+          "participantId": "p19-04",
+          "seed": 4,
+          "name": "AMNI SOFEA BINTI MO…",
+          "club": "TRADITIONAL SHITO-KAI"
+        },
+        {
+          "participantId": "p19-05",
+          "seed": 5,
+          "name": "VANNIEYA MUKUNDAN",
+          "club": "TRADITIONAL SHITO-KAI"
+        },
+        {
+          "participantId": "p19-06",
+          "seed": 6,
+          "name": "PYESHARANI MURALI",
+          "club": "SENSHI GOJU-RYU"
+        }
+      ],
+      "rounds": [
+        {
+          "round": 1,
+          "name": "Round 1",
+          "bouts": [
+            {
+              "boutId": "R1-B1",
+              "round": 1,
+              "position": 1,
+              "red": "p19-01",
+              "blue": "p19-02",
+              "status": "pending",
+              "winnerId": null
+            },
+            {
+              "boutId": "R1-B2",
+              "round": 1,
+              "position": 2,
+              "red": "p19-03",
+              "blue": "p19-04",
+              "status": "pending",
+              "winnerId": null
+            },
+            {
+              "boutId": "R1-B3",
+              "round": 1,
+              "position": 3,
+              "red": "p19-05",
+              "blue": "p19-06",
+              "status": "pending",
+              "winnerId": null
+            }
+          ]
+        },
+        {
+          "round": 2,
+          "name": "Semifinal",
+          "bouts": [
+            {
+              "boutId": "R2-B1",
+              "round": 2,
+              "position": 1,
+              "red": "R1-B1",
+              "blue": "R1-B2",
+              "status": "pending",
+              "winnerId": null
+            },
+            {
+              "boutId": "R2-B2",
+              "round": 2,
+              "position": 2,
+              "red": "R1-B3",
+              "blue": null,
+              "status": "bye",
+              "winnerId": "R1-B3"
+            }
+          ]
+        },
+        {
+          "round": 3,
+          "name": "Final",
+          "bouts": [
+            {
+              "boutId": "R3-B1",
+              "round": 3,
+              "position": 1,
+              "red": "R2-B1",
+              "blue": "R2-B2",
+              "status": "pending",
+              "winnerId": null
+            }
+          ]
+        }
+      ],
+      "finalStandings": {
+        "gold": null,
+        "silver": null,
+        "bronze1": null,
+        "bronze2": null
+      }
+    },
+    {
+      "categoryId": "CAT-020",
+      "sourcePage": 20,
+      "name": "11-13 YEARS MALE KATA (10 ATHLETES)",
+      "gender": "Male",
+      "discipline": "Kata",
+      "format": "single_elimination",
+      "athleteCount": 10,
+      "participants": [
+        {
+          "participantId": "p20-01",
+          "seed": 1,
+          "name": "KARTHIGEYAN SARA…",
+          "club": "ITOSURYU KARATEDO"
+        },
+        {
+          "participantId": "p20-02",
+          "seed": 2,
+          "name": "KAUSHIGAN MURUGAN",
+          "club": "ITOSURYU KARATEDO"
+        },
+        {
+          "participantId": "p20-03",
+          "seed": 3,
+          "name": "PYESHAARAN MURALI",
+          "club": "SENSHI GOJU-RYU"
+        },
+        {
+          "participantId": "p20-04",
+          "seed": 4,
+          "name": "YATESH LAL PUWAN …",
+          "club": "ITOSURYU KARATEDO"
+        },
+        {
+          "participantId": "p20-05",
+          "seed": 5,
+          "name": "KISHAN PRAKASH SI…",
+          "club": "GOJU-KAI SEL"
+        },
+        {
+          "participantId": "p20-06",
+          "seed": 6,
+          "name": "JAZIM CATCHON",
+          "club": "TRADITIONAL SHITO-KAI"
+        },
+        {
+          "participantId": "p20-07",
+          "seed": 7,
+          "name": "LOKE ZHUN YEAP",
+          "club": "SHOTOKAN HAYAIDESU KARATE"
+        },
+        {
+          "participantId": "p20-08",
+          "seed": 8,
+          "name": "SHARVIN GANESON",
+          "club": "ITOSURYU KARATEDO"
+        },
+        {
+          "participantId": "p20-09",
+          "seed": 9,
+          "name": "THISHANRAJ JAYRAJ",
+          "club": "ITOSURYU KARATEDO"
+        },
+        {
+          "participantId": "p20-10",
+          "seed": 10,
+          "name": "VARSHAN JAMES SIV…",
+          "club": "ITOSURYU KARATEDO"
+        }
+      ],
+      "rounds": [
+        {
+          "round": 1,
+          "name": "Round 1",
+          "bouts": [
+            {
+              "boutId": "R1-B1",
+              "round": 1,
+              "position": 1,
+              "red": "p20-01",
+              "blue": "p20-02",
+              "status": "pending",
+              "winnerId": null
+            },
+            {
+              "boutId": "R1-B2",
+              "round": 1,
+              "position": 2,
+              "red": "p20-03",
+              "blue": "p20-04",
+              "status": "pending",
+              "winnerId": null
+            },
+            {
+              "boutId": "R1-B3",
+              "round": 1,
+              "position": 3,
+              "red": "p20-05",
+              "blue": "p20-06",
+              "status": "pending",
+              "winnerId": null
+            },
+            {
+              "boutId": "R1-B4",
+              "round": 1,
+              "position": 4,
+              "red": "p20-07",
+              "blue": "p20-08",
+              "status": "pending",
+              "winnerId": null
+            },
+            {
+              "boutId": "R1-B5",
+              "round": 1,
+              "position": 5,
+              "red": "p20-09",
+              "blue": "p20-10",
+              "status": "pending",
+              "winnerId": null
+            }
+          ]
+        },
+        {
+          "round": 2,
+          "name": "Round 2",
+          "bouts": [
+            {
+              "boutId": "R2-B1",
+              "round": 2,
+              "position": 1,
+              "red": "R1-B1",
+              "blue": "R1-B2",
+              "status": "pending",
+              "winnerId": null
+            },
+            {
+              "boutId": "R2-B2",
+              "round": 2,
+              "position": 2,
+              "red": "R1-B3",
+              "blue": "R1-B4",
+              "status": "pending",
+              "winnerId": null
+            },
+            {
+              "boutId": "R2-B3",
+              "round": 2,
+              "position": 3,
+              "red": "R1-B5",
+              "blue": null,
+              "status": "bye",
+              "winnerId": "R1-B5"
+            }
+          ]
+        },
+        {
+          "round": 3,
+          "name": "Semifinal",
+          "bouts": [
+            {
+              "boutId": "R3-B1",
+              "round": 3,
+              "position": 1,
+              "red": "R2-B1",
+              "blue": "R2-B2",
+              "status": "pending",
+              "winnerId": null
+            },
+            {
+              "boutId": "R3-B2",
+              "round": 3,
+              "position": 2,
+              "red": "R2-B3",
+              "blue": null,
+              "status": "bye",
+              "winnerId": "R2-B3"
+            }
+          ]
+        },
+        {
+          "round": 4,
+          "name": "Final",
+          "bouts": [
+            {
+              "boutId": "R4-B1",
+              "round": 4,
+              "position": 1,
+              "red": "R3-B1",
+              "blue": "R3-B2",
+              "status": "pending",
+              "winnerId": null
+            }
+          ]
+        }
+      ],
+      "finalStandings": {
+        "gold": null,
+        "silver": null,
+        "bronze1": null,
+        "bronze2": null
+      }
+    },
+    {
+      "categoryId": "CAT-021",
+      "sourcePage": 21,
+      "name": "11-13 YEARS FEMALE KATA (11 ATHLETES)",
+      "gender": "Female",
+      "discipline": "Kata",
+      "format": "single_elimination",
+      "athleteCount": 11,
+      "participants": [
+        {
+          "participantId": "p21-01",
+          "seed": 1,
+          "name": "SUSHMITHA BALAKRI…",
+          "club": "SENSHI GOJU-RYU"
+        },
+        {
+          "participantId": "p21-02",
+          "seed": 2,
+          "name": "PRABHAVATHY",
+          "club": "SENSHI GOJU-RYU"
+        },
+        {
+          "participantId": "p21-03",
+          "seed": 3,
+          "name": "WAN SAFIYYA BINTI WAN…",
+          "club": "TRADITIONAL SHITO-KAI"
+        },
+        {
+          "participantId": "p21-04",
+          "seed": 4,
+          "name": "THARANI KAVINDRAN",
+          "club": "SENSHI GOJU-RYU"
+        },
+        {
+          "participantId": "p21-05",
+          "seed": 5,
+          "name": "PONNARASI PUVANE…",
+          "club": "SENSHI GOJU-RYU"
+        },
+        {
+          "participantId": "p21-06",
+          "seed": 6,
+          "name": "PYESHARANI MURALI",
+          "club": "SENSHI GOJU-RYU"
+        },
+        {
+          "participantId": "p21-07",
+          "seed": 7,
+          "name": "EMMA KUKIHARA",
+          "club": "TRADITIONAL SHITO-KAI"
+        },
+        {
+          "participantId": "p21-08",
+          "seed": 8,
+          "name": "SHASHEENA BALASUBR…",
+          "club": "SENSHI GOJU-RYU"
+        },
+        {
+          "participantId": "p21-09",
+          "seed": 9,
+          "name": "BHUVANESHWARI KR…",
+          "club": "SENSHI GOJU-RYU"
+        },
+        {
+          "participantId": "p21-10",
+          "seed": 10,
+          "name": "MOSHIKA THIAKU",
+          "club": "SENSHI GOJU-RYU"
+        },
+        {
+          "participantId": "p21-11",
+          "seed": 11,
+          "name": "AMNI SOFEA BINTI MOH…",
+          "club": "TRADITIONAL SHITO-KAI"
+        }
+      ],
+      "rounds": [
+        {
+          "round": 1,
+          "name": "Round 1",
+          "bouts": [
+            {
+              "boutId": "R1-B1",
+              "round": 1,
+              "position": 1,
+              "red": "p21-01",
+              "blue": "p21-02",
+              "status": "pending",
+              "winnerId": null
+            },
+            {
+              "boutId": "R1-B2",
+              "round": 1,
+              "position": 2,
+              "red": "p21-03",
+              "blue": "p21-04",
+              "status": "pending",
+              "winnerId": null
+            },
+            {
+              "boutId": "R1-B3",
+              "round": 1,
+              "position": 3,
+              "red": "p21-05",
+              "blue": "p21-06",
+              "status": "pending",
+              "winnerId": null
+            },
+            {
+              "boutId": "R1-B4",
+              "round": 1,
+              "position": 4,
+              "red": "p21-07",
+              "blue": "p21-08",
+              "status": "pending",
+              "winnerId": null
+            },
+            {
+              "boutId": "R1-B5",
+              "round": 1,
+              "position": 5,
+              "red": "p21-09",
+              "blue": "p21-10",
+              "status": "pending",
+              "winnerId": null
+            },
+            {
+              "boutId": "R1-B6",
+              "round": 1,
+              "position": 6,
+              "red": "p21-11",
+              "blue": null,
+              "status": "bye",
+              "winnerId": "p21-11"
+            }
+          ]
+        },
+        {
+          "round": 2,
+          "name": "Round 2",
+          "bouts": [
+            {
+              "boutId": "R2-B1",
+              "round": 2,
+              "position": 1,
+              "red": "R1-B1",
+              "blue": "R1-B2",
+              "status": "pending",
+              "winnerId": null
+            },
+            {
+              "boutId": "R2-B2",
+              "round": 2,
+              "position": 2,
+              "red": "R1-B3",
+              "blue": "R1-B4",
+              "status": "pending",
+              "winnerId": null
+            },
+            {
+              "boutId": "R2-B3",
+              "round": 2,
+              "position": 3,
+              "red": "R1-B5",
+              "blue": "R1-B6",
+              "status": "pending",
+              "winnerId": null
+            }
+          ]
+        },
+        {
+          "round": 3,
+          "name": "Semifinal",
+          "bouts": [
+            {
+              "boutId": "R3-B1",
+              "round": 3,
+              "position": 1,
+              "red": "R2-B1",
+              "blue": "R2-B2",
+              "status": "pending",
+              "winnerId": null
+            },
+            {
+              "boutId": "R3-B2",
+              "round": 3,
+              "position": 2,
+              "red": "R2-B3",
+              "blue": null,
+              "status": "bye",
+              "winnerId": "R2-B3"
+            }
+          ]
+        },
+        {
+          "round": 4,
+          "name": "Final",
+          "bouts": [
+            {
+              "boutId": "R4-B1",
+              "round": 4,
+              "position": 1,
+              "red": "R3-B1",
+              "blue": "R3-B2",
+              "status": "pending",
+              "winnerId": null
+            }
+          ]
+        }
+      ],
+      "finalStandings": {
+        "gold": null,
+        "silver": null,
+        "bronze1": null,
+        "bronze2": null
+      }
+    },
+    {
+      "categoryId": "CAT-022",
+      "sourcePage": 22,
+      "name": "12-13 YEARS MALE KUMITE (BELOW 40KG) (11 ATHLETES)",
+      "gender": "Male",
+      "discipline": "Kumite",
+      "format": "single_elimination",
+      "athleteCount": 11,
+      "participants": [
+        {
+          "participantId": "p22-01",
+          "seed": 1,
+          "name": "PARDHATEJ KANCHA…",
+          "club": "SENSHI GOJU-RYU"
+        },
+        {
+          "participantId": "p22-02",
+          "seed": 2,
+          "name": "DINESH SARAVANAN",
+          "club": "GOJU-KAI SEL"
+        },
+        {
+          "participantId": "p22-03",
+          "seed": 3,
+          "name": "KARTHIGAN KANTHAN",
+          "club": "SHOTOKAN HAYAIDESU KARATE"
+        },
+        {
+          "participantId": "p22-04",
+          "seed": 4,
+          "name": "RUSENDRAN KANTHAN",
+          "club": "SHOTOKAN HAYAIDESU KA…"
+        },
+        {
+          "participantId": "p22-05",
+          "seed": 5,
+          "name": "KAUSHIGAN MURUGAN",
+          "club": "ITOSURYU KARATEDO"
+        },
+        {
+          "participantId": "p22-06",
+          "seed": 6,
+          "name": "NITESH RAO PRAKAS",
+          "club": "SENSHI GOJU-RYU"
+        },
+        {
+          "participantId": "p22-07",
+          "seed": 7,
+          "name": "MATHESHWARAN VINOT…",
+          "club": "SHOTOKAN HAYAIDESU KARATE"
+        },
+        {
+          "participantId": "p22-08",
+          "seed": 8,
+          "name": "SAVENDIRAN GOBINATH",
+          "club": "GOJU-KAI SEL"
+        },
+        {
+          "participantId": "p22-09",
+          "seed": 9,
+          "name": "PRABAKARAN PILLA…",
+          "club": "SHOTOKAN HAYAIDESU KA…"
+        },
+        {
+          "participantId": "p22-10",
+          "seed": 10,
+          "name": "KARTHIGEYAN SARAVAN…",
+          "club": "ITOSURYU KARATEDO"
+        },
+        {
+          "participantId": "p22-11",
+          "seed": 11,
+          "name": "JITHESH POOVENDRAN",
+          "club": "SHOTOKAN HAYAIDESU KARATE"
+        }
+      ],
+      "rounds": [
+        {
+          "round": 1,
+          "name": "Round 1",
+          "bouts": [
+            {
+              "boutId": "R1-B1",
+              "round": 1,
+              "position": 1,
+              "red": "p22-01",
+              "blue": "p22-02",
+              "status": "pending",
+              "winnerId": null
+            },
+            {
+              "boutId": "R1-B2",
+              "round": 1,
+              "position": 2,
+              "red": "p22-03",
+              "blue": "p22-04",
+              "status": "pending",
+              "winnerId": null
+            },
+            {
+              "boutId": "R1-B3",
+              "round": 1,
+              "position": 3,
+              "red": "p22-05",
+              "blue": "p22-06",
+              "status": "pending",
+              "winnerId": null
+            },
+            {
+              "boutId": "R1-B4",
+              "round": 1,
+              "position": 4,
+              "red": "p22-07",
+              "blue": "p22-08",
+              "status": "pending",
+              "winnerId": null
+            },
+            {
+              "boutId": "R1-B5",
+              "round": 1,
+              "position": 5,
+              "red": "p22-09",
+              "blue": "p22-10",
+              "status": "pending",
+              "winnerId": null
+            },
+            {
+              "boutId": "R1-B6",
+              "round": 1,
+              "position": 6,
+              "red": "p22-11",
+              "blue": null,
+              "status": "bye",
+              "winnerId": "p22-11"
+            }
+          ]
+        },
+        {
+          "round": 2,
+          "name": "Round 2",
+          "bouts": [
+            {
+              "boutId": "R2-B1",
+              "round": 2,
+              "position": 1,
+              "red": "R1-B1",
+              "blue": "R1-B2",
+              "status": "pending",
+              "winnerId": null
+            },
+            {
+              "boutId": "R2-B2",
+              "round": 2,
+              "position": 2,
+              "red": "R1-B3",
+              "blue": "R1-B4",
+              "status": "pending",
+              "winnerId": null
+            },
+            {
+              "boutId": "R2-B3",
+              "round": 2,
+              "position": 3,
+              "red": "R1-B5",
+              "blue": "R1-B6",
+              "status": "pending",
+              "winnerId": null
+            }
+          ]
+        },
+        {
+          "round": 3,
+          "name": "Semifinal",
+          "bouts": [
+            {
+              "boutId": "R3-B1",
+              "round": 3,
+              "position": 1,
+              "red": "R2-B1",
+              "blue": "R2-B2",
+              "status": "pending",
+              "winnerId": null
+            },
+            {
+              "boutId": "R3-B2",
+              "round": 3,
+              "position": 2,
+              "red": "R2-B3",
+              "blue": null,
+              "status": "bye",
+              "winnerId": "R2-B3"
+            }
+          ]
+        },
+        {
+          "round": 4,
+          "name": "Final",
+          "bouts": [
+            {
+              "boutId": "R4-B1",
+              "round": 4,
+              "position": 1,
+              "red": "R3-B1",
+              "blue": "R3-B2",
+              "status": "pending",
+              "winnerId": null
+            }
+          ]
+        }
+      ],
+      "finalStandings": {
+        "gold": null,
+        "silver": null,
+        "bronze1": null,
+        "bronze2": null
+      }
+    },
+    {
+      "categoryId": "CAT-023",
+      "sourcePage": 23,
+      "name": "12-13 YEARS MALE KUMITE (MERGED <>45KG) (13 ATHLETES)",
+      "gender": "Male",
+      "discipline": "Kumite",
+      "format": "single_elimination",
+      "athleteCount": 13,
+      "participants": [
+        {
+          "participantId": "p23-01",
+          "seed": 1,
+          "name": "HARRISH MOHANAS…",
+          "club": "GOJU-KAI SEL"
+        },
+        {
+          "participantId": "p23-02",
+          "seed": 2,
+          "name": "RUDRAA DHEVAN RAGU…",
+          "club": "GOJU-KAI SEL"
+        },
+        {
+          "participantId": "p23-03",
+          "seed": 3,
+          "name": "YUWIN NAATHAN DENY",
+          "club": "ITOSURYU KARATEDO"
+        },
+        {
+          "participantId": "p23-04",
+          "seed": 4,
+          "name": "FABIAN OLUWAMAYOW …",
+          "club": "TRADITIONAL SHITO-KAI"
+        },
+        {
+          "participantId": "p23-05",
+          "seed": 5,
+          "name": "THIRUCHELVAN BARTHY",
+          "club": "ITOSURYU KARATEDO"
+        },
+        {
+          "participantId": "p23-06",
+          "seed": 6,
+          "name": "YATESH LAL PUWAN LAL",
+          "club": "ITOSURYU KARATEDO"
+        },
+        {
+          "participantId": "p23-07",
+          "seed": 7,
+          "name": "VENUSHAN GANESH",
+          "club": "SHOTOKAN HAYAIDESU KARATE"
+        },
+        {
+          "participantId": "p23-08",
+          "seed": 8,
+          "name": "VARSHAN JAMES SIV…",
+          "club": "ITOSURYU KARATEDO"
+        },
+        {
+          "participantId": "p23-09",
+          "seed": 9,
+          "name": "DEISIGAN",
+          "club": "SENSHI GOJU-RYU"
+        },
+        {
+          "participantId": "p23-10",
+          "seed": 10,
+          "name": "SUGENDRAN SATIS KUM…",
+          "club": "ITOSURYU KARATEDO"
+        },
+        {
+          "participantId": "p23-11",
+          "seed": 11,
+          "name": "YUVEN R NAIDU LOG…",
+          "club": "GOJU-KAI SEL"
+        },
+        {
+          "participantId": "p23-12",
+          "seed": 12,
+          "name": "SHARVIN GANESON",
+          "club": "ITOSURYU KARATEDO"
+        },
+        {
+          "participantId": "p23-13",
+          "seed": 13,
+          "name": "HARSHIV NANTHA KUMA…",
+          "club": "SHOTOKAN HAYAIDESU KARATE"
+        }
+      ],
+      "rounds": [
+        {
+          "round": 1,
+          "name": "Round 1",
+          "bouts": [
+            {
+              "boutId": "R1-B1",
+              "round": 1,
+              "position": 1,
+              "red": "p23-01",
+              "blue": "p23-02",
+              "status": "pending",
+              "winnerId": null
+            },
+            {
+              "boutId": "R1-B2",
+              "round": 1,
+              "position": 2,
+              "red": "p23-03",
+              "blue": "p23-04",
+              "status": "pending",
+              "winnerId": null
+            },
+            {
+              "boutId": "R1-B3",
+              "round": 1,
+              "position": 3,
+              "red": "p23-05",
+              "blue": "p23-06",
+              "status": "pending",
+              "winnerId": null
+            },
+            {
+              "boutId": "R1-B4",
+              "round": 1,
+              "position": 4,
+              "red": "p23-07",
+              "blue": "p23-08",
+              "status": "pending",
+              "winnerId": null
+            },
+            {
+              "boutId": "R1-B5",
+              "round": 1,
+              "position": 5,
+              "red": "p23-09",
+              "blue": "p23-10",
+              "status": "pending",
+              "winnerId": null
+            },
+            {
+              "boutId": "R1-B6",
+              "round": 1,
+              "position": 6,
+              "red": "p23-11",
+              "blue": "p23-12",
+              "status": "pending",
+              "winnerId": null
+            },
+            {
+              "boutId": "R1-B7",
+              "round": 1,
+              "position": 7,
+              "red": "p23-13",
+              "blue": null,
+              "status": "bye",
+              "winnerId": "p23-13"
+            }
+          ]
+        },
+        {
+          "round": 2,
+          "name": "Round 2",
+          "bouts": [
+            {
+              "boutId": "R2-B1",
+              "round": 2,
+              "position": 1,
+              "red": "R1-B1",
+              "blue": "R1-B2",
+              "status": "pending",
+              "winnerId": null
+            },
+            {
+              "boutId": "R2-B2",
+              "round": 2,
+              "position": 2,
+              "red": "R1-B3",
+              "blue": "R1-B4",
+              "status": "pending",
+              "winnerId": null
+            },
+            {
+              "boutId": "R2-B3",
+              "round": 2,
+              "position": 3,
+              "red": "R1-B5",
+              "blue": "R1-B6",
+              "status": "pending",
+              "winnerId": null
+            },
+            {
+              "boutId": "R2-B4",
+              "round": 2,
+              "position": 4,
+              "red": "R1-B7",
+              "blue": null,
+              "status": "bye",
+              "winnerId": "R1-B7"
+            }
+          ]
+        },
+        {
+          "round": 3,
+          "name": "Semifinal",
+          "bouts": [
+            {
+              "boutId": "R3-B1",
+              "round": 3,
+              "position": 1,
+              "red": "R2-B1",
+              "blue": "R2-B2",
+              "status": "pending",
+              "winnerId": null
+            },
+            {
+              "boutId": "R3-B2",
+              "round": 3,
+              "position": 2,
+              "red": "R2-B3",
+              "blue": "R2-B4",
+              "status": "pending",
+              "winnerId": null
+            }
+          ]
+        },
+        {
+          "round": 4,
+          "name": "Final",
+          "bouts": [
+            {
+              "boutId": "R4-B1",
+              "round": 4,
+              "position": 1,
+              "red": "R3-B1",
+              "blue": "R3-B2",
+              "status": "pending",
+              "winnerId": null
+            }
+          ]
+        }
+      ],
+      "finalStandings": {
+        "gold": null,
+        "silver": null,
+        "bronze1": null,
+        "bronze2": null
+      }
+    },
+    {
+      "categoryId": "CAT-024",
+      "sourcePage": 24,
+      "name": "12-13 YEARS FEMALE KUMITE (ABOVE 42KG) (5 ATHLETES)",
+      "gender": "Female",
+      "discipline": "Kumite",
+      "format": "single_elimination",
+      "athleteCount": 5,
+      "participants": [
+        {
+          "participantId": "p24-01",
+          "seed": 1,
+          "name": "MOSHIKA THIAKU",
+          "club": "SENSHI GOJU-RYU"
+        },
+        {
+          "participantId": "p24-02",
+          "seed": 2,
+          "name": "HANUSHREY PREMANAND",
+          "club": "GOJU-KAI SEL"
+        },
+        {
+          "participantId": "p24-03",
+          "seed": 3,
+          "name": "THARANI KAVINDRAN",
+          "club": "SENSHI GOJU-RYU"
+        },
+        {
+          "participantId": "p24-04",
+          "seed": 4,
+          "name": "YASHWINI KUMMARAN…",
+          "club": "GOJU-KAI SEL"
+        },
+        {
+          "participantId": "p24-05",
+          "seed": 5,
+          "name": "PRABHAVATHY",
+          "club": "SENSHI GOJU-RYU"
+        }
+      ],
+      "rounds": [
+        {
+          "round": 1,
+          "name": "Round 1",
+          "bouts": [
+            {
+              "boutId": "R1-B1",
+              "round": 1,
+              "position": 1,
+              "red": "p24-01",
+              "blue": "p24-02",
+              "status": "pending",
+              "winnerId": null
+            },
+            {
+              "boutId": "R1-B2",
+              "round": 1,
+              "position": 2,
+              "red": "p24-03",
+              "blue": "p24-04",
+              "status": "pending",
+              "winnerId": null
+            },
+            {
+              "boutId": "R1-B3",
+              "round": 1,
+              "position": 3,
+              "red": "p24-05",
+              "blue": null,
+              "status": "bye",
+              "winnerId": "p24-05"
+            }
+          ]
+        },
+        {
+          "round": 2,
+          "name": "Semifinal",
+          "bouts": [
+            {
+              "boutId": "R2-B1",
+              "round": 2,
+              "position": 1,
+              "red": "R1-B1",
+              "blue": "R1-B2",
+              "status": "pending",
+              "winnerId": null
+            },
+            {
+              "boutId": "R2-B2",
+              "round": 2,
+              "position": 2,
+              "red": "R1-B3",
+              "blue": null,
+              "status": "bye",
+              "winnerId": "R1-B3"
+            }
+          ]
+        },
+        {
+          "round": 3,
+          "name": "Final",
+          "bouts": [
+            {
+              "boutId": "R3-B1",
+              "round": 3,
+              "position": 1,
+              "red": "R2-B1",
+              "blue": "R2-B2",
+              "status": "pending",
+              "winnerId": null
+            }
+          ]
+        }
+      ],
+      "finalStandings": {
+        "gold": null,
+        "silver": null,
+        "bronze1": null,
+        "bronze2": null
+      }
+    },
+    {
+      "categoryId": "CAT-025",
+      "sourcePage": 25,
+      "name": "12-13 YEARS FEMALE KUMITE (BELOW 42KG) (5 ATHLETES)",
+      "gender": "Female",
+      "discipline": "Kumite",
+      "format": "single_elimination",
+      "athleteCount": 5,
+      "participants": [
+        {
+          "participantId": "p25-01",
+          "seed": 1,
+          "name": "AKSHARA DHRUTI MA…",
+          "club": "SENSHI GOJU-RYU"
+        },
+        {
+          "participantId": "p25-02",
+          "seed": 2,
+          "name": "DHARSIKA SELVAKUMARAN",
+          "club": "GOJU-KAI SEL"
+        },
+        {
+          "participantId": "p25-03",
+          "seed": 3,
+          "name": "HARINI UVARAJAH",
+          "club": "SHOTOKAN HAYAIDESU KARATE"
+        },
+        {
+          "participantId": "p25-04",
+          "seed": 4,
+          "name": "SHAARANI SEGAR",
+          "club": "SHOTOKAN HAYAIDESU KA…"
+        },
+        {
+          "participantId": "p25-05",
+          "seed": 5,
+          "name": "SHASHEENA BALASU…",
+          "club": "SENSHI GOJU-RYU"
+        }
+      ],
+      "rounds": [
+        {
+          "round": 1,
+          "name": "Round 1",
+          "bouts": [
+            {
+              "boutId": "R1-B1",
+              "round": 1,
+              "position": 1,
+              "red": "p25-01",
+              "blue": "p25-02",
+              "status": "pending",
+              "winnerId": null
+            },
+            {
+              "boutId": "R1-B2",
+              "round": 1,
+              "position": 2,
+              "red": "p25-03",
+              "blue": "p25-04",
+              "status": "pending",
+              "winnerId": null
+            },
+            {
+              "boutId": "R1-B3",
+              "round": 1,
+              "position": 3,
+              "red": "p25-05",
+              "blue": null,
+              "status": "bye",
+              "winnerId": "p25-05"
+            }
+          ]
+        },
+        {
+          "round": 2,
+          "name": "Semifinal",
+          "bouts": [
+            {
+              "boutId": "R2-B1",
+              "round": 2,
+              "position": 1,
+              "red": "R1-B1",
+              "blue": "R1-B2",
+              "status": "pending",
+              "winnerId": null
+            },
+            {
+              "boutId": "R2-B2",
+              "round": 2,
+              "position": 2,
+              "red": "R1-B3",
+              "blue": null,
+              "status": "bye",
+              "winnerId": "R1-B3"
+            }
+          ]
+        },
+        {
+          "round": 3,
+          "name": "Final",
+          "bouts": [
+            {
+              "boutId": "R3-B1",
+              "round": 3,
+              "position": 1,
+              "red": "R2-B1",
+              "blue": "R2-B2",
+              "status": "pending",
+              "winnerId": null
+            }
+          ]
+        }
+      ],
+      "finalStandings": {
+        "gold": null,
+        "silver": null,
+        "bronze1": null,
+        "bronze2": null
+      }
+    },
+    {
+      "categoryId": "CAT-026",
+      "sourcePage": 26,
+      "name": "14-15 YEARS MALE KATA (7 ATHLETES)",
+      "gender": "Male",
+      "discipline": "Kata",
+      "format": "single_elimination",
+      "athleteCount": 7,
+      "participants": [
+        {
+          "participantId": "p26-01",
+          "seed": 1,
+          "name": "TUSHANTH SATHISH",
+          "club": "ITOSURYU KARATEDO"
+        },
+        {
+          "participantId": "p26-02",
+          "seed": 2,
+          "name": "MITHESH SAIRAM SARAV…",
+          "club": "ITOSURYU KARATEDO"
+        },
+        {
+          "participantId": "p26-03",
+          "seed": 3,
+          "name": "K. DARSHAN KENNEDY K…",
+          "club": "ITOSURYU KARATEDO"
+        },
+        {
+          "participantId": "p26-04",
+          "seed": 4,
+          "name": "DARSHAN GUNASEGARAN",
+          "club": "ITOSURYU KARATEDO"
+        },
+        {
+          "participantId": "p26-05",
+          "seed": 5,
+          "name": "FAYYADH BIN MOHAMME…",
+          "club": "TRADITIONAL SHITO-KAI"
+        },
+        {
+          "participantId": "p26-06",
+          "seed": 6,
+          "name": "GURUNAATH POOBALAN",
+          "club": "ITOSURYU KARATEDO"
+        },
+        {
+          "participantId": "p26-07",
+          "seed": 7,
+          "name": "TATYA BAABA KUMARESAN",
+          "club": "ITOSURYU KARATEDO"
+        }
+      ],
+      "rounds": [
+        {
+          "round": 1,
+          "name": "Round 1",
+          "bouts": [
+            {
+              "boutId": "R1-B1",
+              "round": 1,
+              "position": 1,
+              "red": "p26-01",
+              "blue": "p26-02",
+              "status": "pending",
+              "winnerId": null
+            },
+            {
+              "boutId": "R1-B2",
+              "round": 1,
+              "position": 2,
+              "red": "p26-03",
+              "blue": "p26-04",
+              "status": "pending",
+              "winnerId": null
+            },
+            {
+              "boutId": "R1-B3",
+              "round": 1,
+              "position": 3,
+              "red": "p26-05",
+              "blue": "p26-06",
+              "status": "pending",
+              "winnerId": null
+            },
+            {
+              "boutId": "R1-B4",
+              "round": 1,
+              "position": 4,
+              "red": "p26-07",
+              "blue": null,
+              "status": "bye",
+              "winnerId": "p26-07"
+            }
+          ]
+        },
+        {
+          "round": 2,
+          "name": "Semifinal",
+          "bouts": [
+            {
+              "boutId": "R2-B1",
+              "round": 2,
+              "position": 1,
+              "red": "R1-B1",
+              "blue": "R1-B2",
+              "status": "pending",
+              "winnerId": null
+            },
+            {
+              "boutId": "R2-B2",
+              "round": 2,
+              "position": 2,
+              "red": "R1-B3",
+              "blue": "R1-B4",
+              "status": "pending",
+              "winnerId": null
+            }
+          ]
+        },
+        {
+          "round": 3,
+          "name": "Final",
+          "bouts": [
+            {
+              "boutId": "R3-B1",
+              "round": 3,
+              "position": 1,
+              "red": "R2-B1",
+              "blue": "R2-B2",
+              "status": "pending",
+              "winnerId": null
+            }
+          ]
+        }
+      ],
+      "finalStandings": {
+        "gold": null,
+        "silver": null,
+        "bronze1": null,
+        "bronze2": null
+      }
+    },
+    {
+      "categoryId": "CAT-027",
+      "sourcePage": 27,
+      "name": "14-17 YEARS FEMALE KATA (3 ATHLETES)",
+      "gender": "Female",
+      "discipline": "Kata",
+      "format": "single_elimination",
+      "athleteCount": 3,
+      "participants": [
+        {
+          "participantId": "p27-01",
+          "seed": 1,
+          "name": "J.TAN MANJARE",
+          "club": "SENSHI GOJU-RYU"
+        },
+        {
+          "participantId": "p27-02",
+          "seed": 2,
+          "name": "ILHAN AFIYAH BINTI MOH…",
+          "club": "TRADITIONAL SHITO-KAI"
+        },
+        {
+          "participantId": "p27-03",
+          "seed": 3,
+          "name": "RATNAA",
+          "club": "SENSHI GOJU-RYU"
+        }
+      ],
+      "rounds": [
+        {
+          "round": 1,
+          "name": "Semifinal",
+          "bouts": [
+            {
+              "boutId": "R1-B1",
+              "round": 1,
+              "position": 1,
+              "red": "p27-01",
+              "blue": "p27-02",
+              "status": "pending",
+              "winnerId": null
+            },
+            {
+              "boutId": "R1-B2",
+              "round": 1,
+              "position": 2,
+              "red": "p27-03",
+              "blue": null,
+              "status": "bye",
+              "winnerId": "p27-03"
+            }
+          ]
+        },
+        {
+          "round": 2,
+          "name": "Final",
+          "bouts": [
+            {
+              "boutId": "R2-B1",
+              "round": 2,
+              "position": 1,
+              "red": "R1-B1",
+              "blue": "R1-B2",
+              "status": "pending",
+              "winnerId": null
+            }
+          ]
+        }
+      ],
+      "finalStandings": {
+        "gold": null,
+        "silver": null,
+        "bronze1": null,
+        "bronze2": null
+      }
+    },
+    {
+      "categoryId": "CAT-028",
+      "sourcePage": 28,
+      "name": "14-15 YEARS MALE KUMITE (<52 & <57 KG ) (8 ATHLETES)",
+      "gender": "Male",
+      "discipline": "Kumite",
+      "format": "single_elimination",
+      "athleteCount": 8,
+      "participants": [
+        {
+          "participantId": "p28-01",
+          "seed": 1,
+          "name": "MITHESH SAIRAM SARAV…",
+          "club": "ITOSURYU KARATEDO"
+        },
+        {
+          "participantId": "p28-02",
+          "seed": 2,
+          "name": "KOGUL SABABATHY",
+          "club": "SENSHI GOJU-RYU"
+        },
+        {
+          "participantId": "p28-03",
+          "seed": 3,
+          "name": "DARSHAN GUNASEGARAN",
+          "club": "ITOSURYU KARATEDO"
+        },
+        {
+          "participantId": "p28-04",
+          "seed": 4,
+          "name": "RAMSAIDHARSHAN SELV…",
+          "club": "GOJU-KAI SEL"
+        },
+        {
+          "participantId": "p28-05",
+          "seed": 5,
+          "name": "SHARVIN JAYAPERAKAS",
+          "club": "TRADITIONAL SHITO-KAI"
+        },
+        {
+          "participantId": "p28-06",
+          "seed": 6,
+          "name": "GURUNAATH POOBALAN",
+          "club": "ITOSURYU KARATEDO"
+        },
+        {
+          "participantId": "p28-07",
+          "seed": 7,
+          "name": "K. DARSHAN KENNEDY K…",
+          "club": "ITOSURYU KARATEDO"
+        },
+        {
+          "participantId": "p28-08",
+          "seed": 8,
+          "name": "ARSHVIN BALASUBRAMA…",
+          "club": "SENSHI GOJU-RYU"
+        }
+      ],
+      "rounds": [
+        {
+          "round": 1,
+          "name": "Round 1",
+          "bouts": [
+            {
+              "boutId": "R1-B1",
+              "round": 1,
+              "position": 1,
+              "red": "p28-01",
+              "blue": "p28-02",
+              "status": "pending",
+              "winnerId": null
+            },
+            {
+              "boutId": "R1-B2",
+              "round": 1,
+              "position": 2,
+              "red": "p28-03",
+              "blue": "p28-04",
+              "status": "pending",
+              "winnerId": null
+            },
+            {
+              "boutId": "R1-B3",
+              "round": 1,
+              "position": 3,
+              "red": "p28-05",
+              "blue": "p28-06",
+              "status": "pending",
+              "winnerId": null
+            },
+            {
+              "boutId": "R1-B4",
+              "round": 1,
+              "position": 4,
+              "red": "p28-07",
+              "blue": "p28-08",
+              "status": "pending",
+              "winnerId": null
+            }
+          ]
+        },
+        {
+          "round": 2,
+          "name": "Semifinal",
+          "bouts": [
+            {
+              "boutId": "R2-B1",
+              "round": 2,
+              "position": 1,
+              "red": "R1-B1",
+              "blue": "R1-B2",
+              "status": "pending",
+              "winnerId": null
+            },
+            {
+              "boutId": "R2-B2",
+              "round": 2,
+              "position": 2,
+              "red": "R1-B3",
+              "blue": "R1-B4",
+              "status": "pending",
+              "winnerId": null
+            }
+          ]
+        },
+        {
+          "round": 3,
+          "name": "Final",
+          "bouts": [
+            {
+              "boutId": "R3-B1",
+              "round": 3,
+              "position": 1,
+              "red": "R2-B1",
+              "blue": "R2-B2",
+              "status": "pending",
+              "winnerId": null
+            }
+          ]
+        }
+      ],
+      "finalStandings": {
+        "gold": null,
+        "silver": null,
+        "bronze1": null,
+        "bronze2": null
+      }
+    },
+    {
+      "categoryId": "CAT-029",
+      "sourcePage": 29,
+      "name": "14-15 YEARS MALE KUMITE (ABOVE 57KG) (8 ATHLETES)",
+      "gender": "Male",
+      "discipline": "Kumite",
+      "format": "single_elimination",
+      "athleteCount": 8,
+      "participants": [
+        {
+          "participantId": "p29-01",
+          "seed": 1,
+          "name": "NAVINESH MURUGAN",
+          "club": "SPEEDPOWER KARATE"
+        },
+        {
+          "participantId": "p29-02",
+          "seed": 2,
+          "name": "TATYA BAABA KUMARESAN",
+          "club": "ITOSURYU KARATEDO"
+        },
+        {
+          "participantId": "p29-03",
+          "seed": 3,
+          "name": "SUHEERTHAN YOGASUN…",
+          "club": "SENSHI GOJU-RYU"
+        },
+        {
+          "participantId": "p29-04",
+          "seed": 4,
+          "name": "MUHAMMAD AZIB BIN KA…",
+          "club": "KUSANO-HA KENPO"
+        },
+        {
+          "participantId": "p29-05",
+          "seed": 5,
+          "name": "DANIAL HAYQAL BIN SYA…",
+          "club": "TRADITIONAL SHITO-KAI"
+        },
+        {
+          "participantId": "p29-06",
+          "seed": 6,
+          "name": "ELANGO KALAISELVAN",
+          "club": "SPEEDPOWER KARATE"
+        },
+        {
+          "participantId": "p29-07",
+          "seed": 7,
+          "name": "TUSHANTH SATHISH",
+          "club": "ITOSURYU KARATEDO"
+        },
+        {
+          "participantId": "p29-08",
+          "seed": 8,
+          "name": "AVIINAASH SARAVANAN",
+          "club": "GOJU-KAI SEL"
+        }
+      ],
+      "rounds": [
+        {
+          "round": 1,
+          "name": "Round 1",
+          "bouts": [
+            {
+              "boutId": "R1-B1",
+              "round": 1,
+              "position": 1,
+              "red": "p29-01",
+              "blue": "p29-02",
+              "status": "pending",
+              "winnerId": null
+            },
+            {
+              "boutId": "R1-B2",
+              "round": 1,
+              "position": 2,
+              "red": "p29-03",
+              "blue": "p29-04",
+              "status": "pending",
+              "winnerId": null
+            },
+            {
+              "boutId": "R1-B3",
+              "round": 1,
+              "position": 3,
+              "red": "p29-05",
+              "blue": "p29-06",
+              "status": "pending",
+              "winnerId": null
+            },
+            {
+              "boutId": "R1-B4",
+              "round": 1,
+              "position": 4,
+              "red": "p29-07",
+              "blue": "p29-08",
+              "status": "pending",
+              "winnerId": null
+            }
+          ]
+        },
+        {
+          "round": 2,
+          "name": "Semifinal",
+          "bouts": [
+            {
+              "boutId": "R2-B1",
+              "round": 2,
+              "position": 1,
+              "red": "R1-B1",
+              "blue": "R1-B2",
+              "status": "pending",
+              "winnerId": null
+            },
+            {
+              "boutId": "R2-B2",
+              "round": 2,
+              "position": 2,
+              "red": "R1-B3",
+              "blue": "R1-B4",
+              "status": "pending",
+              "winnerId": null
+            }
+          ]
+        },
+        {
+          "round": 3,
+          "name": "Final",
+          "bouts": [
+            {
+              "boutId": "R3-B1",
+              "round": 3,
+              "position": 1,
+              "red": "R2-B1",
+              "blue": "R2-B2",
+              "status": "pending",
+              "winnerId": null
+            }
+          ]
+        }
+      ],
+      "finalStandings": {
+        "gold": null,
+        "silver": null,
+        "bronze1": null,
+        "bronze2": null
+      }
+    },
+    {
+      "categoryId": "CAT-030",
+      "sourcePage": 30,
+      "name": "14-15 YEARS FEMALE KUMITE (<48&54 KG) (5 ATHLETES)",
+      "gender": "Female",
+      "discipline": "Kumite",
+      "format": "single_elimination",
+      "athleteCount": 5,
+      "participants": [
+        {
+          "participantId": "p30-01",
+          "seed": 1,
+          "name": "LAW JES XIN",
+          "club": "SHOTOKAN HAYAIDESU KA…"
+        },
+        {
+          "participantId": "p30-02",
+          "seed": 2,
+          "name": "J.TAN MANJARE",
+          "club": "SENSHI GOJU-RYU"
+        },
+        {
+          "participantId": "p30-03",
+          "seed": 3,
+          "name": "YUGAKAALI RAMU",
+          "club": "SPEEDPOWER KARATE"
+        },
+        {
+          "participantId": "p30-04",
+          "seed": 4,
+          "name": "KAUSHALYA GOBINATH",
+          "club": "GOJU-KAI SEL"
+        },
+        {
+          "participantId": "p30-05",
+          "seed": 5,
+          "name": "HARNEETA KATHERES…",
+          "club": "SENSHI GOJU-RYU"
+        }
+      ],
+      "rounds": [
+        {
+          "round": 1,
+          "name": "Round 1",
+          "bouts": [
+            {
+              "boutId": "R1-B1",
+              "round": 1,
+              "position": 1,
+              "red": "p30-01",
+              "blue": "p30-02",
+              "status": "pending",
+              "winnerId": null
+            },
+            {
+              "boutId": "R1-B2",
+              "round": 1,
+              "position": 2,
+              "red": "p30-03",
+              "blue": "p30-04",
+              "status": "pending",
+              "winnerId": null
+            },
+            {
+              "boutId": "R1-B3",
+              "round": 1,
+              "position": 3,
+              "red": "p30-05",
+              "blue": null,
+              "status": "bye",
+              "winnerId": "p30-05"
+            }
+          ]
+        },
+        {
+          "round": 2,
+          "name": "Semifinal",
+          "bouts": [
+            {
+              "boutId": "R2-B1",
+              "round": 2,
+              "position": 1,
+              "red": "R1-B1",
+              "blue": "R1-B2",
+              "status": "pending",
+              "winnerId": null
+            },
+            {
+              "boutId": "R2-B2",
+              "round": 2,
+              "position": 2,
+              "red": "R1-B3",
+              "blue": null,
+              "status": "bye",
+              "winnerId": "R1-B3"
+            }
+          ]
+        },
+        {
+          "round": 3,
+          "name": "Final",
+          "bouts": [
+            {
+              "boutId": "R3-B1",
+              "round": 3,
+              "position": 1,
+              "red": "R2-B1",
+              "blue": "R2-B2",
+              "status": "pending",
+              "winnerId": null
+            }
+          ]
+        }
+      ],
+      "finalStandings": {
+        "gold": null,
+        "silver": null,
+        "bronze1": null,
+        "bronze2": null
+      }
+    },
+    {
+      "categoryId": "CAT-031",
+      "sourcePage": 31,
+      "name": "16-17 YEARS MALE KATA (6 ATHLETES)",
+      "gender": "Male",
+      "discipline": "Kata",
+      "format": "single_elimination",
+      "athleteCount": 6,
+      "participants": [
+        {
+          "participantId": "p31-01",
+          "seed": 1,
+          "name": "MOGANANTHAN SARA…",
+          "club": "ITOSURYU KARATEDO"
+        },
+        {
+          "participantId": "p31-02",
+          "seed": 2,
+          "name": "HARIHAARAN KANNAN",
+          "club": "SENSHI GOJU-RYU"
+        },
+        {
+          "participantId": "p31-03",
+          "seed": 3,
+          "name": "LUCAS TAN",
+          "club": "KUSANO-HA KENPO"
+        },
+        {
+          "participantId": "p31-04",
+          "seed": 4,
+          "name": "MIRESH PUVANESWA…",
+          "club": "SENSHI GOJU-RYU"
+        },
+        {
+          "participantId": "p31-05",
+          "seed": 5,
+          "name": "DEVDARSHN KESAVAN",
+          "club": "ITOSURYU KARATEDO"
+        },
+        {
+          "participantId": "p31-06",
+          "seed": 6,
+          "name": "ABHINAV",
+          "club": "SENSHI GOJU-RYU"
+        }
+      ],
+      "rounds": [
+        {
+          "round": 1,
+          "name": "Round 1",
+          "bouts": [
+            {
+              "boutId": "R1-B1",
+              "round": 1,
+              "position": 1,
+              "red": "p31-01",
+              "blue": "p31-02",
+              "status": "pending",
+              "winnerId": null
+            },
+            {
+              "boutId": "R1-B2",
+              "round": 1,
+              "position": 2,
+              "red": "p31-03",
+              "blue": "p31-04",
+              "status": "pending",
+              "winnerId": null
+            },
+            {
+              "boutId": "R1-B3",
+              "round": 1,
+              "position": 3,
+              "red": "p31-05",
+              "blue": "p31-06",
+              "status": "pending",
+              "winnerId": null
+            }
+          ]
+        },
+        {
+          "round": 2,
+          "name": "Semifinal",
+          "bouts": [
+            {
+              "boutId": "R2-B1",
+              "round": 2,
+              "position": 1,
+              "red": "R1-B1",
+              "blue": "R1-B2",
+              "status": "pending",
+              "winnerId": null
+            },
+            {
+              "boutId": "R2-B2",
+              "round": 2,
+              "position": 2,
+              "red": "R1-B3",
+              "blue": null,
+              "status": "bye",
+              "winnerId": "R1-B3"
+            }
+          ]
+        },
+        {
+          "round": 3,
+          "name": "Final",
+          "bouts": [
+            {
+              "boutId": "R3-B1",
+              "round": 3,
+              "position": 1,
+              "red": "R2-B1",
+              "blue": "R2-B2",
+              "status": "pending",
+              "winnerId": null
+            }
+          ]
+        }
+      ],
+      "finalStandings": {
+        "gold": null,
+        "silver": null,
+        "bronze1": null,
+        "bronze2": null
+      }
+    },
+    {
+      "categoryId": "CAT-032",
+      "sourcePage": 32,
+      "name": "16-17 YEARS MALE KUMITE (BELOW 55KG) (6 ATHLETES)",
+      "gender": "Male",
+      "discipline": "Kumite",
+      "format": "single_elimination",
+      "athleteCount": 6,
+      "participants": [
+        {
+          "participantId": "p32-01",
+          "seed": 1,
+          "name": "MOGANANTHAN SARA…",
+          "club": "ITOSURYU KARATEDO"
+        },
+        {
+          "participantId": "p32-02",
+          "seed": 2,
+          "name": "SARAVANEYSH",
+          "club": "SENSHI GOJU-RYU"
+        },
+        {
+          "participantId": "p32-03",
+          "seed": 3,
+          "name": "KASVIN YUMENDRAN",
+          "club": "GOJU-KAI SEL"
+        },
+        {
+          "participantId": "p32-04",
+          "seed": 4,
+          "name": "NATHISH SELVAN",
+          "club": "SENSHI GOJU-RYU"
+        },
+        {
+          "participantId": "p32-05",
+          "seed": 5,
+          "name": "DHARMANESWARAN MUR…",
+          "club": "ITOSURYU KARATEDO"
+        },
+        {
+          "participantId": "p32-06",
+          "seed": 6,
+          "name": "HARIHAARAN KANNAN",
+          "club": "SENSHI GOJU-RYU"
+        }
+      ],
+      "rounds": [
+        {
+          "round": 1,
+          "name": "Round 1",
+          "bouts": [
+            {
+              "boutId": "R1-B1",
+              "round": 1,
+              "position": 1,
+              "red": "p32-01",
+              "blue": "p32-02",
+              "status": "pending",
+              "winnerId": null
+            },
+            {
+              "boutId": "R1-B2",
+              "round": 1,
+              "position": 2,
+              "red": "p32-03",
+              "blue": "p32-04",
+              "status": "pending",
+              "winnerId": null
+            },
+            {
+              "boutId": "R1-B3",
+              "round": 1,
+              "position": 3,
+              "red": "p32-05",
+              "blue": "p32-06",
+              "status": "pending",
+              "winnerId": null
+            }
+          ]
+        },
+        {
+          "round": 2,
+          "name": "Semifinal",
+          "bouts": [
+            {
+              "boutId": "R2-B1",
+              "round": 2,
+              "position": 1,
+              "red": "R1-B1",
+              "blue": "R1-B2",
+              "status": "pending",
+              "winnerId": null
+            },
+            {
+              "boutId": "R2-B2",
+              "round": 2,
+              "position": 2,
+              "red": "R1-B3",
+              "blue": null,
+              "status": "bye",
+              "winnerId": "R1-B3"
+            }
+          ]
+        },
+        {
+          "round": 3,
+          "name": "Final",
+          "bouts": [
+            {
+              "boutId": "R3-B1",
+              "round": 3,
+              "position": 1,
+              "red": "R2-B1",
+              "blue": "R2-B2",
+              "status": "pending",
+              "winnerId": null
+            }
+          ]
+        }
+      ],
+      "finalStandings": {
+        "gold": null,
+        "silver": null,
+        "bronze1": null,
+        "bronze2": null
+      }
+    },
+    {
+      "categoryId": "CAT-033",
+      "sourcePage": 33,
+      "name": "16-17 YEARS MALE KUMITE (MERGED <> 68KG) (9 ATHLETES)",
+      "gender": "Male",
+      "discipline": "Kumite",
+      "format": "single_elimination",
+      "athleteCount": 9,
+      "participants": [
+        {
+          "participantId": "p33-01",
+          "seed": 1,
+          "name": "MUNISVARAN RAMU",
+          "club": "SPEEDPOWER KARATE"
+        },
+        {
+          "participantId": "p33-02",
+          "seed": 2,
+          "name": "SUHRUDA THANABALAN",
+          "club": "SHOTOKAN HAYAIDESU KARATE"
+        },
+        {
+          "participantId": "p33-03",
+          "seed": 3,
+          "name": "MIRESH PUVANESWARAN",
+          "club": "SENSHI GOJU-RYU"
+        },
+        {
+          "participantId": "p33-04",
+          "seed": 4,
+          "name": "SACHEIN JAYAPERA…",
+          "club": "TRADITIONAL SHITO-KAI"
+        },
+        {
+          "participantId": "p33-05",
+          "seed": 5,
+          "name": "LUCAS TAN",
+          "club": "KUSANO-HA KENPO"
+        },
+        {
+          "participantId": "p33-06",
+          "seed": 6,
+          "name": "DEVDARSHN KESAVAN",
+          "club": "ITOSURYU KARATEDO"
+        },
+        {
+          "participantId": "p33-07",
+          "seed": 7,
+          "name": "SANJEET KOLONDAS…",
+          "club": "SPEEDPOWER KARATE"
+        },
+        {
+          "participantId": "p33-08",
+          "seed": 8,
+          "name": "ABHINAV",
+          "club": "SENSHI GOJU-RYU"
+        },
+        {
+          "participantId": "p33-09",
+          "seed": 9,
+          "name": "MITHRAN NANTHA K…",
+          "club": "SHOTOKAN HAYAIDESU KA…"
+        }
+      ],
+      "rounds": [
+        {
+          "round": 1,
+          "name": "Round 1",
+          "bouts": [
+            {
+              "boutId": "R1-B1",
+              "round": 1,
+              "position": 1,
+              "red": "p33-01",
+              "blue": "p33-02",
+              "status": "pending",
+              "winnerId": null
+            },
+            {
+              "boutId": "R1-B2",
+              "round": 1,
+              "position": 2,
+              "red": "p33-03",
+              "blue": "p33-04",
+              "status": "pending",
+              "winnerId": null
+            },
+            {
+              "boutId": "R1-B3",
+              "round": 1,
+              "position": 3,
+              "red": "p33-05",
+              "blue": "p33-06",
+              "status": "pending",
+              "winnerId": null
+            },
+            {
+              "boutId": "R1-B4",
+              "round": 1,
+              "position": 4,
+              "red": "p33-07",
+              "blue": "p33-08",
+              "status": "pending",
+              "winnerId": null
+            },
+            {
+              "boutId": "R1-B5",
+              "round": 1,
+              "position": 5,
+              "red": "p33-09",
+              "blue": null,
+              "status": "bye",
+              "winnerId": "p33-09"
+            }
+          ]
+        },
+        {
+          "round": 2,
+          "name": "Round 2",
+          "bouts": [
+            {
+              "boutId": "R2-B1",
+              "round": 2,
+              "position": 1,
+              "red": "R1-B1",
+              "blue": "R1-B2",
+              "status": "pending",
+              "winnerId": null
+            },
+            {
+              "boutId": "R2-B2",
+              "round": 2,
+              "position": 2,
+              "red": "R1-B3",
+              "blue": "R1-B4",
+              "status": "pending",
+              "winnerId": null
+            },
+            {
+              "boutId": "R2-B3",
+              "round": 2,
+              "position": 3,
+              "red": "R1-B5",
+              "blue": null,
+              "status": "bye",
+              "winnerId": "R1-B5"
+            }
+          ]
+        },
+        {
+          "round": 3,
+          "name": "Semifinal",
+          "bouts": [
+            {
+              "boutId": "R3-B1",
+              "round": 3,
+              "position": 1,
+              "red": "R2-B1",
+              "blue": "R2-B2",
+              "status": "pending",
+              "winnerId": null
+            },
+            {
+              "boutId": "R3-B2",
+              "round": 3,
+              "position": 2,
+              "red": "R2-B3",
+              "blue": null,
+              "status": "bye",
+              "winnerId": "R2-B3"
+            }
+          ]
+        },
+        {
+          "round": 4,
+          "name": "Final",
+          "bouts": [
+            {
+              "boutId": "R4-B1",
+              "round": 4,
+              "position": 1,
+              "red": "R3-B1",
+              "blue": "R3-B2",
+              "status": "pending",
+              "winnerId": null
+            }
+          ]
+        }
+      ],
+      "finalStandings": {
+        "gold": null,
+        "silver": null,
+        "bronze1": null,
+        "bronze2": null
+      }
+    },
+    {
+      "categoryId": "CAT-034",
+      "sourcePage": 34,
+      "name": "16-17 YEARS FEMALE KUMITE (<48 & 59> KG) (4 ATHLETES)",
+      "gender": "Female",
+      "discipline": "Kumite",
+      "format": "single_elimination",
+      "athleteCount": 4,
+      "participants": [
+        {
+          "participantId": "p34-01",
+          "seed": 1,
+          "name": "RATNAA",
+          "club": "SENSHI GOJU-RYU"
+        },
+        {
+          "participantId": "p34-02",
+          "seed": 2,
+          "name": "NAVINAH SIVAM",
+          "club": "GOJU-KAI SEL"
+        },
+        {
+          "participantId": "p34-03",
+          "seed": 3,
+          "name": "MADHU BARATHI SHASHI …",
+          "club": "TRADITIONAL SHITO-KAI"
+        },
+        {
+          "participantId": "p34-04",
+          "seed": 4,
+          "name": "HARSHANA MANIAM",
+          "club": "SENSHI GOJU-RYU"
+        }
+      ],
+      "rounds": [
+        {
+          "round": 1,
+          "name": "Semifinal",
+          "bouts": [
+            {
+              "boutId": "R1-B1",
+              "round": 1,
+              "position": 1,
+              "red": "p34-01",
+              "blue": "p34-02",
+              "status": "pending",
+              "winnerId": null
+            },
+            {
+              "boutId": "R1-B2",
+              "round": 1,
+              "position": 2,
+              "red": "p34-03",
+              "blue": "p34-04",
+              "status": "pending",
+              "winnerId": null
+            }
+          ]
+        },
+        {
+          "round": 2,
+          "name": "Final",
+          "bouts": [
+            {
+              "boutId": "R2-B1",
+              "round": 2,
+              "position": 1,
+              "red": "R1-B1",
+              "blue": "R1-B2",
+              "status": "pending",
+              "winnerId": null
+            }
+          ]
+        }
+      ],
+      "finalStandings": {
+        "gold": null,
+        "silver": null,
+        "bronze1": null,
+        "bronze2": null
+      }
+    },
+    {
+      "categoryId": "CAT-035",
+      "sourcePage": 35,
+      "name": "18-21 YEARS MALE KATA (3 ATHLETES)",
+      "gender": "Male",
+      "discipline": "Kata",
+      "format": "single_elimination",
+      "athleteCount": 3,
+      "participants": [
+        {
+          "participantId": "p35-01",
+          "seed": 1,
+          "name": "DEVESH NATHAN",
+          "club": "SENSHI GOJU-RYU"
+        },
+        {
+          "participantId": "p35-02",
+          "seed": 2,
+          "name": "AKILESH ALAGAN VAMAT…",
+          "club": "SENSHI GOJU-RYU"
+        },
+        {
+          "participantId": "p35-03",
+          "seed": 3,
+          "name": "NEROSHAN MANIAM",
+          "club": "SENSHI GOJU-RYU"
+        }
+      ],
+      "rounds": [
+        {
+          "round": 1,
+          "name": "Semifinal",
+          "bouts": [
+            {
+              "boutId": "R1-B1",
+              "round": 1,
+              "position": 1,
+              "red": "p35-01",
+              "blue": "p35-02",
+              "status": "pending",
+              "winnerId": null
+            },
+            {
+              "boutId": "R1-B2",
+              "round": 1,
+              "position": 2,
+              "red": "p35-03",
+              "blue": null,
+              "status": "bye",
+              "winnerId": "p35-03"
+            }
+          ]
+        },
+        {
+          "round": 2,
+          "name": "Final",
+          "bouts": [
+            {
+              "boutId": "R2-B1",
+              "round": 2,
+              "position": 1,
+              "red": "R1-B1",
+              "blue": "R1-B2",
+              "status": "pending",
+              "winnerId": null
+            }
+          ]
+        }
+      ],
+      "finalStandings": {
+        "gold": null,
+        "silver": null,
+        "bronze1": null,
+        "bronze2": null
+      }
+    },
+    {
+      "categoryId": "CAT-036",
+      "sourcePage": 36,
+      "name": "18-21 YEARS FEMALE KATA (4 ATHLETES)",
+      "gender": "Female",
+      "discipline": "Kata",
+      "format": "single_elimination",
+      "athleteCount": 4,
+      "participants": [
+        {
+          "participantId": "p36-01",
+          "seed": 1,
+          "name": "MATHUMITHRA BALASUB…",
+          "club": "SENSHI GOJU-RYU"
+        },
+        {
+          "participantId": "p36-02",
+          "seed": 2,
+          "name": "KIRTE PRABAKARAN",
+          "club": "SENSHI GOJU-RYU"
+        },
+        {
+          "participantId": "p36-03",
+          "seed": 3,
+          "name": "DEVATARSHINII VIJAY KU…",
+          "club": "SENSHI GOJU-RYU"
+        },
+        {
+          "participantId": "p36-04",
+          "seed": 4,
+          "name": "VARSENI",
+          "club": "SENSHI GOJU-RYU"
+        }
+      ],
+      "rounds": [
+        {
+          "round": 1,
+          "name": "Semifinal",
+          "bouts": [
+            {
+              "boutId": "R1-B1",
+              "round": 1,
+              "position": 1,
+              "red": "p36-01",
+              "blue": "p36-02",
+              "status": "pending",
+              "winnerId": null
+            },
+            {
+              "boutId": "R1-B2",
+              "round": 1,
+              "position": 2,
+              "red": "p36-03",
+              "blue": "p36-04",
+              "status": "pending",
+              "winnerId": null
+            }
+          ]
+        },
+        {
+          "round": 2,
+          "name": "Final",
+          "bouts": [
+            {
+              "boutId": "R2-B1",
+              "round": 2,
+              "position": 1,
+              "red": "R1-B1",
+              "blue": "R1-B2",
+              "status": "pending",
+              "winnerId": null
+            }
+          ]
+        }
+      ],
+      "finalStandings": {
+        "gold": null,
+        "silver": null,
+        "bronze1": null,
+        "bronze2": null
+      }
+    },
+    {
+      "categoryId": "CAT-037",
+      "sourcePage": 37,
+      "name": "18-21 YEARS MALE KUMITE (ABOVE 70KG) (3 ATHLETES)",
+      "gender": "Male",
+      "discipline": "Kumite",
+      "format": "single_elimination",
+      "athleteCount": 3,
+      "participants": [
+        {
+          "participantId": "p37-01",
+          "seed": 1,
+          "name": "DEVESH NATHAN",
+          "club": "SENSHI GOJU-RYU"
+        },
+        {
+          "participantId": "p37-02",
+          "seed": 2,
+          "name": "AKILESH ALAGAN VAMAT…",
+          "club": "SENSHI GOJU-RYU"
+        },
+        {
+          "participantId": "p37-03",
+          "seed": 3,
+          "name": "KRITHEEGAN BALASUBR…",
+          "club": "SENSHI GOJU-RYU"
+        }
+      ],
+      "rounds": [
+        {
+          "round": 1,
+          "name": "Semifinal",
+          "bouts": [
+            {
+              "boutId": "R1-B1",
+              "round": 1,
+              "position": 1,
+              "red": "p37-01",
+              "blue": "p37-02",
+              "status": "pending",
+              "winnerId": null
+            },
+            {
+              "boutId": "R1-B2",
+              "round": 1,
+              "position": 2,
+              "red": "p37-03",
+              "blue": null,
+              "status": "bye",
+              "winnerId": "p37-03"
+            }
+          ]
+        },
+        {
+          "round": 2,
+          "name": "Final",
+          "bouts": [
+            {
+              "boutId": "R2-B1",
+              "round": 2,
+              "position": 1,
+              "red": "R1-B1",
+              "blue": "R1-B2",
+              "status": "pending",
+              "winnerId": null
+            }
+          ]
+        }
+      ],
+      "finalStandings": {
+        "gold": null,
+        "silver": null,
+        "bronze1": null,
+        "bronze2": null
+      }
+    },
+    {
+      "categoryId": "CAT-038",
+      "sourcePage": 38,
+      "name": "18-21 YEARS MALE KUMITE (BELOW 57KG) (5 ATHLETES)",
+      "gender": "Male",
+      "discipline": "Kumite",
+      "format": "single_elimination",
+      "athleteCount": 5,
+      "participants": [
+        {
+          "participantId": "p38-01",
+          "seed": 1,
+          "name": "KABILAN THANASELVAN",
+          "club": "SENSHI GOJU-RYU"
+        },
+        {
+          "participantId": "p38-02",
+          "seed": 2,
+          "name": "VELASH",
+          "club": "SENSHI GOJU-RYU"
+        },
+        {
+          "participantId": "p38-03",
+          "seed": 3,
+          "name": "VIKESH RAO",
+          "club": "SENSHI GOJU-RYU"
+        },
+        {
+          "participantId": "p38-04",
+          "seed": 4,
+          "name": "HEAMNAARTH SIVAKU…",
+          "club": "SENSHI GOJU-RYU"
+        },
+        {
+          "participantId": "p38-05",
+          "seed": 5,
+          "name": "JESSVIN VICRAAM BA…",
+          "club": "SENSHI GOJU-RYU"
+        }
+      ],
+      "rounds": [
+        {
+          "round": 1,
+          "name": "Round 1",
+          "bouts": [
+            {
+              "boutId": "R1-B1",
+              "round": 1,
+              "position": 1,
+              "red": "p38-01",
+              "blue": "p38-02",
+              "status": "pending",
+              "winnerId": null
+            },
+            {
+              "boutId": "R1-B2",
+              "round": 1,
+              "position": 2,
+              "red": "p38-03",
+              "blue": "p38-04",
+              "status": "pending",
+              "winnerId": null
+            },
+            {
+              "boutId": "R1-B3",
+              "round": 1,
+              "position": 3,
+              "red": "p38-05",
+              "blue": null,
+              "status": "bye",
+              "winnerId": "p38-05"
+            }
+          ]
+        },
+        {
+          "round": 2,
+          "name": "Semifinal",
+          "bouts": [
+            {
+              "boutId": "R2-B1",
+              "round": 2,
+              "position": 1,
+              "red": "R1-B1",
+              "blue": "R1-B2",
+              "status": "pending",
+              "winnerId": null
+            },
+            {
+              "boutId": "R2-B2",
+              "round": 2,
+              "position": 2,
+              "red": "R1-B3",
+              "blue": null,
+              "status": "bye",
+              "winnerId": "R1-B3"
+            }
+          ]
+        },
+        {
+          "round": 3,
+          "name": "Final",
+          "bouts": [
+            {
+              "boutId": "R3-B1",
+              "round": 3,
+              "position": 1,
+              "red": "R2-B1",
+              "blue": "R2-B2",
+              "status": "pending",
+              "winnerId": null
+            }
+          ]
+        }
+      ],
+      "finalStandings": {
+        "gold": null,
+        "silver": null,
+        "bronze1": null,
+        "bronze2": null
+      }
+    },
+    {
+      "categoryId": "CAT-039",
+      "sourcePage": 39,
+      "name": "18-21 YEARS MALE KUMITE (MERGED <62&70 KG) (3 ATHLETES)",
+      "gender": "Male",
+      "discipline": "Kumite",
+      "format": "single_elimination",
+      "athleteCount": 3,
+      "participants": [
+        {
+          "participantId": "p39-01",
+          "seed": 1,
+          "name": "VISHALL RAO",
+          "club": "SENSHI GOJU-RYU"
+        },
+        {
+          "participantId": "p39-02",
+          "seed": 2,
+          "name": "HARIHARAN GANESON",
+          "club": "SPEEDPOWER KARATE"
+        },
+        {
+          "participantId": "p39-03",
+          "seed": 3,
+          "name": "NEROSHAN MANIAM",
+          "club": "SENSHI GOJU-RYU"
+        }
+      ],
+      "rounds": [
+        {
+          "round": 1,
+          "name": "Semifinal",
+          "bouts": [
+            {
+              "boutId": "R1-B1",
+              "round": 1,
+              "position": 1,
+              "red": "p39-01",
+              "blue": "p39-02",
+              "status": "pending",
+              "winnerId": null
+            },
+            {
+              "boutId": "R1-B2",
+              "round": 1,
+              "position": 2,
+              "red": "p39-03",
+              "blue": null,
+              "status": "bye",
+              "winnerId": "p39-03"
+            }
+          ]
+        },
+        {
+          "round": 2,
+          "name": "Final",
+          "bouts": [
+            {
+              "boutId": "R2-B1",
+              "round": 2,
+              "position": 1,
+              "red": "R1-B1",
+              "blue": "R1-B2",
+              "status": "pending",
+              "winnerId": null
+            }
+          ]
+        }
+      ],
+      "finalStandings": {
+        "gold": null,
+        "silver": null,
+        "bronze1": null,
+        "bronze2": null
+      }
+    },
+    {
+      "categoryId": "CAT-040",
+      "sourcePage": 40,
+      "name": "18-21 YEARS FEMALE KUMITE (BELOW 52 & 57 KG) (4 ATHLETES)",
+      "gender": "Female",
+      "discipline": "Kumite",
+      "format": "single_elimination",
+      "athleteCount": 4,
+      "participants": [
+        {
+          "participantId": "p40-01",
+          "seed": 1,
+          "name": "MATHUMITHRA BALASUB…",
+          "club": "SENSHI GOJU-RYU"
+        },
+        {
+          "participantId": "p40-02",
+          "seed": 2,
+          "name": "DEVATARSHINII VIJAY KU…",
+          "club": "SENSHI GOJU-RYU"
+        },
+        {
+          "participantId": "p40-03",
+          "seed": 3,
+          "name": "KIRTE PRABAKARAN",
+          "club": "SENSHI GOJU-RYU"
+        },
+        {
+          "participantId": "p40-04",
+          "seed": 4,
+          "name": "VARSENI",
+          "club": "SENSHI GOJU-RYU"
+        }
+      ],
+      "rounds": [
+        {
+          "round": 1,
+          "name": "Semifinal",
+          "bouts": [
+            {
+              "boutId": "R1-B1",
+              "round": 1,
+              "position": 1,
+              "red": "p40-01",
+              "blue": "p40-02",
+              "status": "pending",
+              "winnerId": null
+            },
+            {
+              "boutId": "R1-B2",
+              "round": 1,
+              "position": 2,
+              "red": "p40-03",
+              "blue": "p40-04",
+              "status": "pending",
+              "winnerId": null
+            }
+          ]
+        },
+        {
+          "round": 2,
+          "name": "Final",
+          "bouts": [
+            {
+              "boutId": "R2-B1",
+              "round": 2,
+              "position": 1,
+              "red": "R1-B1",
+              "blue": "R1-B2",
+              "status": "pending",
+              "winnerId": null
+            }
+          ]
+        }
+      ],
+      "finalStandings": {
+        "gold": null,
+        "silver": null,
+        "bronze1": null,
+        "bronze2": null
+      }
+    },
+    {
+      "categoryId": "CAT-041",
+      "sourcePage": 41,
+      "name": "22-40 YEARS MALE KUMITE (OPEN) (4 ATHLETES)",
+      "gender": "Male",
+      "discipline": "Kumite",
+      "format": "single_elimination",
+      "athleteCount": 4,
+      "participants": [
+        {
+          "participantId": "p41-01",
+          "seed": 1,
+          "name": "JARESH NATHAN",
+          "club": "SENSHI GOJU-RYU"
+        },
+        {
+          "participantId": "p41-02",
+          "seed": 2,
+          "name": "THAYALAN THARMALINGAM",
+          "club": "SENSHI GOJU-RYU"
+        },
+        {
+          "participantId": "p41-03",
+          "seed": 3,
+          "name": "SAATHESH NATHAN",
+          "club": "SENSHI GOJU-RYU"
+        },
+        {
+          "participantId": "p41-04",
+          "seed": 4,
+          "name": "GOBINATH PALANIANDY",
+          "club": "SENSHI GOJU-RYU"
+        }
+      ],
+      "rounds": [
+        {
+          "round": 1,
+          "name": "Semifinal",
+          "bouts": [
+            {
+              "boutId": "R1-B1",
+              "round": 1,
+              "position": 1,
+              "red": "p41-01",
+              "blue": "p41-02",
+              "status": "pending",
+              "winnerId": null
+            },
+            {
+              "boutId": "R1-B2",
+              "round": 1,
+              "position": 2,
+              "red": "p41-03",
+              "blue": "p41-04",
+              "status": "pending",
+              "winnerId": null
+            }
+          ]
+        },
+        {
+          "round": 2,
+          "name": "Final",
+          "bouts": [
+            {
+              "boutId": "R2-B1",
+              "round": 2,
+              "position": 1,
+              "red": "R1-B1",
+              "blue": "R1-B2",
+              "status": "pending",
+              "winnerId": null
+            }
+          ]
+        }
+      ],
+      "finalStandings": {
+        "gold": null,
+        "silver": null,
+        "bronze1": null,
+        "bronze2": null
+      }
+    }
+  ]
+}

@@ -4,7 +4,7 @@ import React, { useState, useEffect, useRef, useCallback, Suspense } from 'react
 import Link from 'next/link';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { db, basePath } from '@/db/dbClient';
-import { Bout, Participant } from '@/db/types';
+import { Bout, Participant, Club } from '@/db/types';
 import {
   Zap, Play, Square, RotateCcw, X, Award, Timer, Clock,
   ChevronLeft, Volume2, VolumeX, RefreshCw, Undo, Save, Check, Award as MedalIcon, Tv, Maximize2, Minimize2, List, MonitorPlay, ExternalLink, LayoutDashboard, ArrowRight, Trophy
@@ -41,6 +41,18 @@ export const KumiteScoreboardControl = React.forwardRef<ScoreboardRef, { boutId?
   const [bout, setBout] = useState<Bout | null>(null);
   const [competitorAka, setCompetitorAka] = useState<Participant | null>(null);
   const [competitorAo, setCompetitorAo] = useState<Participant | null>(null);
+  const [clubs, setClubs] = useState<Club[]>([]);
+
+  const getClubName = useCallback((participant: Participant | null | undefined): string => {
+    if (!participant) return '';
+    if (participant.club_id) {
+      const found = clubs.find(c => c.id === participant.club_id);
+      if (found?.name) return found.name;
+    }
+    if ((participant as any).dojo) return (participant as any).dojo;
+    if ((participant as any).club) return (participant as any).club;
+    return '';
+  }, [clubs]);
 
   // Live scoring state
   const [scoreAka, setScoreAka] = useState<number>(0);
@@ -94,6 +106,7 @@ export const KumiteScoreboardControl = React.forwardRef<ScoreboardRef, { boutId?
 
   // Spectator View launch & management states
   const [spectatorConnected, setSpectatorConnected] = useState<boolean>(false);
+  const [isStandbyActive, setIsStandbyActive] = useState<boolean>(false);
   const [popupBlocked, setPopupBlocked] = useState<boolean>(false);
   const [isSpectatorModalOpen, setIsSpectatorModalOpen] = useState<boolean>(false);
 
@@ -124,6 +137,7 @@ export const KumiteScoreboardControl = React.forwardRef<ScoreboardRef, { boutId?
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const readinessCountdownRef = useRef<NodeJS.Timeout | null>(null);
   const broadcastChannelRef = useRef<BroadcastChannel | null>(null);
+  const broadcastStateRef = useRef<() => void>(() => {});
   const soundPlayedRef = useRef<string | null>(null);
   const audioCtxRef = useRef<AudioContext | null>(null);
 
@@ -238,10 +252,16 @@ export const KumiteScoreboardControl = React.forwardRef<ScoreboardRef, { boutId?
         if (data.type === 'PONG' || data.type === 'SPECTATOR_CONNECTED') {
           lastSpectatorHeartbeat.current = Date.now();
           setSpectatorConnected(true);
+          if (data.type === 'SPECTATOR_CONNECTED') {
+            broadcastStateRef.current();
+          }
         } else if (data.type === 'SPECTATOR_DISCONNECTED') {
           setSpectatorConnected(false);
+        } else if (data.type === 'SET_IDLE') {
+          setIsStandbyActive(Boolean(data.isIdle));
         } else if (data.type === 'REQUEST_FULL_STATE') {
           await broadcastFullState();
+          broadcastStateRef.current();
         } else if (data.type === 'LOAD_BOUT' && data.boutId) {
           try {
             const bList = await db.bouts.list();
@@ -329,10 +349,13 @@ export const KumiteScoreboardControl = React.forwardRef<ScoreboardRef, { boutId?
     if (!boutId) return;
     try {
       setLoading(true);
-      const [bList, pList] = await Promise.all([
+      const [bList, pList, cList, clList] = await Promise.all([
         db.bouts.list(),
-        db.participants.list()
+        db.participants.list(),
+        db.categories.list(),
+        db.clubs.list()
       ]);
+      setClubs(clList);
       const currentBout = bList.find(b => b.id === boutId);
       if (currentBout) {
         // --- ADMIN LOCK CHECK ---
@@ -435,8 +458,14 @@ export const KumiteScoreboardControl = React.forwardRef<ScoreboardRef, { boutId?
         setEventsAka(parsedEventsAka);
         setEventsAo(parsedEventsAo);
 
-        setTimeLeft((currentBout.timer_seconds ?? 180) * 10);
-        setMatchDuration(currentBout.timer_seconds ?? 180);
+        const boutCat = cList.find(c => c.id === currentBout.category_id);
+        const configuredTimer = boutCat?.category_timer_seconds ?? (boutCat as any)?.time_duration;
+        const resolvedSecs = (configuredTimer !== undefined && currentBout.status !== 'Running' && currentBout.timer_active !== true)
+          ? configuredTimer
+          : (currentBout.timer_seconds ?? configuredTimer ?? 180);
+
+        setTimeLeft(resolvedSecs * 10);
+        setMatchDuration(resolvedSecs);
         setHasTimerRun(false);
 
         let loadedWinnerSide: 'aka' | 'ao' | null = null;
@@ -532,9 +561,9 @@ export const KumiteScoreboardControl = React.forwardRef<ScoreboardRef, { boutId?
       boutNo: bout?.bout_no,
       matchCode: bout ? `R${bout.round_no}B${bout.bout_no}` : undefined,
       akaName: competitorAka?.full_name || 'TBD Red',
-      akaClub: competitorAka?.club_id ? 'Senshi Karate Academy' : 'Senshi Club',
+      akaClub: getClubName(competitorAka),
       aoName: competitorAo?.full_name || 'TBD Blue',
-      aoClub: competitorAo?.club_id ? 'Goju-Ryu Karate Club' : 'Goju-Ryu Club',
+      aoClub: getClubName(competitorAo),
       scoreAka,
       scoreAo,
       senshuAka,
@@ -566,6 +595,10 @@ export const KumiteScoreboardControl = React.forwardRef<ScoreboardRef, { boutId?
     timeLeft, timerActive, winnerSide, winMethod, matchDuration, winnerConfirmed, resultConfirmed, bout,
     takeoverTatami, tatamiId, userEmail
   ]);
+
+  useEffect(() => {
+    broadcastStateRef.current = broadcastState;
+  }, [broadcastState]);
 
   // Broadcast state updates in real-time
   useEffect(() => {
@@ -1236,6 +1269,9 @@ export const KumiteScoreboardControl = React.forwardRef<ScoreboardRef, { boutId?
     const initialT = matchDuration * 10;
     setTimeLeft(initialT);
     setHasTimerRun(false);
+    if (boutId) {
+      db.bouts.update(boutId, { timer_seconds: matchDuration, timer_active: false }).catch(() => {});
+    }
     if (onLogEvent) {
       const mins = Math.floor(matchDuration / 60);
       const secs = matchDuration % 60;
@@ -1248,6 +1284,9 @@ export const KumiteScoreboardControl = React.forwardRef<ScoreboardRef, { boutId?
     pushHistory();
     const newT = Math.max(0, timeLeft + seconds * 10);
     setTimeLeft(newT);
+    if (boutId) {
+      db.bouts.update(boutId, { timer_seconds: Math.round(newT / 10) }).catch(() => {});
+    }
     if (onLogEvent) {
       const sign = seconds > 0 ? `+${seconds}s` : `${seconds}s`;
       const formatted = formatTimerDisplay(newT);
@@ -1259,6 +1298,9 @@ export const KumiteScoreboardControl = React.forwardRef<ScoreboardRef, { boutId?
     pushHistory();
     setMatchDuration(val);
     setTimeLeft(val * 10);
+    if (boutId) {
+      db.bouts.update(boutId, { timer_seconds: val, timer_active: false }).catch(() => {});
+    }
     if (onLogEvent) {
       const mins = Math.floor(val / 60);
       const secs = val % 60;
@@ -1388,29 +1430,39 @@ export const KumiteScoreboardControl = React.forwardRef<ScoreboardRef, { boutId?
   const handleSaveResult = async () => {
     if (!boutId || !bout) return;
 
-    // Guard: must be confirmed before saving
-    if (!resultConfirmedRef.current) {
-      alert('Please confirm the result first.\nClick "Confirm Result" before saving.');
-      return;
-    }
-
-    // Guard: prevent duplicate saves
-    if (resultSaved || bout.status === 'Completed') {
-      alert('This result has already been saved.');
-      return;
-    }
-
     let winnerId: string | null = null;
-    if (winnerSide === 'aka') {
+    let side = winnerSide;
+    let method = winMethod;
+
+    if (!side) {
+      const autoRes = autoDetermineWinner();
+      if (autoRes) {
+        side = autoRes.side;
+        method = autoRes.method;
+        setWinnerSide(side);
+        setWinMethod(method);
+      } else {
+        // Tied score without senshu -> prompt manual finish decision
+        setWinMethod('Hantei');
+        setShowFinishModal(true);
+        return;
+      }
+    }
+
+    if (side === 'aka') {
       winnerId = bout.participant_a_id;
-    } else if (winnerSide === 'ao') {
+    } else if (side === 'ao') {
       winnerId = bout.participant_b_id;
     }
 
     if (!winnerId) {
-      alert('Please confirm the winner before saving.');
+      alert('Please select a winner before saving.');
       return;
     }
+
+    setResultConfirmed(true);
+    setWinnerConfirmed(true);
+    resultConfirmedRef.current = true;
 
     // Capture for use inside the async try block
     const capturedWinnerId = winnerId;
@@ -1434,7 +1486,7 @@ export const KumiteScoreboardControl = React.forwardRef<ScoreboardRef, { boutId?
         points_aka_history: JSON.stringify(eventsAka),
         points_ao_history: JSON.stringify(eventsAo),
         timer_seconds: Math.round(timeLeft / 10),
-        victory_method: winMethod
+        victory_method: method || winMethod || 'Points'
       });
 
       // Broadcast full state to display screen hub so bracket updates instantly
@@ -1445,6 +1497,7 @@ export const KumiteScoreboardControl = React.forwardRef<ScoreboardRef, { boutId?
       setResultSaved(true);
       setBout(prev => prev ? { ...prev, status: 'Completed', winner_id: capturedWinnerId } : prev);
       setShowFinishModal(false);
+      if (onLogEvent) onLogEvent('SYSTEM', `Match result saved — Winner: ${side.toUpperCase()} (${method || 'Points'})`);
     } catch (err) {
       console.error('Error saving bout result:', err);
       alert('Failed to save result. Please try again.');
@@ -1504,9 +1557,9 @@ export const KumiteScoreboardControl = React.forwardRef<ScoreboardRef, { boutId?
           winner: side,
           winMethod: method,
           akaName: competitorAka?.full_name || 'AKA Red',
-          akaClub: competitorAka?.club_id ? 'Senshi Karate Academy' : 'Senshi Club',
+          akaClub: getClubName(competitorAka),
           aoName: competitorAo?.full_name || 'AO Blue',
-          aoClub: competitorAo?.club_id ? 'Goju-Ryu Karate Club' : 'Goju-Ryu Club',
+          aoClub: getClubName(competitorAo),
           scoreAka,
           scoreAo,
           boutId
@@ -1517,6 +1570,33 @@ export const KumiteScoreboardControl = React.forwardRef<ScoreboardRef, { boutId?
 
     if (onLogEvent) onLogEvent('SYSTEM', `Match Result Confirmed — Winner: ${side.toUpperCase()} (${method})`);
   };
+
+  const handleToggleStandby = useCallback(() => {
+    const nextStandby = !isStandbyActive;
+    setIsStandbyActive(nextStandby);
+    if (typeof window !== 'undefined') {
+      try {
+        const channel = new BroadcastChannel('wkf-scoreboard-sync');
+        channel.postMessage({ type: 'SET_IDLE', isIdle: nextStandby });
+        channel.close();
+        if (!nextStandby) {
+          // Returning from Standby: broadcast current live match state immediately
+          broadcastState();
+          if ((window as any)._broadcastFullState) {
+            (window as any)._broadcastFullState();
+          }
+        }
+      } catch (err) {}
+    }
+    if (onLogEvent) {
+      onLogEvent(
+        'SYSTEM',
+        nextStandby
+          ? 'Standby screen activated on spectator display'
+          : 'Standby dismissed — returned to live match display'
+      );
+    }
+  }, [isStandbyActive, broadcastState, onLogEvent]);
 
   // Next Match: resets local scoring/timer state and navigates to match selection.
   // Only call after Save Result (or when operator explicitly decides to move on).
@@ -1922,7 +2002,7 @@ export const KumiteScoreboardControl = React.forwardRef<ScoreboardRef, { boutId?
                   {competitorAka?.full_name || 'TBD Red'}
                 </h2>
                 <p className="text-xs md:text-sm font-semibold text-red-400/80 text-center truncate max-w-full mt-0.5">
-                  {competitorAka?.club_id ? 'Senshi Karate Academy' : 'Senshi Club'}
+                  {getClubName(competitorAka) || '—'}
                 </p>
               </div>
             </div>
@@ -2179,6 +2259,9 @@ export const KumiteScoreboardControl = React.forwardRef<ScoreboardRef, { boutId?
                 <h2 className="font-competitor text-base md:text-lg lg:text-xl font-bold truncate max-w-full text-center uppercase leading-tight text-white tracking-tight" title={competitorAo?.full_name || 'TBD Blue'}>
                   {competitorAo?.full_name || 'TBD Blue'}
                 </h2>
+                <p className="text-xs md:text-sm font-semibold text-blue-400/80 text-center truncate max-w-full mt-0.5">
+                  {getClubName(competitorAo) || '—'}
+                </p>
               </div>
             </div>
 
@@ -2293,22 +2376,17 @@ export const KumiteScoreboardControl = React.forwardRef<ScoreboardRef, { boutId?
         </div>
 
         <div className="flex gap-1.5 items-center ml-auto flex-wrap justify-end">
-          {/* Standby / Idle Screen Toggle */}
+          {/* Standby / Idle Screen Toggle: 1st click = display Standby, 2nd click = back action */}
           <button
-            onClick={() => {
-              if (typeof window !== 'undefined') {
-                try {
-                  const channel = new BroadcastChannel('wkf-scoreboard-sync');
-                  channel.postMessage({ type: 'SET_IDLE', isIdle: true });
-                  channel.close();
-                } catch (err) {}
-              }
-              if (onLogEvent) onLogEvent('SYSTEM', 'Standby screen activated on spectator display');
-            }}
-            title="Display Idle / Standby Screen on Spectator Display"
-            className="flex items-center gap-1 px-2.5 py-1 bg-yellow-500/10 hover:bg-yellow-500/20 text-yellow-400 font-black text-[10px] uppercase tracking-wider rounded-lg transition cursor-pointer active:scale-95 border border-yellow-500/20"
+            onClick={handleToggleStandby}
+            title={isStandbyActive ? 'Click to exit Standby and return to live match display' : 'Display Idle / Standby Screen on Spectator Display'}
+            className={`flex items-center gap-1 px-2.5 py-1 font-black text-[10px] uppercase tracking-wider rounded-lg transition cursor-pointer active:scale-95 border ${
+              isStandbyActive
+                ? 'bg-amber-500/20 text-amber-300 border-amber-500/40 hover:bg-amber-500/30 animate-pulse'
+                : 'bg-yellow-500/10 hover:bg-yellow-500/20 text-yellow-400 border-yellow-500/20'
+            }`}
           >
-            <Clock className="h-3 w-3" /> Standby
+            <Clock className="h-3 w-3" /> {isStandbyActive ? 'EXIT STANDBY' : 'STANDBY'}
           </button>
 
           {/* Clear All Result */}
@@ -2348,17 +2426,17 @@ export const KumiteScoreboardControl = React.forwardRef<ScoreboardRef, { boutId?
             </button>
           )}
 
-          {/* SAVE RESULT — Stage 2 of 3 */}
+          {/* SAVE RESULT */}
           <button
             onClick={handleSaveResult}
-            disabled={saving || !resultConfirmed || resultSaved || bout.status === 'Completed'}
-            title={!resultConfirmed ? 'Confirm result first before saving' : resultSaved || bout.status === 'Completed' ? 'Already saved' : 'Save result to database and mark bout Completed'}
+            disabled={saving || !bout}
+            title={resultSaved || bout.status === 'Completed' ? 'Result saved (click to update/re-save)' : 'Save result to database and mark bout Completed'}
             className={`flex items-center gap-1 px-2.5 py-1 font-black text-[10px] uppercase tracking-wider rounded-lg transition cursor-pointer active:scale-95 border ${
-              resultSaved || bout.status === 'Completed'
-                ? 'bg-emerald-600/20 text-emerald-400 border-emerald-500/40 cursor-default opacity-80'
-                : resultConfirmed
-                  ? 'bg-yellow-500 hover:bg-yellow-400 text-black border-yellow-400 shadow-md shadow-yellow-500/10'
-                  : 'bg-yellow-500/10 text-yellow-400/40 border-yellow-500/15 cursor-not-allowed'
+              saving
+                ? 'bg-yellow-500/50 text-black border-yellow-400 cursor-wait'
+                : resultSaved || bout.status === 'Completed'
+                  ? 'bg-emerald-600/30 hover:bg-emerald-600/40 text-emerald-300 border-emerald-500/40 shadow-sm'
+                  : 'bg-emerald-600 hover:bg-emerald-500 text-white border-emerald-400 shadow-md shadow-emerald-600/20'
             }`}
           >
             {saving ? (
@@ -2444,7 +2522,7 @@ export const KumiteScoreboardControl = React.forwardRef<ScoreboardRef, { boutId?
                     }`}
                   >
                     <span>AKA ({competitorAka?.full_name?.split(' ')[0] || 'Red'})</span>
-                    <span className="text-[10px] md:text-[11px] font-bold text-red-300/80 mt-1 uppercase tracking-widest">{competitorAka?.club_id ? 'Senshi Karate Academy' : 'Senshi Club'}</span>
+                    <span className="text-[10px] md:text-[11px] font-bold text-red-300/80 mt-1 uppercase tracking-widest">{getClubName(competitorAka) || '—'}</span>
                   </button>
                   <button
                     onClick={() => { setWinnerSide('ao'); setWinnerConfirmed(true); }}
@@ -2455,7 +2533,7 @@ export const KumiteScoreboardControl = React.forwardRef<ScoreboardRef, { boutId?
                     }`}
                   >
                     <span>AO ({competitorAo?.full_name?.split(' ')[0] || 'Blue'})</span>
-                    <span className="text-[10px] md:text-[11px] font-bold text-blue-300/80 mt-1 uppercase tracking-widest">{competitorAo?.club_id ? 'Goju-Ryu Karate Club' : 'Goju-Ryu Club'}</span>
+                    <span className="text-[10px] md:text-[11px] font-bold text-blue-300/80 mt-1 uppercase tracking-widest">{getClubName(competitorAo) || '—'}</span>
                   </button>
                 </div>
               </div>
@@ -2505,9 +2583,9 @@ export const KumiteScoreboardControl = React.forwardRef<ScoreboardRef, { boutId?
                           winner: winnerSide,
                           winMethod: winMethod,
                           akaName: competitorAka?.full_name || 'AKA Red',
-                          akaClub: competitorAka?.club_id ? 'Senshi Karate Academy' : 'Senshi Club',
+                          akaClub: getClubName(competitorAka),
                           aoName: competitorAo?.full_name || 'AO Blue',
-                          aoClub: competitorAo?.club_id ? 'Goju-Ryu Karate Club' : 'Goju-Ryu Club',
+                          aoClub: getClubName(competitorAo),
                           scoreAka,
                           scoreAo,
                           boutId

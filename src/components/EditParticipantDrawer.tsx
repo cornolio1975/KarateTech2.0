@@ -5,7 +5,8 @@ import { useTournament } from '@/context/TournamentContext';
 import { db } from '@/db/dbClient';
 import { 
   Club, Coach, Country, Category, Participant, 
-  Payment, MedicalRecord, Document, ActivityLog, AuditLog 
+  Payment, MedicalRecord, Document, ActivityLog, AuditLog,
+  isKataCategory, isKumiteCategory 
 } from '@/db/types';
 import { X, Save, FileText, CheckCircle2, History, CreditCard, Shield, BadgeAlert, Paperclip, Trash2, RefreshCw, Camera, UserSquare2 } from 'lucide-react';
 import PlayerPhotoModal from './PlayerPhotoModal';
@@ -52,6 +53,7 @@ export default function EditParticipantDrawer({ participantId, onClose }: EditPa
 
   // Category mapping state
   const [assignedCat, setAssignedCat] = useState<Category | null>(null);
+  const [assignedCats, setAssignedCats] = useState<Category[]>([]);
   const [manualOverride, setManualOverride] = useState(false);
   const [selectedCatId, setSelectedCatId] = useState('');
 
@@ -137,13 +139,15 @@ export default function EditParticipantDrawer({ participantId, onClose }: EditPa
         setIsKata(p.isKata || false);
 
         // Fetch category
-        const mapping = await db.participants.getAssignedCategory(p.id);
         const listMappings = await db.participantCategories.list();
-        const thisMapping = listMappings.find((m: any) => m.participant_id === p.id);
+        const thisMappings = listMappings.filter((m: any) => m.participant_id === p.id);
+        const allCats = await db.categories.list();
+        const assignedList = thisMappings.map(m => allCats.find(c => c.id === m.category_id)).filter(Boolean) as Category[];
         
-        setAssignedCat(mapping || null);
-        setManualOverride(thisMapping?.manual_override || false);
-        setSelectedCatId(mapping?.id || '');
+        setAssignedCats(assignedList);
+        setAssignedCat(assignedList[0] || null);
+        setManualOverride(thisMappings.some((m: any) => m.manual_override));
+        setSelectedCatId(assignedList[0]?.id || '');
 
         // Fetch Medical Clearance
         const med = await db.medical.get(p.id);
@@ -607,8 +611,19 @@ export default function EditParticipantDrawer({ participantId, onClose }: EditPa
                 
                 {/* Auto Calculated Display */}
                 <div className="bg-secondary/30 border border-border p-4 rounded-xl space-y-2">
-                  <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider block">Currently Assigned category</span>
-                  {assignedCat ? (
+                  <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider block">Currently Assigned Categories</span>
+                  {assignedCats.length > 0 ? (
+                    <div className="space-y-2">
+                      {assignedCats.map(cat => (
+                        <div key={cat.id} className="bg-card border border-border p-3 rounded-lg">
+                          <span className="font-extrabold text-xs text-foreground block">{cat.name}</span>
+                          <span className="text-[10px] text-muted-foreground block mt-0.5">
+                            Discipline: {isKataCategory(cat) ? 'Kata' : 'Kumite'} • Gender: {cat.gender} • Age: {cat.min_age}-{cat.max_age} yr {isKataCategory(cat) ? '' : `• Weight: ${cat.min_weight}-${cat.max_weight}kg`}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  ) : assignedCat ? (
                     <div>
                       <span className="font-extrabold text-sm text-foreground block">{assignedCat.name}</span>
                       <span className="text-[10px] text-muted-foreground block mt-0.5">

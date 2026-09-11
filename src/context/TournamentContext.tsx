@@ -110,6 +110,7 @@ interface TournamentContextType {
   activeLocks: CategoryLock[];
   refreshLocks: () => Promise<void>;
   activeTournamentId: string | null;
+  setActiveTournamentId: (id: string | null) => void;
   acquireLock: (categoryId: string) => Promise<{ success: boolean }>;
   releaseLock: (categoryId: string) => Promise<void>;
 }
@@ -766,6 +767,13 @@ export function TournamentProvider({ children }: { children: React.ReactNode }) 
         setIsLoggedIn(true);
       }
 
+      // Initialize activeTournamentId from the explicitly-opened tournament
+      // This is set by dbManager.setActiveTournament when the user opens a tournament from the Project Page
+      const storedActiveTournamentId = localStorage.getItem('ts_active_tournament_id');
+      if (storedActiveTournamentId) {
+        setActiveTournamentId(storedActiveTournamentId);
+      }
+
       // Initialize users list
       const storedUsers = localStorage.getItem('ts_users_list');
       let initialList = defaultUsers;
@@ -798,14 +806,23 @@ export function TournamentProvider({ children }: { children: React.ReactNode }) 
             }
           });
 
+        // Fetch tournament metadata for display purposes only.
+        // Only update if it matches the ACTIVE tournament (don't override the user's selection).
         supabase
           .from('tournaments')
-          .select('*')
+          .select('id, name, venue, city, date, date_iso, registration_close, registration_close_iso, featured')
           .then(({ data, error }) => {
             if (!error && data && data.length > 0) {
-              const featured = data.find((t: any) => t.featured && !t.deleted_at) || data.find((t: any) => !t.deleted_at);
+              // Find the active tournament (user's explicit selection)
+              const activeId = localStorage.getItem('ts_active_tournament_id');
+              const activeTournament = activeId ? data.find((t: any) => t.id === activeId) : null;
+              // Only fall back to featured if no explicit selection
+              const featured = activeTournament || data.find((t: any) => t.featured && !t.deleted_at) || data.find((t: any) => !t.deleted_at);
               if (featured) {
-                setActiveTournamentId(featured.id);
+                // Only set activeTournamentId if not already set from localStorage
+                if (!activeId) {
+                  setActiveTournamentId(featured.id);
+                }
                 setTournamentNameState(featured.name);
                 localStorage.setItem('ts_tournament_name', featured.name);
                 
@@ -1302,6 +1319,7 @@ export function TournamentProvider({ children }: { children: React.ReactNode }) 
         activeLocks,
         refreshLocks,
         activeTournamentId,
+        setActiveTournamentId,
         acquireLock,
         releaseLock,
       }}

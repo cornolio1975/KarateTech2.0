@@ -96,7 +96,13 @@ export default function ParticipantsPage() {
         db.participantCategories.list(),
         db.bouts.list()
       ]);
-      setParticipants(pList);
+      const seen = new Set<string>();
+      const uniqueParticipants = (pList || []).filter(p => {
+        if (!p || !p.id || seen.has(p.id)) return false;
+        seen.add(p.id);
+        return true;
+      });
+      setParticipants(uniqueParticipants);
       setClubs(cList);
       setCountries(cntList);
       setCategories(catList);
@@ -360,6 +366,7 @@ export default function ParticipantsPage() {
       }
       setSelectedIds([]);
       triggerRefresh();
+      await loadData();
       alert(`Successfully deleted ${selectedIds.length} participant(s).`);
     } catch (err: any) {
       alert(`Failed to delete selected participants: ${describeError(err)}`);
@@ -975,7 +982,7 @@ export default function ParticipantsPage() {
 
                     return (
                       <tr
-                        key={p.id}
+                        key={`${p.id}-${idx}`}
                         onClick={() => setSelectedPartId(p.id)}
                         className={`hover:bg-secondary/40 transition-colors cursor-pointer select-none ${
                           isChecked ? 'bg-secondary/20' : ''
@@ -1027,6 +1034,7 @@ export default function ParticipantsPage() {
                               await db.participants.update(p.id, { isKumite: checked }, 'Inline Edit');
                               await db.participants.autoAssignCategory(updated);
                               triggerRefresh();
+                              await loadData();
                             }}
                             className="rounded border-border text-primary cursor-pointer accent-primary"
                           />
@@ -1041,6 +1049,7 @@ export default function ParticipantsPage() {
                               await db.participants.update(p.id, { isKata: checked }, 'Inline Edit');
                               await db.participants.autoAssignCategory(updated);
                               triggerRefresh();
+                              await loadData();
                             }}
                             className="rounded border-border text-primary cursor-pointer accent-primary"
                           />
@@ -1262,9 +1271,14 @@ export default function ParticipantsPage() {
                 onClick={async () => {
                   setIsClearing(true);
                   try {
-                    const count = await db.participants.deleteAll('Admin');
+                    const count = await db.participants.deleteAll(userEmail || 'Admin');
+                    setParticipants([]);
+                    setMappings([]);
+                    setSelectedIds([]);
+                    setSelectedPartId(null);
                     setIsClearConfirmOpen(false);
                     triggerRefresh();
+                    await loadData();
                     alert(`✅ Successfully cleared ${count} participants.`);
                   } catch (e: any) {
                     alert(`❌ Failed to clear participants: ${e.message}`);

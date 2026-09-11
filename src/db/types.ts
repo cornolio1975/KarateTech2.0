@@ -37,6 +37,7 @@ export interface Category {
   category_timer_seconds?: number;
   category_timer_source?: 'category';
   category_timer_updated_at?: string;
+  tournament_id?: string;
 }
 
 export const isKataCategory = (cat: Category | undefined | null): boolean => {
@@ -88,6 +89,7 @@ export interface Participant {
   remarks?: string;
   created_at?: string;
   deleted_at?: string; // soft delete timestamp
+  tournament_id?: string;
 }
 
 export interface TeamMember {
@@ -103,6 +105,7 @@ export interface ParticipantCategory {
   category_id: string;
   manual_override: boolean;
   assigned_at?: string;
+  tournament_id?: string;
 }
 
 export interface Payment {
@@ -197,6 +200,7 @@ export interface Bout {
   judge_scores_b?: number[];
   total_score_a?: number;
   total_score_b?: number;
+  tournament_id?: string;
 }
 
 export interface Official {
@@ -210,6 +214,7 @@ export interface Official {
   phone?: string;
   status: 'Active' | 'Inactive';
   created_at?: string;
+  tournament_id?: string;
 }
 
 export interface Tournament {
