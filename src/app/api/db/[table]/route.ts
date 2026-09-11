@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
 import { localDb } from '@/db/sqlite/schema';
 
+export const dynamic = 'force-dynamic';
+
 const ALLOWED_TABLES = new Set([
   'tournaments',
   'clubs',

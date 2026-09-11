@@ -3,6 +3,8 @@ import fs from 'fs';
 import path from 'path';
 import { localDb, getDbPath } from '@/db/sqlite/schema';
 
+export const dynamic = 'force-dynamic';
+
 const getBackupDir = () => {
   const dbDir = path.dirname(getDbPath());
   const backupDir = path.join(dbDir, 'backups');

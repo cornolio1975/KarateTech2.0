@@ -333,6 +333,7 @@ export default function ImportCategoryModal({ isOpen, onClose }: ImportCategoryM
                       <th className="p-2.5 border-b border-border">Gender</th>
                       <th className="p-2.5 border-b border-border">Age</th>
                       <th className="p-2.5 border-b border-border">Weight</th>
+                      <th className="p-2.5 border-b border-border">Capacity</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-border">
@@ -353,6 +354,7 @@ export default function ImportCategoryModal({ isOpen, onClose }: ImportCategoryM
                         <td className="p-2.5 text-muted-foreground">{row.gender}</td>
                         <td className="p-2.5 text-muted-foreground">{row.min_age}-{row.max_age} yrs</td>
                         <td className="p-2.5 text-muted-foreground">{row.min_weight}-{row.max_weight} kg</td>
+                        <td className="p-2.5 text-muted-foreground font-bold">{row.capacity || 32}</td>
                       </tr>
                     ))}
                   </tbody>

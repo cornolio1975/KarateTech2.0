@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
 import { localDb } from '@/db/sqlite/schema';
 
+export const dynamic = 'force-dynamic';
+
 export async function GET() {
   try {
     const rows = localDb.prepare('SELECT key, value, updated_at FROM server_config').all() as { key: string; value: string; updated_at: string }[];

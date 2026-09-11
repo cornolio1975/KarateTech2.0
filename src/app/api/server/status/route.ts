@@ -3,6 +3,8 @@ import os from 'os';
 import fs from 'fs';
 import { localDb, getDbPath } from '@/db/sqlite/schema';
 
+export const dynamic = 'force-dynamic';
+
 export async function GET() {
   try {
     // Collect local LAN IPv4 addresses

@@ -9,9 +9,15 @@ const assetPrefixOverride = rawAssetPrefix
   ? `/${rawAssetPrefix.replace(/^\/+|\/+$/g, '')}`
   : undefined;
 
+const outputMode = isDev
+  ? undefined
+  : (process.env.BUILD_TARGET === 'electron' || process.env.BUILD_TARGET === 'standalone' || process.env.BUILD_TARGET === 'server')
+    ? 'standalone'
+    : 'export';
+
 const nextConfig: NextConfig = {
   allowedDevOrigins: ['192.168.56.1'],
-  output: (process.env.BUILD_TARGET === 'electron' || process.env.BUILD_TARGET === 'standalone' || process.env.BUILD_TARGET === 'server') ? 'standalone' : 'export',
+  output: outputMode,
   trailingSlash: true,
   basePath: basePath,
   assetPrefix: assetPrefixOverride ?? (basePath ? `${basePath}/` : undefined),

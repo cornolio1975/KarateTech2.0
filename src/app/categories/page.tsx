@@ -1827,6 +1827,7 @@ export default function CategoriesPage() {
                     <tr>
                       <th className="p-2.5 border-b border-border">Category</th>
                       <th className="p-2.5 border-b border-border">Gender / Age / Weight</th>
+                      <th className="p-2.5 border-b border-border">Capacity</th>
                       <th className="p-2.5 border-b border-border">Athlete</th>
                       <th className="p-2.5 border-b border-border">Club</th>
                       <th className="p-2.5 border-b border-border">Assignment</th>
@@ -1835,12 +1836,13 @@ export default function CategoriesPage() {
                   <tbody className="divide-y divide-border">
                     {rows.length === 0 ? (
                       <tr>
-                        <td colSpan={5} className="p-6 text-center text-muted-foreground">No assignments match this filter.</td>
+                        <td colSpan={6} className="p-6 text-center text-muted-foreground">No assignments match this filter.</td>
                       </tr>
                     ) : rows.map(r => (
                       <tr key={r.mapping.id} className="hover:bg-secondary/20">
                         <td className="p-2.5 font-semibold">{r.cat.name}</td>
                         <td className="p-2.5 text-muted-foreground whitespace-nowrap">{r.cat.gender} • {r.cat.min_age}-{r.cat.max_age}y • {r.cat.min_weight}-{r.cat.max_weight}kg</td>
+                        <td className="p-2.5 text-muted-foreground font-bold">{r.cat.capacity || 32}</td>
                         <td className="p-2.5 font-medium">{r.p.full_name}</td>
                         <td className="p-2.5 text-muted-foreground">{r.clubName}</td>
                         <td className="p-2.5">

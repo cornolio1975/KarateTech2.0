@@ -23,7 +23,7 @@ const HEADER_ALIASES: Record<string, CategoryCsvField> = {
   'max_age': 'max_age', 'max age': 'max_age', 'max age (years)': 'max_age', 'maximum age': 'max_age',
   'min_weight': 'min_weight', 'min weight': 'min_weight', 'min weight (kg)': 'min_weight', 'minimum weight': 'min_weight', 'minimum weight (kg)': 'min_weight',
   'max_weight': 'max_weight', 'max weight': 'max_weight', 'max weight (kg)': 'max_weight', 'maximum weight': 'max_weight', 'maximum weight (kg)': 'max_weight',
-  'capacity': 'capacity', 'capacity limits': 'capacity',
+  'capacity': 'capacity', 'capasity': 'capacity', 'capacity limits': 'capacity', 'cap': 'capacity', 'max_participants': 'capacity', 'max participants': 'capacity', 'max_capacity': 'capacity', 'max capacity': 'capacity',
   'status': 'status', 'category status': 'status',
   'format': 'format', 'tournament format': 'format',
   'created_at': 'created_at', 'created at': 'created_at',
