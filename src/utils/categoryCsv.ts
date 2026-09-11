@@ -9,23 +9,42 @@ export const CATEGORY_CSV_FIELDS = [
 
 export type CategoryCsvField = typeof CATEGORY_CSV_FIELDS[number] | 'age' | 'weight';
 
-// Only 'name' is strictly required in the CSV header; all other fields are auto-inferred or defaulted
+// Only 'name' is required; all other fields are auto-inferred or defaulted
 export const REQUIRED_CATEGORY_FIELDS = ['name'] as const;
 
 // Accepted header spellings (lowercased) mapped to category fields
 const HEADER_ALIASES: Record<string, CategoryCsvField> = {
-  'id': 'id', 'category id': 'id', 'category_id': 'id', 'categoryid': 'id', 'cat_id': 'id',
-  'name': 'name', 'category name': 'name', 'category_name': 'name', 'category': 'name', 'categories': 'name', 'event': 'name', 'event name': 'name', 'division': 'name', 'discipline': 'name',
-  'gender': 'gender', 'sex': 'gender', 'division gender': 'gender',
-  'age': 'age', 'age group': 'age', 'age range': 'age', 'division age': 'age',
-  'min_age': 'min_age', 'min age': 'min_age', 'min age (years)': 'min_age', 'minimum age': 'min_age', 'minage': 'min_age',
-  'max_age': 'max_age', 'max age': 'max_age', 'max age (years)': 'max_age', 'maximum age': 'max_age', 'maxage': 'max_age',
-  'weight': 'weight', 'weight class': 'weight', 'weight category': 'weight', 'weight range': 'weight',
-  'min_weight': 'min_weight', 'min weight': 'min_weight', 'min weight (kg)': 'min_weight', 'minimum weight': 'min_weight', 'minimum weight (kg)': 'min_weight', 'minweight': 'min_weight',
-  'max_weight': 'max_weight', 'max weight': 'max_weight', 'max weight (kg)': 'max_weight', 'maximum weight': 'max_weight', 'maximum weight (kg)': 'max_weight', 'maxweight': 'max_weight',
-  'capacity': 'capacity', 'capasity': 'capacity', 'cap': 'capacity', 'capacity limits': 'capacity', 'max_participants': 'capacity', 'max participants': 'capacity', 'max_capacity': 'capacity', 'max capacity': 'capacity', 'limit': 'capacity', 'max': 'capacity',
-  'status': 'status', 'category status': 'status', 'state': 'status',
-  'format': 'format', 'tournament format': 'format', 'system': 'format', 'type': 'format',
+  // ID
+  'id': 'id', 'category id': 'id', 'category_id': 'id', 'categoryid': 'id', 'cat_id': 'id', 'cat id': 'id', 'id kategori': 'id', 'kod': 'id', 'code': 'id',
+
+  // Name (English + Malay / Multilingual)
+  'name': 'name', 'category name': 'name', 'category_name': 'name', 'category': 'name', 'categories': 'name', 
+  'cat': 'name', 'cat name': 'name', 'cat_name': 'name', 'event': 'name', 'event name': 'name', 'event_name': 'name', 
+  'events': 'name', 'division': 'name', 'division name': 'name', 'discipline': 'name', 'title': 'name', 
+  'category title': 'name', 'class': 'name', 'item': 'name', 'acara': 'name', 'nama acara': 'name', 
+  'kategori': 'name', 'nama kategori': 'name', 'nama': 'name', 'kategori pertandingan': 'name', 'jenis acara': 'name',
+
+  // Gender
+  'gender': 'gender', 'sex': 'gender', 'division gender': 'gender', 'jantina': 'gender', 'jenis kelamin': 'gender',
+
+  // Age (single range or min/max)
+  'age': 'age', 'age group': 'age', 'age range': 'age', 'division age': 'age', 'umur': 'age', 'kumpulan umur': 'age',
+  'min_age': 'min_age', 'min age': 'min_age', 'min age (years)': 'min_age', 'minimum age': 'min_age', 'minage': 'min_age', 'umur min': 'min_age', 'had umur minimum': 'min_age',
+  'max_age': 'max_age', 'max age': 'max_age', 'max age (years)': 'max_age', 'maximum age': 'max_age', 'maxage': 'max_age', 'umur max': 'max_age', 'had umur maksimum': 'max_age',
+
+  // Weight (single range or min/max)
+  'weight': 'weight', 'weight class': 'weight', 'weight category': 'weight', 'weight range': 'weight', 'berat': 'weight', 'kelas berat': 'weight',
+  'min_weight': 'min_weight', 'min weight': 'min_weight', 'min weight (kg)': 'min_weight', 'minimum weight': 'min_weight', 'minimum weight (kg)': 'min_weight', 'minweight': 'min_weight', 'berat min': 'min_weight',
+  'max_weight': 'max_weight', 'max weight': 'max_weight', 'max weight (kg)': 'max_weight', 'maximum weight': 'max_weight', 'maximum weight (kg)': 'max_weight', 'maxweight': 'max_weight', 'berat max': 'max_weight',
+
+  // Capacity / Capasity
+  'capacity': 'capacity', 'capasity': 'capacity', 'cap': 'capacity', 'capacity limits': 'capacity', 
+  'max_participants': 'capacity', 'max participants': 'capacity', 'max_capacity': 'capacity', 'max capacity': 'capacity', 
+  'limit': 'capacity', 'max': 'capacity', 'had': 'capacity', 'had peserta': 'capacity', 'kuota': 'capacity',
+
+  // Status & Format
+  'status': 'status', 'category status': 'status', 'state': 'status', 'status kategori': 'status',
+  'format': 'format', 'tournament format': 'format', 'system': 'format', 'type': 'format', 'format pertandingan': 'format',
   'created_at': 'created_at', 'created at': 'created_at',
 };
 
@@ -55,6 +74,23 @@ export interface ParsedCategoryRow {
   isDuplicateIdInFile: boolean;
 }
 
+// Auto-detect CSV delimiter (comma, semicolon, tab, pipe)
+export function detectDelimiter(text: string): string {
+  const lines = text.split(/\r?\n/).map(l => l.trim()).filter(l => l.length > 0);
+  if (lines.length === 0) return ',';
+  const firstLine = lines[0];
+
+  const commas = (firstLine.match(/,/g) || []).length;
+  const semicolons = (firstLine.match(/;/g) || []).length;
+  const tabs = (firstLine.match(/\t/g) || []).length;
+  const pipes = (firstLine.match(/\|/g) || []).length;
+
+  if (semicolons > commas && semicolons >= tabs && semicolons >= pipes) return ';';
+  if (tabs > commas && tabs >= semicolons && tabs >= pipes) return '\t';
+  if (pipes > commas && pipes >= semicolons && pipes >= tabs) return '|';
+  return ',';
+}
+
 // Serialize a single value as an RFC4180-compliant CSV field
 export function csvField(value: unknown): string {
   if (value === null || value === undefined) return '';
@@ -74,11 +110,12 @@ export function buildCategoryCsv(categories: Category[]): string {
   return [header, ...rows].join('\r\n');
 }
 
-// Full RFC4180-aware CSV parser (handles quoted fields, doubled quotes, embedded commas/newlines)
+// Full RFC4180-aware CSV parser (supports comma, semicolon, tab, pipe delimiters)
 export function parseCSVText(text: string): string[][] {
   let src = text;
   if (src.charCodeAt(0) === 0xFEFF) src = src.slice(1); // strip BOM
 
+  const delimiter = detectDelimiter(src);
   const rows: string[][] = [];
   let row: string[] = [];
   let field = '';
@@ -95,7 +132,7 @@ export function parseCSVText(text: string): string[][] {
       field += char; i++; continue;
     }
     if (char === '"') { inQuotes = true; i++; continue; }
-    if (char === ',') { row.push(field); field = ''; i++; continue; }
+    if (char === delimiter) { row.push(field); field = ''; i++; continue; }
     if (char === '\r') { i++; continue; }
     if (char === '\n') { row.push(field); rows.push(row); row = []; field = ''; i++; continue; }
     field += char; i++;
@@ -105,19 +142,57 @@ export function parseCSVText(text: string): string[][] {
   return rows.filter(r => !(r.length === 1 && r[0].trim() === ''));
 }
 
-// Maps a header row to field indexes; returns which required fields (if any) are missing
+// Maps a header row to field indexes with multilingual support & graceful fallbacks
 export function mapHeaderRowToFields(headerRow: string[]): {
   fieldToIndex: Map<CategoryCsvField, number>;
   missingRequired: string[];
 } {
   const fieldToIndex = new Map<CategoryCsvField, number>();
+
   headerRow.forEach((rawHeader, idx) => {
-    const key = rawHeader.trim().toLowerCase();
-    const field = HEADER_ALIASES[key];
+    const cleanKey = rawHeader.replace(/["'\r\n]/g, '').trim().toLowerCase();
+    const strippedKey = cleanKey.replace(/[^a-z0-9]/g, ' ').replace(/\s+/g, ' ').trim();
+
+    let field = HEADER_ALIASES[cleanKey] || HEADER_ALIASES[strippedKey];
+
+    if (!field) {
+      if (/categor|kategori|event|acara|division|discipline|title|name|nama/i.test(cleanKey)) {
+        field = 'name';
+      } else if (/gender|sex|jantina|kelamin/i.test(cleanKey)) {
+        field = 'gender';
+      } else if (/capacit|capasit|limit|had|kuota|max/i.test(cleanKey)) {
+        field = 'capacity';
+      } else if (/min.*age|umur.*min/i.test(cleanKey)) {
+        field = 'min_age';
+      } else if (/max.*age|umur.*max/i.test(cleanKey)) {
+        field = 'max_age';
+      } else if (/age|umur/i.test(cleanKey)) {
+        field = 'age';
+      } else if (/min.*weight|berat.*min/i.test(cleanKey)) {
+        field = 'min_weight';
+      } else if (/max.*weight|berat.*max/i.test(cleanKey)) {
+        field = 'max_weight';
+      } else if (/weight|berat/i.test(cleanKey)) {
+        field = 'weight';
+      }
+    }
+
     if (field && !fieldToIndex.has(field)) {
       fieldToIndex.set(field, idx);
     }
   });
+
+  // Safe Fallback: If 'name' is still not found, pick the first column that isn't mapped to other fields
+  if (!fieldToIndex.has('name') && headerRow.length > 0) {
+    const usedIndices = new Set(fieldToIndex.values());
+    const candidateIdx = headerRow.findIndex((_, idx) => !usedIndices.has(idx));
+    if (candidateIdx !== -1) {
+      fieldToIndex.set('name', candidateIdx);
+    } else {
+      fieldToIndex.set('name', 0);
+    }
+  }
+
   const missingRequired = (REQUIRED_CATEGORY_FIELDS as readonly string[]).filter(f => !fieldToIndex.has(f as CategoryCsvField));
   return { fieldToIndex, missingRequired };
 }
@@ -125,8 +200,8 @@ export function mapHeaderRowToFields(headerRow: string[]): {
 // Helper: infer gender from text or category name
 function inferGender(text: string): 'Male' | 'Female' | 'Mixed' {
   const lower = text.toLowerCase();
-  if (/\b(female|women|woman|girl|girls|f)\b/i.test(lower)) return 'Female';
-  if (/\b(male|men|man|boy|boys|m)\b/i.test(lower)) return 'Male';
+  if (/\b(female|women|woman|girl|girls|wanita|perempuan|f|w)\b/i.test(lower)) return 'Female';
+  if (/\b(male|men|man|boy|boys|lelaki|pria|m|l)\b/i.test(lower)) return 'Male';
   return 'Mixed';
 }
 
@@ -153,13 +228,13 @@ function parseAgeRange(text: string, defaultMin = 0, defaultMax = 99): { min: nu
 function parseWeightRange(text: string, defaultMin = 0, defaultMax = 999): { min: number; max: number } {
   if (!text) return { min: defaultMin, max: defaultMax };
   const lower = text.toLowerCase();
-  if (lower.includes('open')) return { min: 0, max: 999 };
+  if (lower.includes('open') || lower.includes('terbuka') || lower.includes('bebas')) return { min: 0, max: 999 };
 
   const plusMatch = text.match(/\+\s*(\d+(?:\.\d+)?)/);
   if (plusMatch) {
     return { min: parseFloat(plusMatch[1]) + 0.01, max: 999 };
   }
-  const overMatch = text.match(/(?:over|>)\s*(\d+(?:\.\d+)?)/i);
+  const overMatch = text.match(/(?:over|>|lebih)\s*(\d+(?:\.\d+)?)/i);
   if (overMatch) {
     return { min: parseFloat(overMatch[1]) + 0.01, max: 999 };
   }
@@ -167,7 +242,7 @@ function parseWeightRange(text: string, defaultMin = 0, defaultMax = 999): { min
   if (minusMatch) {
     return { min: 0, max: parseFloat(minusMatch[1]) };
   }
-  const underMatch = text.match(/(?:under|<)\s*(\d+(?:\.\d+)?)/i);
+  const underMatch = text.match(/(?:under|<|bawah)\s*(\d+(?:\.\d+)?)/i);
   if (underMatch) {
     return { min: 0, max: parseFloat(underMatch[1]) };
   }

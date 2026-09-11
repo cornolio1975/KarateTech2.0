@@ -79,4 +79,40 @@ Male Kumite +75kg (18+),32`;
     expect(row2.max_weight).toBe(999);
     expect(row2.capacity).toBe(32);
   });
+
+  it('should parse semicolon-delimited CSV exported from Excel (e.g. Malay headers)', () => {
+    const csv = `Kategori;Jantina;Umur;Berat;Had Peserta
+Senior Lelaki Kumite -67kg (18+);Lelaki;18-99;-67kg;32
+Junior Perempuan Kata (16-17);Perempuan;16-17;Open;16`;
+
+    const rows = parseCSVText(csv);
+    expect(rows.length).toBe(3);
+    const { fieldToIndex, missingRequired } = mapHeaderRowToFields(rows[0]);
+    expect(missingRequired.length).toBe(0);
+
+    const row1 = parseCategoryDataRow(rows[1], fieldToIndex, 1, new Set(), new Set());
+    expect(row1.errors.length).toBe(0);
+    expect(row1.name).toBe('Senior Lelaki Kumite -67kg (18+)');
+    expect(row1.gender).toBe('Male');
+    expect(row1.capacity).toBe(32);
+
+    const row2 = parseCategoryDataRow(rows[2], fieldToIndex, 2, new Set(), new Set());
+    expect(row2.errors.length).toBe(0);
+    expect(row2.gender).toBe('Female');
+    expect(row2.capacity).toBe(16);
+  });
+
+  it('should fallback to column 0 if unknown header provided without failing', () => {
+    const csv = `Acara Pertandingan,Capasity
+Boys Kumite U14 -45kg,32`;
+
+    const rows = parseCSVText(csv);
+    const { fieldToIndex, missingRequired } = mapHeaderRowToFields(rows[0]);
+    expect(missingRequired.length).toBe(0);
+
+    const row = parseCategoryDataRow(rows[1], fieldToIndex, 1, new Set(), new Set());
+    expect(row.errors.length).toBe(0);
+    expect(row.name).toBe('Boys Kumite U14 -45kg');
+    expect(row.capacity).toBe(32);
+  });
 });
