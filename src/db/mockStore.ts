@@ -633,7 +633,7 @@ export const mockStore = {
     list: (): Club[] => getStoreData('ts_clubs', SEED_CLUBS),
     add: (club: Omit<Club, 'id'>): Club => {
       const list = getStoreData('ts_clubs', SEED_CLUBS);
-      const newClub = { ...club, id: `club-${Date.now()}` };
+      const newClub = { ...club, id: `club-${Date.now()}-${Math.random().toString(36).substring(2, 8)}` };
       list.push(newClub);
       saveStoreData('ts_clubs', list);
       return newClub;
@@ -659,7 +659,7 @@ export const mockStore = {
     list: (): Coach[] => getStoreData('ts_coaches', SEED_COACHES),
     add: (coach: Omit<Coach, 'id'>): Coach => {
       const list = getStoreData('ts_coaches', SEED_COACHES);
-      const newCoach = { ...coach, id: `coach-${Date.now()}` };
+      const newCoach = { ...coach, id: `coach-${Date.now()}-${Math.random().toString(36).substring(2, 8)}` };
       list.push(newCoach);
       saveStoreData('ts_coaches', list);
       return newCoach;
@@ -680,7 +680,7 @@ export const mockStore = {
     },
     add: (cat: Omit<Category, 'id'> & { id?: string }): Category => {
       const list = getStoreData('ts_categories', SEED_CATEGORIES);
-      const newCat = { ...cat, id: cat.id || `cat-${Date.now()}` };
+      const newCat = { ...cat, id: cat.id || `cat-${Date.now()}-${Math.random().toString(36).substring(2, 8)}` };
       list.push(newCat);
       saveStoreData('ts_categories', list);
       return newCat;
@@ -782,7 +782,7 @@ export const mockStore = {
     get: (id: string): Team | undefined => getStoreData('ts_teams', SEED_TEAMS).find(t => t.id === id),
     add: (team: Omit<Team, 'id' | 'score'>): Team => {
       const list = getStoreData('ts_teams', SEED_TEAMS);
-      const newTeam = { ...team, id: `team-${Date.now()}`, score: 0 };
+      const newTeam = { ...team, id: `team-${Date.now()}-${Math.random().toString(36).substring(2, 8)}`, score: 0 };
       list.push(newTeam);
       saveStoreData('ts_teams', list);
       return newTeam;
@@ -1082,7 +1082,7 @@ export const mockStore = {
       const filtered = mappings.filter(m => m.participant_id !== participantId);
       
       filtered.push({
-        id: `pc-${Date.now()}`,
+        id: `pc-${Date.now()}-${Math.random().toString(36).substring(2, 8)}`,
         participant_id: participantId,
         category_id: categoryId,
         manual_override: true,
@@ -1377,18 +1377,6 @@ export const mockStore = {
         return conflicts;
       };
 
-      const _chooseFromPool = (pool: Participant[], differentFromClub?: string): Participant => {
-        if (pool.length === 1) return pool.splice(0, 1)[0];
-
-        if (differentFromClub) {
-          const idx = pool.findIndex(p => _clubKey(p) !== differentFromClub);
-          if (idx >= 0) return pool.splice(idx, 1)[0];
-        }
-
-        const idx = _hasSession ? Math.floor(Math.random() * pool.length) : 0;
-        return pool.splice(idx, 1)[0];
-      };
-
       const _placeIntoHalf = (
         bracketList: (string | null)[],
         poolInput: Participant[],
@@ -1396,28 +1384,82 @@ export const mockStore = {
         halfStart: number,
         halfEnd: number
       ) => {
-        const pool = [...poolInput];
+        let pool = [...poolInput];
         const fillSet = new Set(fillPositions);
+
+        const pairBouts: { p1: number; p2: number }[] = [];
+        const soloBouts: { p1: number; p2: number }[] = [];
 
         for (let boutStart = halfStart; boutStart <= halfEnd; boutStart += 2) {
           const p1 = boutStart;
           const p2 = boutStart + 1;
           const hasP1 = fillSet.has(p1);
           const hasP2 = fillSet.has(p2);
+          if (hasP1 && hasP2) pairBouts.push({ p1, p2 });
+          else if (hasP1 || hasP2) soloBouts.push({ p1, p2 });
+        }
 
-          if (!hasP1 && !hasP2) continue;
+        if (_hasSession) {
+          _shuffleInPlace(pairBouts);
+          _shuffleInPlace(soloBouts);
+        }
 
-          if (hasP1 && hasP2) {
-            const a = _chooseFromPool(pool);
-            const b = _chooseFromPool(pool, _clubKey(a));
-            bracketList[p1] = a.id;
-            bracketList[p2] = b.id;
-            continue;
+        const clubGroups = new Map<string, Participant[]>();
+        pool.forEach(p => {
+          const k = _clubKey(p);
+          const arr = clubGroups.get(k) || [];
+          arr.push(p);
+          clubGroups.set(k, arr);
+        });
+
+        let availableClubs = Array.from(clubGroups.entries()).map(([key, list]) => {
+          if (_hasSession) _shuffleInPlace(list);
+          return { key, list };
+        });
+
+        const pullLargest = (excludeKey?: string): Participant | null => {
+          availableClubs.sort((a, b) => b.list.length - a.list.length || (_hasSession ? Math.random() - 0.5 : 0));
+          
+          let chosenClubIdx = -1;
+          if (excludeKey) {
+            chosenClubIdx = availableClubs.findIndex(c => c.key !== excludeKey && c.list.length > 0);
           }
+          if (chosenClubIdx === -1) {
+            chosenClubIdx = availableClubs.findIndex(c => c.list.length > 0);
+          }
+          if (chosenClubIdx === -1) return null;
 
-          const solo = _chooseFromPool(pool);
-          if (hasP1) bracketList[p1] = solo.id;
-          if (hasP2) bracketList[p2] = solo.id;
+          const p = availableClubs[chosenClubIdx].list.pop()!;
+          if (availableClubs[chosenClubIdx].list.length === 0) {
+            availableClubs.splice(chosenClubIdx, 1);
+          }
+          return p;
+        };
+
+        for (const bout of pairBouts) {
+          const a = pullLargest();
+          if (!a) break;
+          const b = pullLargest(_clubKey(a)) || pullLargest(); 
+          if (!b) {
+            bracketList[bout.p1] = a.id;
+            break;
+          }
+          if (_hasSession && Math.random() < 0.5) {
+            bracketList[bout.p1] = b.id;
+            bracketList[bout.p2] = a.id;
+          } else {
+            bracketList[bout.p1] = a.id;
+            bracketList[bout.p2] = b.id;
+          }
+        }
+
+        for (const bout of soloBouts) {
+          const solo = pullLargest();
+          if (!solo) break;
+          const hasP1 = fillSet.has(bout.p1);
+          const hasP2 = fillSet.has(bout.p2);
+          if (hasP1) bracketList[bout.p1] = solo.id;
+          if (hasP2) bracketList[bout.p2] = solo.id;
         }
       };
 
@@ -1569,18 +1611,40 @@ export const mockStore = {
         };
 
         let _best = _buildCandidate();
+        let _bestScore = -Infinity;
+
         if (_hasSession) {
-          for (let attempt = 0; attempt < 11; attempt++) {
+          const getQualityScore = (candidate: typeof _best) => {
+            let score = 0;
+            // Heavy penalty for same-dojo matchups in round 1
+            score -= candidate.conflictCount * 1000;
+            
+            // Penalty if we've seen this exact signature recently (encourages new layouts on regenerate)
+            if (_sigHistory.includes(candidate.signature)) {
+              score -= 500;
+            }
+
+            // Small tiebreaker random variance
+            score += Math.floor(Math.random() * 100);
+
+            return score;
+          };
+
+          _bestScore = getQualityScore(_best);
+
+          // Generate 25 candidates, find the one with the highest quality score
+          for (let attempt = 0; attempt < 25; attempt++) {
             const next = _buildCandidate();
-            const bestSeenBefore = _sigHistory.includes(_best.signature);
-            const nextSeenBefore = _sigHistory.includes(next.signature);
+            const nextScore = getQualityScore(next);
 
-            const shouldReplace =
-              next.conflictCount < _best.conflictCount ||
-              (next.conflictCount === _best.conflictCount && bestSeenBefore && !nextSeenBefore);
-
-            if (shouldReplace) _best = next;
-            if (_best.conflictCount === 0 && !_sigHistory.includes(_best.signature)) break;
+            if (nextScore > _bestScore) {
+              _best = next;
+              _bestScore = nextScore;
+            }
+            
+            // If it's perfect (0 conflicts) and a completely new signature, we don't strictly need to break early,
+            // but we can break early if we are near the end of attempts and found a good one. 
+            // However, letting it run all 25 attempts ensures we might find an even better randomized distribution.
           }
 
           try {
@@ -2223,6 +2287,42 @@ export const mockStore = {
 
       saveStoreData('ts_bouts', [...filteredList, ...newBouts]);
       return newBouts;
+    },
+    reassignParticipant: (boutId: string, position: 'AKA' | 'AO', newParticipantId: string, categoryId: string, tournamentId?: string): Bout => {
+      const bouts = getStoreData<Bout>('ts_bouts', []);
+      const boutIdx = bouts.findIndex(b => b.id === boutId);
+      if (boutIdx === -1) throw new Error('Bout not found.');
+      const bout = bouts[boutIdx];
+
+      if (bout.category_id !== categoryId) {
+        throw new Error('Category mismatch: Bout does not belong to the active category.');
+      }
+
+      const partCats = getStoreData<ParticipantCategory>('ts_participant_categories', []);
+      let activeMaps = partCats.filter(pc => pc.participant_id === newParticipantId && pc.category_id === categoryId);
+      if (tournamentId) {
+        activeMaps = activeMaps.filter(pc => pc.tournament_id === tournamentId);
+      }
+      if (activeMaps.length === 0) {
+        throw new Error('Participant does not belong to this category.');
+      }
+
+      const categoryBouts = bouts.filter(b => b.category_id === categoryId);
+      const isDuplicate = categoryBouts.some(b => 
+        (b.participant_a_id === newParticipantId && (b.id !== boutId || position !== 'AKA')) || 
+        (b.participant_b_id === newParticipantId && (b.id !== boutId || position !== 'AO'))
+      );
+      
+      if (isDuplicate) {
+        throw new Error('Participant is already assigned to a position in this category.');
+      }
+
+      if (position === 'AKA') bout.participant_a_id = newParticipantId;
+      else bout.participant_b_id = newParticipantId;
+
+      bouts[boutIdx] = bout;
+      saveStoreData('ts_bouts', bouts);
+      return bout;
     }
   },
 

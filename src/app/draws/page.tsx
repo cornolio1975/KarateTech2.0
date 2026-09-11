@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { useTournament } from '@/context/TournamentContext';
-import { db, basePath, describeError } from '@/db/dbClient';
+import { db, basePath, describeError, getActiveTournamentIdSync } from '@/db/dbClient';
 import { Participant, Category, Bout, Club, isKataCategory, isKumiteCategory } from '@/db/types';
 import { 
   GitPullRequest, Check, Trophy, Trash2, Edit2, Play, 
@@ -10,7 +10,8 @@ import {
   Lock, Unlock, ShieldAlert, AlertTriangle
 } from 'lucide-react';
 import { SportdataBracket } from '@/components/SportdataBracket';
-
+import { ManualPlayerSelection, ManualReplacement } from '@/components/ManualPlayerSelection';
+import { createVersion } from '@/db/bracketVersions';
 
 export default function DrawsPage() {
   const { searchQuery, triggerRefresh, canModify, tournamentName, logoUrl, userRole } = useTournament();
@@ -54,6 +55,10 @@ export default function DrawsPage() {
   const [r1SwapMode, setR1SwapMode] = useState(false);
   const [swapSlot, setSwapSlot] = useState<{ boutId: string; side: 'a' | 'b'; participantId: string | null } | null>(null);
   const [swapConfirm, setSwapConfirm] = useState<{ boutA: Bout; sideA: 'a'|'b'; boutB: Bout; sideB: 'a'|'b' } | null>(null);
+
+  // Manual Reassignment State
+  const [manualReassignMode, setManualReassignMode] = useState(false);
+  const [lastManualChange, setLastManualChange] = useState<ManualReplacement | null>(null);
 
   useEffect(() => {
     if (isPrinting) {
@@ -995,8 +1000,16 @@ export default function DrawsPage() {
                           </span>
                         </button>
 
-                        {r1SwapMode && (
+                        {r1SwapMode && !manualReassignMode && (
                           <div className="p-4 space-y-2">
+                            <div className="flex gap-2">
+                              <button 
+                                onClick={() => setManualReassignMode(true)}
+                                className="w-full text-xs font-bold text-amber-500 border border-amber-500/40 bg-amber-500/10 hover:bg-amber-500/20 px-3 py-2 rounded-lg cursor-pointer transition"
+                              >
+                                Or Enter "Manually Select Player" Mode
+                              </button>
+                            </div>
                             {swapSlot && (
                               <div className="flex items-center gap-2 mb-3 p-2.5 bg-primary/10 border border-primary/30 rounded-lg">
                                 <ArrowLeftRight className="h-3.5 w-3.5 text-primary shrink-0" />
@@ -1079,6 +1092,52 @@ export default function DrawsPage() {
                             <p className="text-[9px] text-muted-foreground pt-1">
                               💡 Bouts highlighted in <span className="text-amber-500 font-bold">amber</span> have same-Dojo matchups. Click any athlete slot to select it, then click another slot to swap their positions.
                             </p>
+                          </div>
+                        )}
+                        {manualReassignMode && (
+                          <div className="p-4">
+                            <ManualPlayerSelection
+                              categoryName={currentCategory?.name || ''}
+                              categoryId={selectedCatId!}
+                              categoryBouts={categoryBouts}
+                              categoryParticipants={participants.filter(p => participantCategories.some(pc => pc.participant_id === p.id && pc.category_id === selectedCatId))}
+                              clubs={clubs}
+                              canModify={canModify}
+                              lastChange={lastManualChange}
+                              onApply={async (change, opts) => {
+                                try {
+                                  // Create pre-change snapshot
+                                  await createVersion({
+                                    tournamentId: getActiveTournamentIdSync() || 'default',
+                                    category: currentCategory!,
+                                    bouts: categoryBouts,
+                                    participants,
+                                    reason: 'MANUAL_REASSIGNMENT',
+                                    createdBy: 'Admin',
+                                    changeSummary: 'Safety snapshot before manual reassignment'
+                                  });
+                                  
+                                  // Reassign participant (db checks duplicate and active cat)
+                                  await db.bouts.reassignParticipant(
+                                    change.boutId, 
+                                    change.position, 
+                                    change.newPlayerId, 
+                                    selectedCatId!
+                                  );
+
+                                  // Create post-change snapshot (implicitly triggered or manually)
+                                  
+                                  setLastManualChange(change);
+                                  await loadData();
+                                } catch (e) {
+                                  alert('Reassignment failed: ' + describeError(e));
+                                }
+                              }}
+                              onUndo={async () => {
+                                alert('Please restore from the bracket version recovery console.');
+                              }}
+                              onClose={() => setManualReassignMode(false)}
+                            />
                           </div>
                         )}
                       </div>

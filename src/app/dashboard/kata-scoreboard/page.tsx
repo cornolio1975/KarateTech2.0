@@ -212,8 +212,8 @@ export default function KataScoreboardHubPage() {
                 className="w-full bg-[#101015] border border-white/10 rounded-xl px-3 py-2.5 text-xs text-white focus:outline-none focus:border-yellow-400 transition cursor-pointer"
               >
                 <option value="ALL">All Kata Categories ({kataCategories.length})</option>
-                {kataCategories.map(cat => (
-                  <option key={cat.id} value={cat.id}>{cat.name}</option>
+                {kataCategories.map((cat, idx) => (
+                  <option key={`${cat.id}-${idx}`} value={cat.id}>{cat.name}</option>
                 ))}
               </select>
             </div>

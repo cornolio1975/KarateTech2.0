@@ -1415,6 +1415,71 @@ export const dbOriginal = {
       }
       return mockStore.bouts.updateBoutResult(boutId, winnerId, scoreA, scoreB);
     },
+    reassignParticipant: async (boutId: string, position: 'AKA' | 'AO', newParticipantId: string, categoryId: string): Promise<Bout> => {
+      const activeTournamentId = getActiveTournamentIdSync() ?? undefined;
+      
+      // Perform server-side logic and validation via mockStore first
+      let updatedMockBout: Bout;
+      try {
+        updatedMockBout = mockStore.bouts.reassignParticipant(boutId, position, newParticipantId, categoryId, activeTournamentId);
+      } catch (mockErr: unknown) {
+        throw new Error(describeError(mockErr));
+      }
+
+      if (activeTournamentDb) {
+        return updatedMockBout;
+      }
+
+      if (supabase) {
+        try {
+          // Double verify in Supabase
+          let mappingQuery = supabase
+            .from('participant_categories')
+            .select('*')
+            .eq('participant_id', newParticipantId)
+            .eq('category_id', categoryId);
+          
+          if (activeTournamentId) {
+            mappingQuery = mappingQuery.eq('tournament_id', activeTournamentId);
+          }
+          
+          const { data: mappings, error: mapErr } = await mappingQuery;
+          if (mapErr) throw mapErr;
+          if (!mappings || mappings.length === 0) {
+            throw new Error('Participant does not belong to this category.');
+          }
+
+          const updatePayload = position === 'AKA' 
+            ? { participant_a_id: newParticipantId } 
+            : { participant_b_id: newParticipantId };
+
+          const { data, error } = await supabase
+            .from('bouts')
+            .update(updatePayload)
+            .eq('id', boutId)
+            .eq('category_id', categoryId)
+            .select()
+            .single();
+
+          if (error) throw error;
+          
+          // Add audit log
+          await supabase.from('audit_logs').insert([{
+            action: 'UPDATE',
+            table_name: 'bouts',
+            record_id: boutId,
+            new_values: { position, newParticipantId, categoryId, action: 'MANUAL_REASSIGNMENT' }
+          }]);
+
+          return data;
+        } catch (e: unknown) {
+          console.error('Supabase reassignParticipant failed:', describeError(e));
+          throw new Error('Failed to save reassignment to database: ' + describeError(e));
+        }
+      }
+
+      return updatedMockBout;
+    },
     updateBoutState: async (id: string, updates: Partial<Bout>): Promise<Bout> => {
       if (supabase) {
         try {

@@ -139,9 +139,14 @@ export default function CategoriesPage() {
         db.bouts.list(),
         db.participantCategories.list()
       ]);
-      setCategories(catList);
-      setParticipants(pList);
-      setClubs(clList);
+      // Deduplicate to prevent key collisions if sync/import introduced duplicate records
+      const uniqueCats = Array.from(new Map(catList.map(c => [c.id, c])).values());
+      const uniqueParticipants = Array.from(new Map(pList.map(p => [p.id, p])).values());
+      const uniqueClubs = Array.from(new Map(clList.map(c => [c.id, c])).values());
+      
+      setCategories(uniqueCats);
+      setParticipants(uniqueParticipants);
+      setClubs(uniqueClubs);
       setBouts(bList);
       setMappings(pcList);
     } catch (e) {
@@ -721,8 +726,8 @@ export default function CategoriesPage() {
             className="w-full px-3 py-2 bg-secondary border border-border rounded-lg text-xs font-semibold text-foreground focus:outline-none focus:ring-1 focus:ring-primary cursor-pointer"
           >
             <option value="">All Categories ({dropdownCategories.length})</option>
-            {dropdownCategories.map(c => (
-              <option key={c.id} value={c.id}>
+            {dropdownCategories.map((c, idx) => (
+              <option key={`${c.id}-${idx}`} value={c.id}>
                 {isKataCategory(c) ? '🏆 [KATA] ' : '🥋 [KUMITE] '}{c.name} ({getParticipantsForCategory(c.id).length} athletes)
               </option>
             ))}
@@ -785,7 +790,7 @@ export default function CategoriesPage() {
       ) : (
         /* Visual Category Grid */
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {filteredCategories.map((cat) => {
+          {filteredCategories.map((cat, index) => {
             const list = getParticipantsForCategory(cat.id);
             const count = list.length;
             const cap = cat.capacity || 32;
@@ -802,7 +807,7 @@ export default function CategoriesPage() {
             }
 
             return (
-              <div key={cat.id} className={`rounded-xl p-5 border shadow-sm flex flex-col justify-between transition-all duration-200 ${cardClass}`}>
+              <div key={`${cat.id}-${index}`} className={`rounded-xl p-5 border shadow-sm flex flex-col justify-between transition-all duration-200 ${cardClass}`}>
                 {/* Category metadata */}
                 <div>
                   <div className="flex items-center justify-between mb-2">
@@ -1180,8 +1185,8 @@ export default function CategoriesPage() {
               </p>
 
               <div className="space-y-1.5 max-h-48 overflow-y-auto pr-1">
-                {activeCategories.map(c => (
-                  <label key={c.id} className="flex items-center gap-2.5 p-2 rounded-lg hover:bg-secondary/40 text-xs cursor-pointer select-none">
+                {activeCategories.map((c, idx) => (
+                  <label key={`${c.id}-${idx}`} className="flex items-center gap-2.5 p-2 rounded-lg hover:bg-secondary/40 text-xs cursor-pointer select-none">
                     <input
                       type="checkbox"
                       checked={selectedMergeIds.includes(c.id)}
@@ -1266,8 +1271,8 @@ export default function CategoriesPage() {
                   className="w-full px-3 py-2 bg-secondary border border-border rounded-lg text-xs focus:outline-none text-foreground"
                 >
                   <option value="">Select category...</option>
-                  {activeCategories.map(c => (
-                    <option key={c.id} value={c.id}>
+                  {activeCategories.map((c, idx) => (
+                    <option key={`${c.id}-${idx}`} value={c.id}>
                       {c.name} ({getParticipantsForCategory(c.id).length} registered)
                     </option>
                   ))}
@@ -1397,8 +1402,8 @@ export default function CategoriesPage() {
                   className="w-full px-3 py-2 bg-secondary border border-border rounded-lg text-xs focus:outline-none text-foreground"
                 >
                   <option value="">Choose destination category...</option>
-                  {activeCategories.map(c => (
-                    <option key={c.id} value={c.id}>
+                  {activeCategories.map((c, idx) => (
+                    <option key={`${c.id}-${idx}`} value={c.id}>
                       {c.name} ({c.min_weight}-{c.max_weight}kg)
                     </option>
                   ))}

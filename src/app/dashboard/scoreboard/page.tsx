@@ -205,8 +205,8 @@ export default function ScoreboardDashboardPage() {
                 className="w-full bg-[#101015] border border-white/10 rounded-xl px-3 py-2.5 text-xs text-white focus:outline-none focus:border-yellow-400 transition cursor-pointer"
               >
                 <option value="ALL">All Kumite Categories ({kumiteCategories.length})</option>
-                {kumiteCategories.map(cat => (
-                  <option key={cat.id} value={cat.id}>{cat.name}</option>
+                {kumiteCategories.map((cat, idx) => (
+                  <option key={`${cat.id}-${idx}`} value={cat.id}>{cat.name}</option>
                 ))}
               </select>
             </div>
