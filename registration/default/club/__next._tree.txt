@@ -1,0 +1,2 @@
+:HL["/KarateTech2.0/_next/static/chunks/022pyvw7nl0z_.css","style"]
+0:{"tree":{"name":"","param":null,"prefetchHints":16,"slots":{"children":{"name":"registration","param":null,"prefetchHints":0,"slots":{"children":{"name":"tournament_id","param":{"type":"d","key":"default","siblings":null},"prefetchHints":0,"slots":{"children":{"name":"club","param":null,"prefetchHints":0,"slots":{"children":{"name":"__PAGE__","param":null,"prefetchHints":0,"slots":null}}}}}}}}},"staleTime":300,"buildId":"9HowTIfy6id09sJ_F7TgF"}

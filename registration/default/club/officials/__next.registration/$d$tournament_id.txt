@@ -1,0 +1,4 @@
+1:"$Sreact.fragment"
+2:I[39756,["/KarateTech2.0/_next/static/chunks/10z983wyp1xdw.js","/KarateTech2.0/_next/static/chunks/066d2g68v6mmq.js","/KarateTech2.0/_next/static/chunks/30kwh8k00ddu_.js","/KarateTech2.0/_next/static/chunks/2n81pdy5w4s7l.js","/KarateTech2.0/_next/static/chunks/14mrh2-p_w84d.js","/KarateTech2.0/_next/static/chunks/1x61s9rs5c_ph.js"],"default"]
+3:I[37457,["/KarateTech2.0/_next/static/chunks/10z983wyp1xdw.js","/KarateTech2.0/_next/static/chunks/066d2g68v6mmq.js","/KarateTech2.0/_next/static/chunks/30kwh8k00ddu_.js","/KarateTech2.0/_next/static/chunks/2n81pdy5w4s7l.js","/KarateTech2.0/_next/static/chunks/14mrh2-p_w84d.js","/KarateTech2.0/_next/static/chunks/1x61s9rs5c_ph.js"],"default"]
+0:{"rsc":["$","$1","c",{"children":[null,["$","$L2",null,{"parallelRouterKey":"children","template":["$","$L3",null,{}]}]]}],"isPartial":false,"staleTime":300,"varyParams":null,"buildId":"9HowTIfy6id09sJ_F7TgF"}
