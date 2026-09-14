@@ -9,8 +9,14 @@ import {
 } from 'lucide-react';
 import ImportTeamModal from '@/components/ImportTeamModal';
 
-export default function TeamsPage() {
-  const { refreshKey, triggerRefresh, canModify } = useTournament();
+export interface TeamsContentProps {
+  isClubMode?: boolean;
+  clubId?: string;
+}
+
+export function TeamsContent({ isClubMode, clubId }: TeamsContentProps) {
+  const { refreshKey, triggerRefresh, canModify: contextCanModify, userRole } = useTournament();
+  const canModify = isClubMode && userRole === 'Club' ? true : contextCanModify;
 
   const [mounted, setMounted] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -81,17 +87,26 @@ export default function TeamsPage() {
         }
       });
       
-      setTeams(tList);
+      // If in club mode, only keep teams and participants for this club
+      const filteredTeams = isClubMode && clubId ? tList.filter(t => t.club_id === clubId) : tList;
+      const filteredParts = isClubMode && clubId ? pList.filter(p => p.club_id === clubId) : pList;
+
+      setTeams(filteredTeams);
       setClubs(clList);
       setCoaches(mergedCoaches);
-      setParticipants(pList);
+      setParticipants(filteredParts);
 
-      if (clList.length > 0) setSelectedClubId(clList[0].id);
+      if (isClubMode && clubId) {
+        setSelectedClubId(clubId);
+      } else if (clList.length > 0) {
+        setSelectedClubId(clList[0].id);
+      }
+      
       if (coList.length > 0) setSelectedCoachId(coList[0].id);
 
       // Load members for each team
       const tempMembers: Record<string, Participant[]> = {};
-      for (const t of tList) {
+      for (const t of filteredTeams) {
         const mems = await db.teams.members(t.id);
         tempMembers[t.id] = mems;
       }
@@ -137,7 +152,7 @@ export default function TeamsPage() {
 
   const handleOpenCreateModal = () => {
     setTeamName('');
-    setSelectedClubId(clubs.length > 0 ? clubs[0].id : '');
+    setSelectedClubId(isClubMode && clubId ? clubId : (clubs.length > 0 ? clubs[0].id : ''));
     setSelectedCoachId(coaches.length > 0 ? coaches[0].id : '');
     setIsCreateOpen(true);
   };
@@ -278,13 +293,15 @@ export default function TeamsPage() {
         </div>
         {canModify && (
           <div className="flex items-center gap-2 flex-wrap">
-            <button
-              onClick={() => setIsImportOpen(true)}
-              className="px-4 py-2 bg-secondary border border-border hover:bg-secondary/80 text-foreground text-xs font-bold rounded-lg shadow-xs flex items-center gap-1.5 cursor-pointer"
-            >
-              <Upload className="h-3.5 w-3.5" />
-              <span>Import CSV</span>
-            </button>
+            {!isClubMode && (
+              <button
+                onClick={() => setIsImportOpen(true)}
+                className="px-4 py-2 bg-secondary border border-border hover:bg-secondary/80 text-foreground text-xs font-bold rounded-lg shadow-xs flex items-center gap-1.5 cursor-pointer"
+              >
+                <Upload className="h-3.5 w-3.5" />
+                <span>Import CSV</span>
+              </button>
+            )}
             <button
               onClick={handleOpenCreateModal}
               className="px-4 py-2 bg-primary text-primary-foreground hover:bg-primary/95 text-xs font-bold rounded-lg shadow-sm flex items-center gap-1.5 cursor-pointer"
@@ -443,20 +460,22 @@ export default function TeamsPage() {
                 />
               </div>
 
-              <div>
-                <label className="text-[10px] font-bold text-muted-foreground uppercase block mb-1">Select Represented Club Dojo</label>
-                <select
-                  required
-                  value={selectedClubId}
-                  onChange={(e) => setSelectedClubId(e.target.value)}
-                  className="w-full px-3 py-2 bg-secondary border border-border rounded-lg text-xs focus:outline-none text-foreground"
-                >
-                  <option value="">Choose representing club dojo...</option>
-                  {clubs.map(c => (
-                    <option key={c.id} value={c.id}>{c.name}</option>
-                  ))}
-                </select>
-              </div>
+              {!isClubMode && (
+                <div>
+                  <label className="text-[10px] font-bold text-muted-foreground uppercase block mb-1">Select Represented Club Dojo</label>
+                  <select
+                    required
+                    value={selectedClubId}
+                    onChange={(e) => setSelectedClubId(e.target.value)}
+                    className="w-full px-3 py-2 bg-secondary border border-border rounded-lg text-xs focus:outline-none text-foreground"
+                  >
+                    <option value="">Choose representing club dojo...</option>
+                    {clubs.map(c => (
+                      <option key={c.id} value={c.id}>{c.name}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
 
               <div>
                 <label className="text-[10px] font-bold text-muted-foreground uppercase block mb-1">Assign Coach</label>
@@ -573,11 +592,17 @@ export default function TeamsPage() {
       )}
 
       {/* Import CSV Modal */}
-      <ImportTeamModal 
-        isOpen={isImportOpen} 
-        onClose={() => setIsImportOpen(false)} 
-      />
+      {!isClubMode && (
+        <ImportTeamModal 
+          isOpen={isImportOpen} 
+          onClose={() => setIsImportOpen(false)} 
+        />
+      )}
 
     </div>
   );
+}
+
+export default function TeamsPage() {
+  return <TeamsContent />;
 }

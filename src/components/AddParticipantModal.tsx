@@ -7,7 +7,11 @@ import { Club, Coach, Country, Category, isKataCategory, isKumiteCategory } from
 import { X, Upload, Check, RefreshCw } from 'lucide-react';
 import confetti from 'canvas-confetti';
 
-export default function AddParticipantModal() {
+interface AddParticipantModalProps {
+  fixedClubId?: string;
+}
+
+export default function AddParticipantModal({ fixedClubId }: AddParticipantModalProps = {}) {
   const { isAddOpen, setIsAddOpen, triggerRefresh } = useTournament();
 
   const [clubs, setClubs] = useState<Club[]>([]);
@@ -26,7 +30,7 @@ export default function AddParticipantModal() {
   const [phone, setPhone] = useState('');
   const [emergencyName, setEmergencyName] = useState('');
   const [emergencyPhone, setEmergencyPhone] = useState('');
-  const [clubId, setClubId] = useState('');
+  const [clubId, setClubId] = useState(fixedClubId || '');
   const [coachId, setCoachId] = useState('');
   const [weight, setWeight] = useState('');
   const [height, setHeight] = useState('');

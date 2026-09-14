@@ -6,7 +6,7 @@ import Link from 'next/link';
 import { useTournament } from '@/context/TournamentContext';
 import { 
   Search, SlidersHorizontal, Download, Upload, MoreHorizontal, 
-  Plus, Bell, Moon, Sun, ChevronDown, CheckCircle, AlertTriangle, Menu, Home, Globe, ExternalLink, Tv, Palette, Check, Lock, Cloud, CloudOff, Server, RefreshCw
+  Plus, Bell, Moon, Sun, ChevronDown, CheckCircle, AlertTriangle, Menu, Home, Globe, ExternalLink, Tv, Palette, Check, Lock, Cloud, CloudOff, Server, RefreshCw, LogOut
 } from 'lucide-react';
 import { db, describeError } from '@/db/dbClient';
 import { useLanSyncStatus } from '@/lib/useLanSync';
@@ -33,11 +33,15 @@ export default function TopBar({ onImportClick, onMenuToggle }: TopBarProps) {
     setConsoleTheme,
     tournamentName,
     triggerRefresh,
-    canModify
+    canModify,
+    logout,
+    userRole,
+    userEmail
   } = useTournament();
 
   const [isBulkOpen, setIsBulkOpen] = useState(false);
   const [isThemeOpen, setIsThemeOpen] = useState(false);
+  const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
   const [isOnline, setIsOnline] = useState(typeof navigator !== 'undefined' ? navigator.onLine : true);
   const lanStatus = useLanSyncStatus();
@@ -127,18 +131,6 @@ export default function TopBar({ onImportClick, onMenuToggle }: TopBarProps) {
         >
           <Menu className="h-5 w-5" />
         </button>
-        {canModify && !isControllerPage && (
-          <a
-            href="https://tournamentdisplay.spsportdatasolution.org/"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex items-center gap-1.5 px-3 py-1.5 border border-amber-500/20 bg-amber-950/20 hover:bg-amber-900/40 rounded-lg text-xs font-bold transition text-amber-300 hover:text-white cursor-pointer"
-            title="Open Tournament Live Display"
-          >
-            <Tv className="h-3.5 w-3.5 text-amber-400" />
-            <span className="hidden md:inline">T-LiveDisplay</span>
-          </a>
-        )}
         <a
           href="https://spsportdatasolution.org/karatetech/"
           target="_blank"
@@ -481,10 +473,35 @@ export default function TopBar({ onImportClick, onMenuToggle }: TopBarProps) {
           </div>
 
           {/* User Info Dropdown */}
-          <div className="flex items-center gap-2 pl-1 cursor-pointer">
-            <div className="w-8 h-8 rounded-full bg-primary/10 text-primary font-bold text-xs flex items-center justify-center border border-border">
-              AD
+          <div className="relative">
+            <div 
+              onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
+              className="w-8 h-8 rounded-full bg-primary/10 hover:bg-primary/20 text-primary font-bold text-xs flex items-center justify-center border border-border transition-colors cursor-pointer"
+              title="User Menu"
+            >
+              {userRole ? userRole.charAt(0) : 'AD'}
             </div>
+            {isUserMenuOpen && (
+              <>
+                <div className="fixed inset-0 z-40" onClick={() => setIsUserMenuOpen(false)} />
+                <div className="absolute right-0 mt-2 w-48 bg-card border border-border rounded-xl shadow-2xl z-50 p-2 text-foreground animate-in fade-in zoom-in-95 duration-150">
+                  <div className="px-3 py-2 border-b border-border/50 mb-1">
+                    <p className="text-xs font-bold truncate">{userEmail || 'admin@spsportdatasolution.org'}</p>
+                    <p className="text-[10px] text-muted-foreground">{userRole || 'Admin'}</p>
+                  </div>
+                  <button 
+                    onClick={() => {
+                      logout();
+                      window.location.href = '/login';
+                    }}
+                    className="w-full flex items-center gap-2 px-3 py-2 text-sm text-red-500 hover:bg-red-500/10 rounded-lg transition-colors cursor-pointer font-medium mt-1"
+                  >
+                    <LogOut className="h-4 w-4" />
+                    <span>Log Out</span>
+                  </button>
+                </div>
+              </>
+            )}
           </div>
         </div>
       </div>

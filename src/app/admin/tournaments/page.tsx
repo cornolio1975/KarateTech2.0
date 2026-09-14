@@ -510,7 +510,7 @@ export default function TournamentDetailsModule() {
     }
   };
 
-  const handleSaveTournament = async (payload: Partial<Tournament>) => {
+  const handleSaveTournament = async (payload: Partial<Tournament>, isPublishing: boolean = false) => {
     if (supabase) {
       if (payload.id) {
         // Update
@@ -948,7 +948,12 @@ export default function TournamentDetailsModule() {
                             {t.name.substring(0, 6).toUpperCase()}...
                           </div>
                           <div className="flex-1 min-w-0">
-                            <h2 className="text-lg font-black tracking-tight leading-tight uppercase truncate">{t.name}</h2>
+                            <div className="flex items-center justify-between">
+                              <h2 className="text-lg font-black tracking-tight leading-tight uppercase truncate">{t.name}</h2>
+                              <span className={`px-2 py-0.5 text-[10px] font-bold rounded-full ${t.status === 'Draft' ? 'bg-yellow-500/10 text-yellow-500 border border-yellow-500/20' : 'bg-cyan-500/10 text-cyan-400 border border-cyan-500/20'}`}>
+                                {t.status}
+                              </span>
+                            </div>
                             <p className="text-xs font-bold text-cyan-400 uppercase tracking-widest mt-1 truncate">{t.organizer}</p>
                           </div>
                         </div>

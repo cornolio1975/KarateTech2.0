@@ -176,7 +176,7 @@ export default function DrawsPage() {
         for (const cat of toGenerate) {
           const parts = participantCategories.filter(pc => pc.category_id === cat.id).map(pc => pc.participant_id);
           if (parts.length > 0) {
-            await db.bouts.generateDraw(cat.id, parts, cat.format || 'knockout');
+            await db.bouts.generateDraw(cat.id, cat.format || 'knockout', false);
           }
         }
         await loadData();
@@ -198,6 +198,17 @@ export default function DrawsPage() {
       setLoading(true);
       try {
         await db.categories.update(currentCategory.id, { draw_status: 'Confirmed' });
+        
+        await createVersion({
+          tournamentId: getActiveTournamentIdSync() || 'default',
+          category: currentCategory,
+          bouts: categoryBouts,
+          participants,
+          reason: 'MANUAL_EDIT',
+          createdBy: 'Admin',
+          changeSummary: 'Bracket locked'
+        });
+
         await loadData();
       } catch (e) {
         alert(describeError(e));
@@ -247,6 +258,18 @@ export default function DrawsPage() {
       await db.bouts.generateDraw(selectedCatId, format, true);
       const updatedBouts = await db.bouts.list();
       setBouts(updatedBouts);
+
+      if (cat) {
+        await createVersion({
+          tournamentId: getActiveTournamentIdSync() || 'default',
+          category: cat,
+          bouts: updatedBouts.filter(b => b.category_id === cat.id),
+          participants,
+          reason: 'DRAW_REGENERATED',
+          createdBy: 'System',
+          changeSummary: 'Bracket newly generated'
+        });
+      }
     } catch (err: any) {
       alert(describeError(err));
     } finally {
@@ -1160,7 +1183,7 @@ export default function DrawsPage() {
                                     category: currentCategory!,
                                     bouts: categoryBouts,
                                     participants,
-                                    reason: 'MANUAL_REASSIGNMENT',
+                                    reason: 'MANUAL_PLAYER_REPLACEMENT',
                                     createdBy: 'Admin',
                                     changeSummary: 'Safety snapshot before manual reassignment'
                                   });

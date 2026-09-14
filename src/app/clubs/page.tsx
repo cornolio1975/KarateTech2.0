@@ -10,8 +10,14 @@ import {
 } from 'lucide-react';
 import ImportClubModal from '@/components/ImportClubModal';
 
-export default function ClubsPage() {
-  const { refreshKey, triggerRefresh, canModify } = useTournament();
+export interface ClubsContentProps {
+  isClubMode?: boolean;
+  clubId?: string;
+}
+
+export function ClubsContent({ isClubMode, clubId }: ClubsContentProps) {
+  const { refreshKey, triggerRefresh, canModify: contextCanModify, userRole } = useTournament();
+  const canModify = isClubMode && userRole === 'Club' ? true : contextCanModify;
 
   const [mounted, setMounted] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -124,8 +130,12 @@ export default function ClubsPage() {
 
   if (!mounted) return null;
 
-  // Filter clubs based on search query
-  const filteredClubs = clubs.filter(c => 
+  // Filter clubs based on search query and clubId if in club mode
+  const displayedClubs = isClubMode && clubId 
+    ? clubs.filter(c => c.id === clubId)
+    : clubs;
+
+  const filteredClubs = displayedClubs.filter(c => 
     c.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
     (c.city && c.city.toLowerCase().includes(searchQuery.toLowerCase())) ||
     (c.state && c.state.toLowerCase().includes(searchQuery.toLowerCase()))
@@ -141,7 +151,7 @@ export default function ClubsPage() {
           <p className="text-sm text-muted-foreground">Register dojos, manage locations, and view athlete representations across active teams.</p>
         </div>
 
-        {canModify && (
+        {canModify && !isClubMode && (
           <div className="flex items-center gap-2">
             <button
               onClick={() => setIsImportOpen(true)}
@@ -259,13 +269,15 @@ export default function ClubsPage() {
                               >
                                 <Edit2 className="h-3.5 w-3.5" />
                               </button>
-                              <button
-                                onClick={() => handleDelete(club.id)}
-                                className="p-1 text-muted-foreground hover:text-red-500 hover:bg-red-500/10 rounded cursor-pointer"
-                                title="Delete Club"
-                              >
-                                <Trash2 className="h-3.5 w-3.5" />
-                              </button>
+                              {!isClubMode && (
+                                <button
+                                  onClick={() => handleDelete(club.id)}
+                                  className="p-1 text-muted-foreground hover:text-red-500 hover:bg-red-500/10 rounded cursor-pointer"
+                                  title="Delete Club"
+                                >
+                                  <Trash2 className="h-3.5 w-3.5" />
+                                </button>
+                              )}
                             </div>
                           </td>
                         )}
@@ -362,11 +374,17 @@ export default function ClubsPage() {
       )}
 
       {/* Import CSV Modal */}
-      <ImportClubModal 
-        isOpen={isImportOpen} 
-        onClose={() => setIsImportOpen(false)} 
-      />
+      {!isClubMode && (
+        <ImportClubModal 
+          isOpen={isImportOpen} 
+          onClose={() => setIsImportOpen(false)} 
+        />
+      )}
 
     </div>
   );
+}
+
+export default function ClubsPage() {
+  return <ClubsContent />;
 }

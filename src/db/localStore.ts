@@ -40,6 +40,9 @@ export const localStore = {
         const payload: Record<string, any> = {
           id: syncId,
           name: db.tournament.name || 'Untitled Tournament',
+          discipline: db.tournament.discipline,
+          poster_emoji: db.tournament.poster_emoji,
+          banner_gradient: db.tournament.banner_gradient,
           status: db.tournament.status || 'Draft',
           organizer: db.tournament.organizer || 'KarateTech Organizer',
           venue: db.tournament.venue || 'Main Stadium',
@@ -48,6 +51,7 @@ export const localStore = {
           date_iso: db.tournament.date_iso || nowIso,
           registration_close: db.tournament.registration_close || new Date().toLocaleDateString(),
           registration_close_iso: db.tournament.registration_close_iso || nowIso,
+          pdf_url: db.tournament.pdf_url,
           data: db,
           last_modified: db.tournament.last_modified || nowIso
         };

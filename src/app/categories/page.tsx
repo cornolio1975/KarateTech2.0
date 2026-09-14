@@ -9,9 +9,10 @@ import { basePath, describeError } from '@/db/dbClient';
 import { mockStore } from '@/db/mockStore';
 import { buildCategoryCsv } from '@/utils/categoryCsv';
 import { 
-  Plus, Tags, Merge, Split, Move, X, Check, AlertCircle, RefreshCw, Trash2, Edit2, Monitor, ChevronRight, Upload, Search, Filter, Download, Users, UserPlus, Sparkles, Settings2, Save, Lock, Unlock, BarChart3
+  Plus, Tags, Merge, Split, Move, X, Check, AlertCircle, RefreshCw, Trash2, Edit2, Monitor, ChevronRight, Upload, Search, Filter, Download, Users, UserPlus, Sparkles, Settings2, Save, Lock, Unlock, BarChart3, ShieldAlert
 } from 'lucide-react';
 import ImportCategoryModal from '@/components/ImportCategoryModal';
+import RecoveryConsoleModal from '@/components/RecoveryConsoleModal';
 
 // Shared category ordering: lowest age first, then Kata before Kumite, then Female before Male (Mixed last), then weight, then name
 const sortCategoriesByAge = (a: Category, b: Category): number => {
@@ -70,6 +71,7 @@ export default function CategoriesPage() {
   const [isMoveOpen, setIsMoveOpen] = useState(false);
   const [isImportOpen, setIsImportOpen] = useState(false);
   const [isAssignStatOpen, setIsAssignStatOpen] = useState(false);
+  const [isRecoveryOpen, setIsRecoveryOpen] = useState(false);
   const [assignStatSearch, setAssignStatSearch] = useState('');
   const [consoleCat, setConsoleCat] = useState<Category | null>(null); // for bout-picker modal
 
@@ -640,6 +642,14 @@ export default function CategoriesPage() {
             >
               <Plus className="h-4 w-4 text-muted-foreground" />
               <span>Add Category</span>
+            </button>
+            <button
+              onClick={() => setIsRecoveryOpen(true)}
+              className="px-3.5 py-2 bg-card hover:bg-secondary border border-border text-xs font-semibold rounded-lg shadow-xs flex items-center gap-1.5 cursor-pointer text-destructive"
+              title="Bracket & Bout Recovery Console"
+            >
+              <ShieldAlert className="h-4 w-4 text-destructive" />
+              <span>Bracket Recovery</span>
             </button>
             <button
               onClick={() => setIsMergeOpen(true)}
@@ -2402,6 +2412,12 @@ export default function CategoriesPage() {
         );
       })()}
 
+      {/* Modals & Portals here (if any exist below this code in the original, we just inject our modal at the end before closing tags) */}
+      <RecoveryConsoleModal
+        isOpen={isRecoveryOpen}
+        onClose={() => setIsRecoveryOpen(false)}
+        categories={activeCategories}
+      />
     </div>
   );
 }

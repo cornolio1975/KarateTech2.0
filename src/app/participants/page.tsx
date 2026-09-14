@@ -14,7 +14,12 @@ import {
   Search, SlidersHorizontal, Trophy, Award, BadgeAlert, Plus, CheckSquare, ListFilter, X, RefreshCw, Upload, Move, AlertCircle
 } from 'lucide-react';
 
-export default function ParticipantsPage() {
+export interface ParticipantsContentProps {
+  isClubMode?: boolean;
+  clubId?: string;
+}
+
+export function ParticipantsContent({ isClubMode, clubId }: ParticipantsContentProps) {
   const {
     searchQuery,
     setSearchQuery,
@@ -24,9 +29,12 @@ export default function ParticipantsPage() {
     setIsAddOpen,
     refreshKey,
     triggerRefresh,
-    canModify,
-    userEmail
+    canModify: contextCanModify,
+    userEmail,
+    userRole
   } = useTournament();
+
+  const canModify = isClubMode && userRole === 'Club' ? true : contextCanModify;
 
   const [mounted, setMounted] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -61,10 +69,25 @@ export default function ParticipantsPage() {
       });
     }
   };
+  const { filters, setFilters } = useTournament();
   const [activeCategoryTab, setActiveCategoryTab] = useState<'ALL' | 'KUMITE' | 'KATA' | 'CONFIRMED'>('ALL');
   const [selectedCatId, setSelectedCatId] = useState<string | null>(null);
-  const [disciplineFilter, setDisciplineFilter] = useState<'ALL' | 'KUMITE' | 'KATA'>('ALL');
+  const [disciplineFilter, setDisciplineFilter] = useState<'ALL' | 'KUMITE' | 'KATA'>(filters.discipline);
   
+  // Sync with global discipline filter
+  useEffect(() => {
+    if (filters.discipline !== disciplineFilter) {
+      setDisciplineFilter(filters.discipline);
+      if (filters.discipline !== 'ALL') {
+        setActiveCategoryTab(filters.discipline);
+      } else {
+        setActiveCategoryTab('ALL');
+      }
+      setSelectedCatId(null);
+      setCurrentPage(1);
+    }
+  }, [filters.discipline]);
+
   // Custom local filter states matching KumiteTechnology demo UI
   const [statusFilter, setStatusFilter] = useState<string>('Active'); // Active / Inactive / All
   const [schoolFilter, setSchoolFilter] = useState<string>(''); // maps to Club
@@ -99,6 +122,8 @@ export default function ParticipantsPage() {
       const seen = new Set<string>();
       const uniqueParticipants = (pList || []).filter(p => {
         if (!p || !p.id || seen.has(p.id)) return false;
+        // In club mode, only load participants for this club
+        if (isClubMode && clubId && p.club_id !== clubId) return false;
         seen.add(p.id);
         return true;
       });
@@ -481,7 +506,11 @@ export default function ParticipantsPage() {
     if (statusFilter === 'Inactive' && p.status !== 'Cancelled') return false;
 
     // 5. School/Club filter
-    if (schoolFilter && p.club_id !== schoolFilter) return false;
+    if (isClubMode && clubId) {
+      if (p.club_id !== clubId) return false;
+    } else if (schoolFilter && p.club_id !== schoolFilter) {
+      return false;
+    }
 
     // 6. Country filter
     if (countryFilter && p.nationality_code !== countryFilter) return false;
@@ -550,135 +579,142 @@ export default function ParticipantsPage() {
       {/* ======================================================== */}
       {/* LEFT COLUMN: CATEGORY TREE SIDE-PANEL                     */}
       {/* ======================================================== */}
-      <div className="w-full lg:w-72 bg-card border-b lg:border-b-0 lg:border-r border-border h-48 lg:h-full flex flex-col shrink-0">
-        
-        {/* Categories Tab selectors */}
-        <div className="grid grid-cols-4 border-b border-border text-[10px] font-bold shrink-0 bg-secondary/10">
-          <button
-            onClick={() => { setActiveCategoryTab('ALL'); setDisciplineFilter('ALL'); setSelectedCatId(null); }}
-            className={`py-2.5 text-center transition-colors border-b-2 cursor-pointer ${
-              activeCategoryTab === 'ALL' && disciplineFilter === 'ALL' && !selectedCatId
-                ? 'border-primary text-foreground bg-card font-extrabold'
-                : 'border-transparent text-muted-foreground hover:text-foreground'
-            }`}
-          >
-            ALL
-          </button>
-          <button
-            onClick={() => { setActiveCategoryTab('KUMITE'); setDisciplineFilter('KUMITE'); setSelectedCatId(null); }}
-            className={`py-2.5 text-center transition-colors border-b-2 cursor-pointer ${
-              disciplineFilter === 'KUMITE'
-                ? 'border-yellow-400 text-yellow-400 font-extrabold bg-card'
-                : 'border-transparent text-muted-foreground hover:text-foreground'
-            }`}
-          >
-            KUMITE
-          </button>
-          <button
-            onClick={() => { setActiveCategoryTab('KATA'); setDisciplineFilter('KATA'); setSelectedCatId(null); }}
-            className={`py-2.5 text-center transition-colors border-b-2 cursor-pointer ${
-              disciplineFilter === 'KATA'
-                ? 'border-yellow-400 text-yellow-400 font-extrabold bg-card'
-                : 'border-transparent text-muted-foreground hover:text-foreground'
-            }`}
-          >
-            KATA
-          </button>
-          <button
-            onClick={() => { setActiveCategoryTab('CONFIRMED'); setDisciplineFilter('ALL'); setSelectedCatId(null); }}
-            className={`py-2.5 text-center transition-colors border-b-2 flex items-center justify-center gap-0.5 cursor-pointer ${
-              activeCategoryTab === 'CONFIRMED'
-                ? 'border-primary text-foreground bg-card font-extrabold'
-                : 'border-transparent text-muted-foreground hover:text-foreground'
-            }`}
-          >
-            <Check className="h-3 w-3" />
-            <span>CONF</span>
-          </button>
-        </div>
-
-        {/* Controller Dropdown & Discipline Filter */}
-        <div className="p-3 border-b border-border space-y-2.5 shrink-0">
-          <div>
-            <label className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider block mb-1">Discipline Filter</label>
-            <select 
-              value={disciplineFilter}
-              onChange={e => {
-                const val = e.target.value as 'ALL' | 'KUMITE' | 'KATA';
-                setDisciplineFilter(val);
-                setActiveCategoryTab(val);
-                setSelectedCatId(null);
-                setCurrentPage(1);
-              }}
-              className="w-full px-2.5 py-1.5 bg-secondary border border-border rounded-lg text-xs font-semibold text-foreground focus:outline-none focus:border-primary"
+      {!isClubMode && (
+        <div className="w-full lg:w-72 bg-card border-b lg:border-b-0 lg:border-r border-border h-48 lg:h-full flex flex-col shrink-0">
+          
+          {/* Categories Tab selectors */}
+          <div className="grid grid-cols-4 border-b border-border text-[10px] font-bold shrink-0 bg-secondary/10">
+            <button
+              onClick={() => { setActiveCategoryTab('ALL'); setDisciplineFilter('ALL'); setSelectedCatId(null); }}
+              className={`py-2.5 text-center transition-colors border-b-2 cursor-pointer ${
+                activeCategoryTab === 'ALL' && disciplineFilter === 'ALL' && !selectedCatId
+                  ? 'border-primary text-foreground bg-card font-extrabold'
+                  : 'border-transparent text-muted-foreground hover:text-foreground'
+              }`}
             >
-              <option value="ALL">All Disciplines (Kumite & Kata)</option>
-              <option value="KUMITE">Kumite Categories ({categories.filter(isKumiteCategory).length})</option>
-              <option value="KATA">Kata Categories ({categories.filter(isKataCategory).length})</option>
-            </select>
-          </div>
-
-          <div>
-            <label className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider block mb-1">Quick Select Category</label>
-            <select 
-              value={selectedCatId || ''}
-              onChange={e => {
-                setSelectedCatId(e.target.value || null);
-                setCurrentPage(1);
-              }}
-              className="w-full px-2.5 py-1.5 bg-secondary border border-border rounded-lg text-xs font-semibold text-foreground focus:outline-none focus:border-primary"
+              ALL
+            </button>
+            <button
+              onClick={() => { setActiveCategoryTab('KUMITE'); setDisciplineFilter('KUMITE'); setSelectedCatId(null); }}
+              className={`py-2.5 text-center transition-colors border-b-2 cursor-pointer ${
+                disciplineFilter === 'KUMITE'
+                  ? 'border-yellow-400 text-yellow-400 font-extrabold bg-card'
+                  : 'border-transparent text-muted-foreground hover:text-foreground'
+              }`}
             >
-              <option value="">All Categories ({displayCategories.length})</option>
-              {displayCategories.map(c => (
-                <option key={c.id} value={c.id}>
-                  {isKataCategory(c) ? '🏆 [KATA] ' : '🥋 [KUMITE] '}{c.name}
-                </option>
-              ))}
-            </select>
+              KUMITE
+            </button>
+            <button
+              onClick={() => { setActiveCategoryTab('KATA'); setDisciplineFilter('KATA'); setSelectedCatId(null); }}
+              className={`py-2.5 text-center transition-colors border-b-2 cursor-pointer ${
+                disciplineFilter === 'KATA'
+                  ? 'border-blue-400 text-blue-400 font-extrabold bg-card'
+                  : 'border-transparent text-muted-foreground hover:text-foreground'
+              }`}
+            >
+              KATA
+            </button>
+            <button
+              onClick={() => { setActiveCategoryTab('CONFIRMED'); setDisciplineFilter('ALL'); setSelectedCatId(null); }}
+              className={`py-2.5 text-center transition-colors border-b-2 flex items-center justify-center gap-0.5 cursor-pointer ${
+                activeCategoryTab === 'CONFIRMED'
+                  ? 'border-primary text-foreground bg-card font-extrabold'
+                  : 'border-transparent text-muted-foreground hover:text-foreground'
+              }`}
+            >
+              <Check className="h-3 w-3" />
+              <span>CONF</span>
+            </button>
           </div>
 
-          <div className="grid grid-cols-2 gap-2 text-center text-[10px] font-bold text-muted-foreground uppercase bg-secondary/30 p-2 rounded-lg border border-border">
-            <div>
-              <span className="block text-xs font-extrabold text-foreground">{displayCategories.length}</span>
-              <span>Categories</span>
-            </div>
-            <div>
-              <span className="block text-xs font-extrabold text-foreground">
-                {displayCategories.filter(c => getCategoryCountInfo(c.id).total === 0).length}
-              </span>
-              <span>Empty</span>
-            </div>
-          </div>
-        </div>
+          {/* Controller Dropdown & Discipline Filter */}
+          <div className="p-3 border-b border-border space-y-2.5 shrink-0">
+            {!isClubMode && (
+              <div>
+                <label className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider block mb-1">Discipline Filter</label>
+                <select 
+                  value={disciplineFilter}
+                  onChange={e => {
+                    const val = e.target.value as 'ALL' | 'KUMITE' | 'KATA';
+                    setDisciplineFilter(val);
+                    setFilters(prev => ({ ...prev, discipline: val }));
+                    setActiveCategoryTab(val);
+                    setSelectedCatId(null);
+                    setCurrentPage(1);
+                  }}
+                  className="w-full px-2.5 py-1.5 bg-secondary border border-border rounded-lg text-xs font-semibold text-foreground focus:outline-none focus:border-primary"
+                >
+                  <option value="ALL">All Disciplines (Kumite & Kata)</option>
+                  <option value="KUMITE">Kumite Categories ({categories.filter(isKumiteCategory).length})</option>
+                  <option value="KATA">Kata Categories ({categories.filter(isKataCategory).length})</option>
+                </select>
+              </div>
+            )}
 
-        {/* Category List */}
-        <div className="flex-1 overflow-y-auto p-2.5 space-y-1 bg-secondary/5">
-          {displayCategories.map(c => {
-            const { confirmed, total } = getCategoryCountInfo(c.id);
-            const isSelected = selectedCatId === c.id;
+            {!isClubMode && (
+              <div>
+                <label className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider block mb-1">Quick Select Category</label>
+                <select 
+                  value={selectedCatId || ''}
+                  onChange={e => {
+                    setSelectedCatId(e.target.value || null);
+                    setCurrentPage(1);
+                  }}
+                  className="w-full px-2.5 py-1.5 bg-secondary border border-border rounded-lg text-xs font-semibold text-foreground focus:outline-none focus:border-primary"
+                >
+                  <option value="">All Categories ({displayCategories.length})</option>
+                  {displayCategories.map(c => (
+                    <option key={c.id} value={c.id}>
+                      {isKataCategory(c) ? '🏆 [KATA] ' : '🥋 [KUMITE] '}{c.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
 
-            return (
-              <button
-                key={c.id}
-                onClick={() => {
-                  setSelectedCatId(c.id);
-                  setCurrentPage(1);
-                }}
-                className={`w-full text-left p-2.5 rounded-lg text-xs font-medium transition-all duration-150 flex items-center justify-between border cursor-pointer ${
-                  isSelected
-                    ? 'bg-primary text-primary-foreground border-primary shadow-sm'
-                    : 'bg-card text-muted-foreground border-border hover:bg-secondary hover:text-foreground'
-                }`}
-              >
-                <span className="truncate pr-2 font-semibold">{c.name}</span>
-                <span className="text-[10px] shrink-0 font-bold bg-secondary/15 px-1.5 py-0.5 rounded-md">
-                  ({confirmed}/{total})
+            <div className="grid grid-cols-2 gap-2 text-center text-[10px] font-bold text-muted-foreground uppercase bg-secondary/30 p-2 rounded-lg border border-border">
+              <div>
+                <span className="block text-xs font-extrabold text-foreground">{displayCategories.length}</span>
+                <span>Categories</span>
+              </div>
+              <div>
+                <span className="block text-xs font-extrabold text-foreground">
+                  {displayCategories.filter(c => getCategoryCountInfo(c.id).total === 0).length}
                 </span>
-              </button>
-            );
-          })}
+                <span>Empty</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Category List */}
+          <div className="flex-1 overflow-y-auto p-2.5 space-y-1 bg-secondary/5">
+            {displayCategories.map(c => {
+              const { confirmed, total } = getCategoryCountInfo(c.id);
+              const isSelected = selectedCatId === c.id;
+
+              return (
+                <button
+                  key={c.id}
+                  onClick={() => {
+                    setSelectedCatId(c.id);
+                    setCurrentPage(1);
+                  }}
+                  className={`w-full text-left p-2.5 rounded-lg text-xs font-medium transition-all duration-150 flex items-center justify-between border cursor-pointer ${
+                    isSelected
+                      ? 'bg-primary text-primary-foreground border-primary shadow-sm'
+                      : 'bg-card text-muted-foreground border-border hover:bg-secondary hover:text-foreground'
+                  }`}
+                >
+                  <span className="truncate pr-2 font-semibold">{c.name}</span>
+                  <span className="text-[10px] shrink-0 font-bold bg-secondary/15 px-1.5 py-0.5 rounded-md">
+                    ({confirmed}/{total})
+                  </span>
+                </button>
+              );
+            })}
+          </div>
         </div>
-      </div>
+      )}
 
       {/* ======================================================== */}
       {/* RIGHT COLUMN: MAIN TABLE & FILTERS PANEL                  */}
@@ -785,19 +821,21 @@ export default function ParticipantsPage() {
           </div>
 
           {/* School (Clubs) */}
-          <div className="space-y-1">
-            <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider block">School / Club</span>
-            <select
-              value={schoolFilter}
-              onChange={(e) => setSchoolFilter(e.target.value)}
-              className="w-full px-3 py-1.5 bg-secondary border border-border rounded-lg text-xs focus:outline-none text-foreground"
-            >
-              <option value="">All Schools</option>
-              {clubs.map(c => (
-                <option key={c.id} value={c.id}>{c.name}</option>
-              ))}
-            </select>
-          </div>
+          {!isClubMode && (
+            <div className="space-y-1">
+              <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider block">School / Club</span>
+              <select
+                value={schoolFilter}
+                onChange={(e) => setSchoolFilter(e.target.value)}
+                className="w-full px-3 py-1.5 bg-secondary border border-border rounded-lg text-xs focus:outline-none text-foreground"
+              >
+                <option value="">All Schools</option>
+                {clubs.map(c => (
+                  <option key={c.id} value={c.id}>{c.name}</option>
+                ))}
+              </select>
+            </div>
+          )}
 
           {/* Country */}
           <div className="space-y-1">
@@ -1142,7 +1180,7 @@ export default function ParticipantsPage() {
       </div>
 
       {/* Add Participant Modal */}
-      <AddParticipantModal />
+      {isAddOpen && <AddParticipantModal fixedClubId={isClubMode ? clubId : undefined} />}
 
       {/* Edit Participant Drawer */}
       <EditParticipantDrawer
@@ -1151,7 +1189,7 @@ export default function ParticipantsPage() {
       />
 
       {/* Import CSV Modal */}
-      {isImportOpen && <ImportModal isOpen={isImportOpen} onClose={() => { setIsImportOpen(false); triggerRefresh(); }} />}
+      {isImportOpen && !isClubMode && <ImportModal isOpen={isImportOpen} onClose={() => { setIsImportOpen(false); triggerRefresh(); }} />}
 
       {/* Reassign Participants Modal */}
       {isReassignOpen && (
@@ -1401,4 +1439,8 @@ export default function ParticipantsPage() {
       )}
     </div>
   );
+}
+
+export default function ParticipantsPage() {
+  return <ParticipantsContent />;
 }

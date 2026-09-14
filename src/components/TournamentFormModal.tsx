@@ -2,131 +2,223 @@
 
 import React, { useState, useEffect } from 'react';
 import { Tournament } from '@/db/types';
-import { Trophy, Save, Sparkles, X, Loader2 } from 'lucide-react';
+import { Trophy, Save, Sparkles, X, Loader2, Eye, CheckCircle } from 'lucide-react';
+import TournamentPreviewModal from './TournamentPreviewModal';
 
 interface TournamentFormModalProps {
   isOpen: boolean;
   onClose: () => void;
   tournament: Partial<Tournament> | null;
-  onSave: (t: Partial<Tournament>) => Promise<void>;
+  onSave: (t: Partial<Tournament>, isPublishing: boolean) => Promise<void>;
 }
 
 export default function TournamentFormModal({ isOpen, onClose, tournament, onSave }: TournamentFormModalProps) {
+  // Basic Info
   const [name, setName] = useState('');
-  const [organizer, setOrganizer] = useState('');
-  const [date, setDate] = useState('');
-  const [dateIso, setDateIso] = useState('');
-  const [venue, setVenue] = useState('');
-  const [city, setCity] = useState('');
-  const [regClose, setRegClose] = useState('');
-  const [regCloseIso, setRegCloseIso] = useState('');
-  const [status, setStatus] = useState<Tournament['status']>('Open');
-  const [featured, setFeatured] = useState(false);
+  const [shortName, setShortName] = useState('');
+  const [description, setDescription] = useState('');
   const [discipline, setDiscipline] = useState('Kata, Kumite');
-  const [gold, setGold] = useState(0);
-  const [silver, setSilver] = useState(0);
-  const [bronze, setBronze] = useState(0);
-  const [participants, setParticipants] = useState(0);
-  const [clubs, setClubs] = useState(0);
   const [emoji, setEmoji] = useState('🏆');
+
+  // Organizer Info
+  const [organizer, setOrganizer] = useState('');
+  const [organizerClub, setOrganizerClub] = useState('');
+  const [organizerContact, setOrganizerContact] = useState('');
+  const [organizerPhone, setOrganizerPhone] = useState('');
+  const [organizerEmail, setOrganizerEmail] = useState('');
+  const [organizerWebsite, setOrganizerWebsite] = useState('');
+
+  // Schedule
+  const [dateIso, setDateIso] = useState(''); // Start date
+  const [endDateIso, setEndDateIso] = useState('');
+  const [regOpenIso, setRegOpenIso] = useState('');
+  const [regCloseIso, setRegCloseIso] = useState('');
+  const [regCloseTime, setRegCloseTime] = useState('');
+
+  // Venue
+  const [venue, setVenue] = useState('');
+  const [address, setAddress] = useState('');
+  const [city, setCity] = useState('');
+  const [state, setStateName] = useState('');
+  const [country, setCountry] = useState('');
+  const [postalCode, setPostalCode] = useState('');
+  const [locationLink, setLocationLink] = useState('');
+
+  // Config & Registration
+  const [regStatus, setRegStatus] = useState<'Not Yet Open' | 'Open' | 'Closed'>('Not Yet Open');
+  const [tournamentStatus, setTournamentStatus] = useState<Tournament['status']>('Published');
+  const [regFee, setRegFee] = useState('');
+  const [paymentInfo, setPaymentInfo] = useState('');
+  const [terms, setTerms] = useState('');
+  const [notes, setNotes] = useState('');
+
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  
+  const [isPreviewOpen, setIsPreviewOpen] = useState(false);
 
   useEffect(() => {
     if (isOpen && tournament) {
       setName(tournament.name || '');
-      setOrganizer(tournament.organizer || '');
-      setDate(tournament.date || '');
-      setDateIso(tournament.date_iso || '');
-      setVenue(tournament.venue || '');
-      setCity(tournament.city || '');
-      setRegClose(tournament.registration_close || '');
-      setRegCloseIso(tournament.registration_close_iso || '');
-      setStatus(tournament.status || 'Open');
-      setFeatured(!!tournament.featured);
+      setShortName(tournament.short_name || '');
+      setDescription(tournament.description || '');
       setDiscipline(tournament.discipline || 'Kata, Kumite');
-      setGold(tournament.medals_gold ?? 0);
-      setSilver(tournament.medals_silver ?? 0);
-      setBronze(tournament.medals_bronze ?? 0);
-      setParticipants(tournament.total_participants ?? 0);
-      setClubs(tournament.total_clubs ?? 0);
       setEmoji(tournament.poster_emoji || '🏆');
+      
+      setOrganizer(tournament.organizer || '');
+      setOrganizerClub(tournament.organizer_club || '');
+      setOrganizerContact(tournament.organizer_contact || '');
+      setOrganizerPhone(tournament.organizer_phone || '');
+      setOrganizerEmail(tournament.organizer_email || '');
+      setOrganizerWebsite(tournament.organizer_website || '');
+
+      setDateIso(tournament.date_iso || '');
+      setEndDateIso(tournament.end_date_iso || '');
+      setRegOpenIso(tournament.registration_open_iso || '');
+      setRegCloseIso(tournament.registration_close_iso || '');
+      setRegCloseTime(tournament.registration_close_time || '');
+
+      setVenue(tournament.venue || '');
+      setAddress(tournament.address || '');
+      setCity(tournament.city || '');
+      setStateName(tournament.state || '');
+      setCountry(tournament.country || '');
+      setPostalCode(tournament.postal_code || '');
+      setLocationLink(tournament.location || '');
+
+      setRegStatus(tournament.registration_status || 'Not Yet Open');
+      setTournamentStatus(tournament.status || 'Published');
+      setRegFee(tournament.registration_fee || '');
+      setPaymentInfo(tournament.payment_info || '');
+      setTerms(tournament.terms_conditions || '');
+      setNotes(tournament.important_notes || '');
+      
       setError(null);
     } else if (isOpen) {
-      // Default new tournament
+      // Defaults
       setName('');
-      setOrganizer('');
-      setDate('');
-      setDateIso('');
-      setVenue('');
-      setCity('');
-      setRegClose('');
-      setRegCloseIso('');
-      setStatus('Open');
-      setFeatured(false);
+      setShortName('');
+      setDescription('');
       setDiscipline('Kata, Kumite');
-      setGold(0);
-      setSilver(0);
-      setBronze(0);
-      setParticipants(0);
-      setClubs(0);
       setEmoji('🏆');
+      setOrganizer('');
+      setOrganizerClub('');
+      setOrganizerContact('');
+      setOrganizerPhone('');
+      setOrganizerEmail('');
+      setOrganizerWebsite('');
+      setDateIso('');
+      setEndDateIso('');
+      setRegOpenIso('');
+      setRegCloseIso('');
+      setRegCloseTime('');
+      setVenue('');
+      setAddress('');
+      setCity('');
+      setStateName('');
+      setCountry('');
+      setPostalCode('');
+      setLocationLink('');
+      setRegStatus('Not Yet Open');
+      setTournamentStatus('Published');
+      setRegFee('');
+      setPaymentInfo('');
+      setTerms('');
+      setNotes('');
       setError(null);
     }
   }, [isOpen, tournament]);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setSaving(true);
-    setError(null);
-
-    const parseDisplayDate = () => {
-      if (date && date.trim()) return date.trim();
-      if (!dateIso) return '';
-      const parsed = new Date(dateIso);
+  const generatePayload = (): Partial<Tournament> => {
+    const parseDisplayDate = (isoString: string) => {
+      if (!isoString) return '';
+      const parsed = new Date(isoString);
       return !isNaN(parsed.getTime()) 
         ? parsed.toLocaleDateString('en-US', { day: 'numeric', month: 'long', year: 'numeric' }) 
         : '';
     };
 
-    const parseDisplayReg = () => {
-      if (regClose && regClose.trim()) return regClose.trim();
-      if (!regCloseIso) return '';
-      const parsed = new Date(regCloseIso);
-      return !isNaN(parsed.getTime()) 
-        ? parsed.toLocaleDateString('en-US', { day: 'numeric', month: 'long', year: 'numeric' }) 
-        : '';
-    };
-
-    const payload: Partial<Tournament> = {
+    return {
       ...(tournament || {}),
       name,
-      organizer,
-      date: parseDisplayDate(),
-      date_iso: dateIso,
-      venue,
-      city,
-      registration_close: parseDisplayReg(),
-      registration_close_iso: regCloseIso,
-      status,
-      featured,
+      short_name: shortName,
+      description,
       discipline,
-      medals_gold: gold,
-      medals_silver: silver,
-      medals_bronze: bronze,
-      total_participants: participants,
-      total_clubs: clubs,
       poster_emoji: emoji,
-      banner_gradient: status === 'Completed' 
-        ? 'linear-gradient(135deg, #1e3a8a 0%, #1e1b4b 50%, #3b82f6 100%)' 
-        : 'linear-gradient(135deg, #0b0f19 0%, #1a1035 40%, #2d1a00 100%)'
+      organizer,
+      organizer_club: organizerClub,
+      organizer_contact: organizerContact,
+      organizer_phone: organizerPhone,
+      organizer_email: organizerEmail,
+      organizer_website: organizerWebsite,
+      date: parseDisplayDate(dateIso), // Legacy fallback
+      date_iso: dateIso,
+      end_date_iso: endDateIso,
+      registration_open_iso: regOpenIso,
+      registration_close: parseDisplayDate(regCloseIso), // Legacy fallback
+      registration_close_iso: regCloseIso,
+      registration_close_time: regCloseTime,
+      venue,
+      address,
+      city,
+      state,
+      country,
+      postal_code: postalCode,
+      location: locationLink,
+      registration_status: regStatus,
+      registration_fee: regFee,
+      payment_info: paymentInfo,
+      terms_conditions: terms,
+      important_notes: notes,
+      status: tournamentStatus,
     };
+  };
 
+  const validateForPublishing = () => {
+    const missing = [];
+    if (!name.trim()) missing.push('Tournament Name');
+    if (!organizer.trim()) missing.push('Organizer Name');
+    if (!dateIso) missing.push('Start Date');
+    if (!endDateIso) missing.push('End Date');
+    if (!venue.trim()) missing.push('Venue Name');
+    if (!city.trim()) missing.push('City');
+    if (!regCloseIso) missing.push('Registration Closing Date');
+    if (!regCloseTime) missing.push('Registration Closing Time');
+    
+    if (missing.length > 0) {
+      setError(`Cannot publish. Missing required fields: ${missing.join(', ')}`);
+      return false;
+    }
+    return true;
+  };
+
+  const handleSaveDraft = async () => {
+    setSaving(true);
+    setError(null);
     try {
-      await onSave(payload);
-      onClose();
+      const payload = generatePayload();
+      payload.status = 'Draft';
+      payload.is_published = false;
+      await onSave(payload, false);
     } catch (err: any) {
-      setError(err.message || 'Failed to save tournament');
+      setError(err.message || 'Failed to save draft');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handlePublish = async () => {
+    if (!validateForPublishing()) return;
+    
+    setSaving(true);
+    setError(null);
+    try {
+      const payload = generatePayload();
+      payload.status = tournamentStatus === 'Draft' ? 'Published' : tournamentStatus;
+      payload.is_published = true;
+      await onSave(payload, true);
+    } catch (err: any) {
+      setError(err.message || 'Failed to publish tournament');
     } finally {
       setSaving(false);
     }
@@ -134,269 +226,181 @@ export default function TournamentFormModal({ isOpen, onClose, tournament, onSav
 
   if (!isOpen) return null;
 
+  const currentPayload = generatePayload();
+
   return (
-    <div className="fixed inset-0 z-[300] bg-black/80 backdrop-blur-md flex items-center justify-center p-4 sm:p-6 overflow-y-auto">
-      <div className="bg-[#0a1628] border border-cyan-500/20 rounded-2xl w-full max-w-4xl max-h-[90vh] flex flex-col shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200">
-        
-        {/* Header */}
-        <div className="px-6 py-4 border-b border-cyan-500/10 flex items-center justify-between shrink-0 bg-[#070e1a]/80">
-          <div className="flex items-center gap-3">
-            <div className="p-2.5 bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 rounded-xl">
-              <Trophy className="h-6 w-6" />
+    <>
+      <div className="fixed inset-0 z-[300] bg-black/80 backdrop-blur-md flex items-center justify-center p-4 sm:p-6 overflow-y-auto">
+        <div className="bg-[#0a1628] border border-cyan-500/20 rounded-2xl w-full max-w-5xl max-h-[90vh] flex flex-col shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+          
+          {/* Header */}
+          <div className="px-6 py-4 border-b border-cyan-500/10 flex items-center justify-between shrink-0 bg-[#070e1a]/80">
+            <div className="flex items-center gap-3">
+              <div className="p-2.5 bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 rounded-xl">
+                <Trophy className="h-6 w-6" />
+              </div>
+              <div>
+                <h2 className="text-lg font-bold tracking-tight text-white">{tournament?.id ? 'Edit Tournament' : 'Create New Tournament'}</h2>
+                <p className="text-[10px] uppercase tracking-wider text-slate-400">Configure event details and publishing settings</p>
+              </div>
             </div>
-            <div>
-              <h2 className="text-lg font-bold tracking-tight text-white">{tournament?.id ? 'Edit Tournament' : 'Add New Tournament'}</h2>
-              <p className="text-[10px] uppercase tracking-wider text-slate-400">Configure event details and settings</p>
+            <button
+              onClick={onClose}
+              className="p-2 hover:bg-white/5 text-slate-400 hover:text-white rounded-lg transition-colors cursor-pointer"
+            >
+              <X className="h-5 w-5" />
+            </button>
+          </div>
+
+          {/* Body */}
+          <div className="flex-1 overflow-y-auto p-6 text-slate-200">
+            <div className="space-y-8 text-sm">
+              {error && (
+                <div className="p-3 bg-red-500/10 border border-red-500/30 text-red-400 rounded-lg text-xs font-semibold">
+                  {error}
+                </div>
+              )}
+
+              {/* Basic Info */}
+              <section className="space-y-4">
+                <h3 className="text-cyan-400 font-semibold border-b border-cyan-500/20 pb-2">1. Basic Information</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="font-bold text-slate-400 uppercase text-[10px] block mb-1">Tournament Name *</label>
+                    <input type="text" value={name} onChange={e => setName(e.target.value)} className="w-full px-3 py-2 bg-[#0d1f3c]/50 border border-cyan-500/20 rounded focus:border-cyan-500 text-white" />
+                  </div>
+                  <div>
+                    <label className="font-bold text-slate-400 uppercase text-[10px] block mb-1">Short Name / Abbreviation</label>
+                    <input type="text" value={shortName} onChange={e => setShortName(e.target.value)} className="w-full px-3 py-2 bg-[#0d1f3c]/50 border border-cyan-500/20 rounded focus:border-cyan-500 text-white" />
+                  </div>
+                  <div className="md:col-span-2">
+                    <label className="font-bold text-slate-400 uppercase text-[10px] block mb-1">Description</label>
+                    <textarea value={description} onChange={e => setDescription(e.target.value)} rows={3} className="w-full px-3 py-2 bg-[#0d1f3c]/50 border border-cyan-500/20 rounded focus:border-cyan-500 text-white" />
+                  </div>
+                </div>
+              </section>
+
+              {/* Organizer Info */}
+              <section className="space-y-4">
+                <h3 className="text-cyan-400 font-semibold border-b border-cyan-500/20 pb-2">2. Organizer Information</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="font-bold text-slate-400 uppercase text-[10px] block mb-1">Organizer Name *</label>
+                    <input type="text" value={organizer} onChange={e => setOrganizer(e.target.value)} className="w-full px-3 py-2 bg-[#0d1f3c]/50 border border-cyan-500/20 rounded focus:border-cyan-500 text-white" />
+                  </div>
+                  <div>
+                    <label className="font-bold text-slate-400 uppercase text-[10px] block mb-1">Contact Email</label>
+                    <input type="email" value={organizerEmail} onChange={e => setOrganizerEmail(e.target.value)} className="w-full px-3 py-2 bg-[#0d1f3c]/50 border border-cyan-500/20 rounded focus:border-cyan-500 text-white" />
+                  </div>
+                </div>
+              </section>
+
+              {/* Schedule */}
+              <section className="space-y-4">
+                <h3 className="text-cyan-400 font-semibold border-b border-cyan-500/20 pb-2">3. Tournament Schedule</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="font-bold text-slate-400 uppercase text-[10px] block mb-1">Start Date *</label>
+                    <input type="date" value={dateIso} onChange={e => setDateIso(e.target.value)} className="w-full px-3 py-2 bg-[#0d1f3c]/50 border border-cyan-500/20 rounded focus:border-cyan-500 text-white" />
+                  </div>
+                  <div>
+                    <label className="font-bold text-slate-400 uppercase text-[10px] block mb-1">End Date *</label>
+                    <input type="date" value={endDateIso} onChange={e => setEndDateIso(e.target.value)} className="w-full px-3 py-2 bg-[#0d1f3c]/50 border border-cyan-500/20 rounded focus:border-cyan-500 text-white" />
+                  </div>
+                  <div>
+                    <label className="font-bold text-slate-400 uppercase text-[10px] block mb-1">Registration Close Date *</label>
+                    <input type="date" value={regCloseIso} onChange={e => setRegCloseIso(e.target.value)} className="w-full px-3 py-2 bg-[#0d1f3c]/50 border border-cyan-500/20 rounded focus:border-cyan-500 text-white" />
+                  </div>
+                  <div>
+                    <label className="font-bold text-slate-400 uppercase text-[10px] block mb-1">Registration Close Time *</label>
+                    <input type="time" value={regCloseTime} onChange={e => setRegCloseTime(e.target.value)} className="w-full px-3 py-2 bg-[#0d1f3c]/50 border border-cyan-500/20 rounded focus:border-cyan-500 text-white" />
+                  </div>
+                </div>
+              </section>
+
+              {/* Venue */}
+              <section className="space-y-4">
+                <h3 className="text-cyan-400 font-semibold border-b border-cyan-500/20 pb-2">4. Venue Information</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="font-bold text-slate-400 uppercase text-[10px] block mb-1">Venue / Place Name *</label>
+                    <input type="text" value={venue} onChange={e => setVenue(e.target.value)} className="w-full px-3 py-2 bg-[#0d1f3c]/50 border border-cyan-500/20 rounded focus:border-cyan-500 text-white" />
+                  </div>
+                  <div>
+                    <label className="font-bold text-slate-400 uppercase text-[10px] block mb-1">City *</label>
+                    <input type="text" value={city} onChange={e => setCity(e.target.value)} className="w-full px-3 py-2 bg-[#0d1f3c]/50 border border-cyan-500/20 rounded focus:border-cyan-500 text-white" />
+                  </div>
+                </div>
+              </section>
+
+              {/* Config & Status */}
+              <section className="space-y-4">
+                <h3 className="text-cyan-400 font-semibold border-b border-cyan-500/20 pb-2">5. Configuration & Status</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="font-bold text-slate-400 uppercase text-[10px] block mb-1">Registration Status *</label>
+                    <select value={regStatus} onChange={e => setRegStatus(e.target.value as any)} className="w-full px-3 py-2 bg-[#0d1f3c]/50 border border-cyan-500/20 rounded focus:border-cyan-500 text-white">
+                      <option value="Not Yet Open">Not Yet Open</option>
+                      <option value="Open">Open</option>
+                      <option value="Closed">Closed</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="font-bold text-slate-400 uppercase text-[10px] block mb-1">Tournament Status *</label>
+                    <select value={tournamentStatus} onChange={e => setTournamentStatus(e.target.value as any)} className="w-full px-3 py-2 bg-[#0d1f3c]/50 border border-cyan-500/20 rounded focus:border-cyan-500 text-white">
+                      <option value="Draft">Draft</option>
+                      <option value="Published">Published</option>
+                      <option value="Registration Open">Registration Open</option>
+                      <option value="Registration Closed">Registration Closed</option>
+                      <option value="Completed">Completed</option>
+                      <option value="Canceled">Canceled</option>
+                    </select>
+                  </div>
+                </div>
+              </section>
             </div>
           </div>
-          <button
-            onClick={onClose}
-            className="p-2 hover:bg-white/5 text-slate-400 hover:text-white rounded-lg transition-colors cursor-pointer"
-          >
-            <X className="h-5 w-5" />
-          </button>
+
+          {/* Footer Actions */}
+          <div className="px-6 py-4 border-t border-cyan-500/10 flex items-center justify-between bg-[#070e1a]/80">
+            <button
+              type="button"
+              onClick={() => setIsPreviewOpen(true)}
+              className="px-4 py-2 border border-slate-600 text-slate-300 rounded hover:bg-slate-800 transition flex items-center gap-2"
+            >
+              <Eye className="w-4 h-4" /> PREVIEW
+            </button>
+            <div className="flex gap-3">
+              <button
+                type="button"
+                onClick={handleSaveDraft}
+                disabled={saving}
+                className="px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded transition flex items-center gap-2"
+              >
+                {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                {tournament?.id ? 'REVERT TO DRAFT' : 'SAVE DRAFT'}
+              </button>
+              <button
+                type="button"
+                onClick={handlePublish}
+                disabled={saving}
+                className="px-4 py-2 bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white rounded transition flex items-center gap-2 font-bold shadow-[0_0_15px_rgba(6,182,212,0.4)]"
+              >
+                {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle className="w-4 h-4" />}
+                {tournament?.id ? 'SAVE CHANGES' : 'PUBLISH TOURNAMENT'}
+              </button>
+            </div>
+          </div>
+
         </div>
-
-        {/* Body */}
-        <div className="flex-1 overflow-y-auto p-6 text-slate-200">
-          <form id="tournament-form" onSubmit={handleSubmit} className="space-y-6 text-sm">
-            {error && (
-              <div className="p-3 bg-red-500/10 border border-red-500/30 text-red-400 rounded-lg text-xs font-semibold">
-                {error}
-              </div>
-            )}
-
-            <div className="space-y-1.5">
-              <label className="font-bold text-slate-400 uppercase text-[10px] block">Tournament Name *</label>
-              <input
-                type="text"
-                required
-                value={name}
-                onChange={e => setName(e.target.value)}
-                className="w-full px-3 py-2.5 bg-[#0d1f3c]/50 border border-cyan-500/20 rounded-xl focus:outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 text-white placeholder-slate-500"
-                placeholder="e.g. SENSHI GOJU-RYU KARATE CHAMPIONSHIP 2026"
-              />
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="space-y-1.5">
-                <label className="font-bold text-slate-400 uppercase text-[10px] block">Organizer *</label>
-                <input
-                  type="text"
-                  required
-                  value={organizer}
-                  onChange={e => setOrganizer(e.target.value)}
-                  className="w-full px-3 py-2.5 bg-[#0d1f3c]/50 border border-cyan-500/20 rounded-xl focus:outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 text-white placeholder-slate-500"
-                  placeholder="e.g. KELAB KARATE DO SENSHI GOJU-RYU"
-                />
-              </div>
-              <div className="space-y-1.5">
-                <label className="font-bold text-slate-400 uppercase text-[10px] block">Emoji Poster</label>
-                <select
-                  value={emoji}
-                  onChange={e => setEmoji(e.target.value)}
-                  className="w-full px-3 py-2.5 bg-[#0d1f3c]/50 border border-cyan-500/20 rounded-xl focus:outline-none focus:border-cyan-500 text-white"
-                >
-                  <option value="🏆">🏆 Trophy</option>
-                  <option value="🥇">🥇 Gold Medal</option>
-                  <option value="🥋">🥋 Karate Gi</option>
-                  <option value="🔥">🔥 Flame</option>
-                  <option value="🌟">🌟 Star</option>
-                </select>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="space-y-1.5">
-                <label className="font-bold text-slate-400 uppercase text-[10px] block">Start Date *</label>
-                <input
-                  type="date"
-                  required
-                  value={dateIso}
-                  onChange={e => setDateIso(e.target.value)}
-                  className="w-full px-3 py-2.5 bg-[#0d1f3c]/50 border border-cyan-500/20 rounded-xl focus:outline-none focus:border-cyan-500 text-white"
-                />
-              </div>
-              <div className="space-y-1.5">
-                <label className="font-bold text-slate-400 uppercase text-[10px] block flex items-center gap-1">
-                  Date Display override <Sparkles className="h-3 w-3 text-cyan-400" />
-                </label>
-                <input
-                  type="text"
-                  value={date}
-                  onChange={e => setDate(e.target.value)}
-                  placeholder="e.g. 15–16 Aug 2026 (Optional)"
-                  className="w-full px-3 py-2.5 bg-[#0d1f3c]/50 border border-cyan-500/20 rounded-xl focus:outline-none focus:border-cyan-500 text-white placeholder-slate-500"
-                />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="space-y-1.5">
-                <label className="font-bold text-slate-400 uppercase text-[10px] block">Venue *</label>
-                <input
-                  type="text"
-                  required
-                  value={venue}
-                  onChange={e => setVenue(e.target.value)}
-                  placeholder="e.g. Dewan Serbaguna MBSJ"
-                  className="w-full px-3 py-2.5 bg-[#0d1f3c]/50 border border-cyan-500/20 rounded-xl focus:outline-none focus:border-cyan-500 text-white placeholder-slate-500"
-                />
-              </div>
-              <div className="space-y-1.5">
-                <label className="font-bold text-slate-400 uppercase text-[10px] block">City & State *</label>
-                <input
-                  type="text"
-                  required
-                  value={city}
-                  onChange={e => setCity(e.target.value)}
-                  placeholder="e.g. Bandar Kinrara 5, Selangor"
-                  className="w-full px-3 py-2.5 bg-[#0d1f3c]/50 border border-cyan-500/20 rounded-xl focus:outline-none focus:border-cyan-500 text-white placeholder-slate-500"
-                />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="space-y-1.5">
-                <label className="font-bold text-slate-400 uppercase text-[10px] block">Reg Close Date *</label>
-                <input
-                  type="date"
-                  required
-                  value={regCloseIso}
-                  onChange={e => setRegCloseIso(e.target.value)}
-                  className="w-full px-3 py-2.5 bg-[#0d1f3c]/50 border border-cyan-500/20 rounded-xl focus:outline-none focus:border-cyan-500 text-white"
-                />
-              </div>
-              <div className="space-y-1.5">
-                <label className="font-bold text-slate-400 uppercase text-[10px] block flex items-center gap-1">
-                  Reg Close Display override <Sparkles className="h-3 w-3 text-cyan-400" />
-                </label>
-                <input
-                  type="text"
-                  value={regClose}
-                  onChange={e => setRegClose(e.target.value)}
-                  placeholder="e.g. 31 July 2026 (Optional)"
-                  className="w-full px-3 py-2.5 bg-[#0d1f3c]/50 border border-cyan-500/20 rounded-xl focus:outline-none focus:border-cyan-500 text-white placeholder-slate-500"
-                />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <div className="space-y-1.5">
-                <label className="font-bold text-slate-400 uppercase text-[10px] block">Status *</label>
-                <select
-                  value={status}
-                  onChange={e => setStatus(e.target.value as any)}
-                  className="w-full px-3 py-2.5 bg-[#0d1f3c]/50 border border-cyan-500/20 rounded-xl focus:outline-none focus:border-cyan-500 text-white"
-                >
-                  <option value="Draft">Draft</option>
-                  <option value="Open">Open</option>
-                  <option value="Active">Active</option>
-                  <option value="Closing Soon">Closing Soon</option>
-                  <option value="Full">Full</option>
-                  <option value="Completed">Completed</option>
-                </select>
-              </div>
-              <div className="space-y-1.5 md:col-span-2">
-                <label className="font-bold text-slate-400 uppercase text-[10px] block">Disciplines</label>
-                <input
-                  type="text"
-                  value={discipline}
-                  onChange={e => setDiscipline(e.target.value)}
-                  className="w-full px-3 py-2.5 bg-[#0d1f3c]/50 border border-cyan-500/20 rounded-xl focus:outline-none focus:border-cyan-500 text-white"
-                />
-              </div>
-            </div>
-
-            <div className="border-t border-cyan-500/10 pt-6 space-y-4">
-              <span className="font-bold text-slate-400 text-[10px] uppercase block">Historical Telemetry (For Past Archives)</span>
-              
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-                <div className="space-y-1.5">
-                  <label className="text-[10px] font-bold text-slate-400">Total Participants</label>
-                  <input
-                    type="number"
-                    value={participants}
-                    onChange={e => setParticipants(Number(e.target.value))}
-                    className="w-full px-3 py-2 bg-[#0d1f3c]/50 border border-cyan-500/20 rounded-lg text-white"
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <label className="text-[10px] font-bold text-slate-400">Total Clubs</label>
-                  <input
-                    type="number"
-                    value={clubs}
-                    onChange={e => setClubs(Number(e.target.value))}
-                    className="w-full px-3 py-2 bg-[#0d1f3c]/50 border border-cyan-500/20 rounded-lg text-white"
-                  />
-                </div>
-                <div className="space-y-1.5 flex items-center md:pt-6 col-span-2 md:col-span-1">
-                  <label className="flex items-center gap-2 font-bold cursor-pointer text-slate-400 select-none">
-                    <input
-                      type="checkbox"
-                      checked={featured}
-                      onChange={e => setFeatured(e.target.checked)}
-                      className="rounded text-cyan-500 border-cyan-500/20 focus:ring-cyan-500 bg-[#0d1f3c]/50"
-                    />
-                    <span className="text-xs">Featured Event</span>
-                  </label>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-3 gap-6">
-                <div className="space-y-1.5">
-                  <label className="text-[10px] text-yellow-500 font-bold">🥇 Gold</label>
-                  <input
-                    type="number"
-                    value={gold}
-                    onChange={e => setGold(Number(e.target.value))}
-                    className="w-full px-3 py-2 bg-[#0d1f3c]/50 border border-cyan-500/20 rounded-lg text-white"
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <label className="text-[10px] text-slate-300 font-bold">🥈 Silver</label>
-                  <input
-                    type="number"
-                    value={silver}
-                    onChange={e => setSilver(Number(e.target.value))}
-                    className="w-full px-3 py-2 bg-[#0d1f3c]/50 border border-cyan-500/20 rounded-lg text-white"
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <label className="text-[10px] text-amber-600 font-bold">🥉 Bronze</label>
-                  <input
-                    type="number"
-                    value={bronze}
-                    onChange={e => setBronze(Number(e.target.value))}
-                    className="w-full px-3 py-2 bg-[#0d1f3c]/50 border border-cyan-500/20 rounded-lg text-white"
-                  />
-                </div>
-              </div>
-            </div>
-          </form>
-        </div>
-
-        {/* Footer */}
-        <div className="px-6 py-4 border-t border-cyan-500/10 bg-[#070e1a]/80 flex justify-end gap-3 shrink-0">
-          <button
-            type="button"
-            onClick={onClose}
-            className="px-5 py-2.5 rounded-xl text-xs font-bold text-slate-300 hover:bg-white/5 transition cursor-pointer"
-          >
-            Cancel
-          </button>
-          <button
-            type="submit"
-            form="tournament-form"
-            disabled={saving}
-            className="px-6 py-2.5 bg-gradient-to-r from-cyan-600 to-cyan-500 hover:from-cyan-500 hover:to-cyan-400 text-black font-extrabold rounded-xl shadow-[0_0_15px_rgba(34,211,238,0.3)] transition cursor-pointer flex items-center gap-2 disabled:opacity-50"
-          >
-            {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
-            {saving ? 'Saving...' : 'Save Tournament'}
-          </button>
-        </div>
-
       </div>
-    </div>
+
+      {isPreviewOpen && (
+        <TournamentPreviewModal 
+          tournament={currentPayload} 
+          onClose={() => setIsPreviewOpen(false)} 
+        />
+      )}
+    </>
   );
 }

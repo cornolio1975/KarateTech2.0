@@ -11,8 +11,14 @@ import OfficialPhotoModal from '@/components/OfficialPhotoModal';
 
 import { useTournament } from '@/context/TournamentContext';
 
-export default function OfficialsPage() {
-  const { canModify } = useTournament();
+export interface OfficialsContentProps {
+  isClubMode?: boolean;
+  clubId?: string;
+}
+
+export function OfficialsContent({ isClubMode, clubId }: OfficialsContentProps) {
+  const { canModify: contextCanModify, userRole } = useTournament();
+  const canModify = isClubMode && userRole === 'Club' ? false : contextCanModify; // No club_id on officials yet, so Clubs cannot modify
   const [mounted, setMounted] = useState(false);
   const [loading, setLoading] = useState(true);
   const [officials, setOfficials] = useState<Official[]>([]);
@@ -45,7 +51,10 @@ export default function OfficialsPage() {
     try {
       setLoading(true);
       const list = await db.officials.list();
-      setOfficials(list);
+      const filteredByClub = isClubMode && clubId 
+        ? list.filter(o => (o as any).club_id === clubId) 
+        : list;
+      setOfficials(filteredByClub);
     } catch (err) {
       console.error('Error loading officials:', err);
     } finally {
@@ -594,4 +603,8 @@ export default function OfficialsPage() {
 
     </div>
   );
+}
+
+export default function OfficialsPage() {
+  return <OfficialsContent />;
 }

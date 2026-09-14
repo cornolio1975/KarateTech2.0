@@ -2033,6 +2033,35 @@ export const mockStore = {
             }
           }
         }
+        
+        // Auto-complete category
+        const finalBoutsList = getStoreData<Bout>('ts_bouts', []);
+        const catFinalBouts = finalBoutsList.filter(b => b.category_id === bout.category_id);
+        if (catFinalBouts.length > 0) {
+          const allCompleted = catFinalBouts.every(b => b.status === 'Completed' || b.status === 'Walkover');
+          if (allCompleted) {
+            const cats = getStoreData<Category>('ts_categories', []);
+            const cidx = cats.findIndex(c => c.id === bout.category_id);
+            if (cidx !== -1 && cats[cidx].draw_status !== 'Confirmed') {
+              cats[cidx] = { ...cats[cidx], draw_status: 'Confirmed' };
+              saveStoreData('ts_categories', cats);
+
+              // Auto-save FINAL version
+              import('./bracketVersions').then(m => {
+                const parts = getStoreData<Participant>('ts_participants', []);
+                m.createVersion({
+                  tournamentId: localStorage.getItem('kt_active_tournament_id') || 'local',
+                  category: cats[cidx],
+                  bouts: catFinalBouts,
+                  participants: parts,
+                  reason: 'BOUT_RESULT_UPDATE',
+                  status: 'FINAL',
+                  createdBy: 'system'
+                }).catch(e => console.warn('Auto-save version failed:', e));
+              });
+            }
+          }
+        }
       } catch (e) {
         console.error('Auto-repechage generation failed:', e);
       }
@@ -2106,6 +2135,35 @@ export const mockStore = {
             const hasRepechage = catBouts.some(b => b.round_no === 98);
             if (!hasRepechage) {
               mockStore.bouts.generateRepechage(updated.category_id);
+            }
+          }
+        }
+        
+        // Auto-complete category
+        const finalBoutsList = getStoreData<Bout>('ts_bouts', []);
+        const catFinalBouts = finalBoutsList.filter(b => b.category_id === updated.category_id);
+        if (catFinalBouts.length > 0) {
+          const allCompleted = catFinalBouts.every(b => b.status === 'Completed' || b.status === 'Walkover');
+          if (allCompleted) {
+            const cats = getStoreData<Category>('ts_categories', []);
+            const cidx = cats.findIndex(c => c.id === updated.category_id);
+            if (cidx !== -1 && cats[cidx].draw_status !== 'Confirmed') {
+              cats[cidx] = { ...cats[cidx], draw_status: 'Confirmed' };
+              saveStoreData('ts_categories', cats);
+
+              // Auto-save FINAL version
+              import('./bracketVersions').then(m => {
+                const parts = getStoreData<Participant>('ts_participants', []);
+                m.createVersion({
+                  tournamentId: localStorage.getItem('kt_active_tournament_id') || 'local',
+                  category: cats[cidx],
+                  bouts: catFinalBouts,
+                  participants: parts,
+                  reason: 'BOUT_RESULT_UPDATE',
+                  status: 'FINAL',
+                  createdBy: 'system'
+                }).catch(e => console.warn('Auto-save version failed:', e));
+              });
             }
           }
         }

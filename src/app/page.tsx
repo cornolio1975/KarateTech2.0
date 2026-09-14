@@ -4,29 +4,36 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { 
   FolderPlus, FolderOpen, Download, Upload, Trash2, 
-  Calendar, MapPin, Search, Plus, Cloud
+  Calendar, MapPin, Search, Plus, Cloud, LogOut, Edit3
 } from 'lucide-react';
 import { dbManager, supabase } from '@/db/dbClient';
 import { localStore } from '@/db/localStore';
 import { Tournament, TournamentDatabase } from '@/db/types';
+import { useTournament } from '@/context/TournamentContext';
+import TournamentFormModal from '@/components/TournamentFormModal';
 
 export default function TournamentManager() {
   const router = useRouter();
+  const { logout, isLoggedIn } = useTournament();
   const [tournaments, setTournaments] = useState<Tournament[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
+  const [editingTournament, setEditingTournament] = useState<Tournament | null>(null);
   
   // New Tournament Modal
   const [showNewModal, setShowNewModal] = useState(false);
-  const [newName, setNewName] = useState('');
-  const [newOrg, setNewOrg] = useState('');
-  const [newDate, setNewDate] = useState('');
   
   // Ref for file import
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    loadTournaments();
+    // Enforce Admin only access to the home page
+    const role = typeof window !== 'undefined' ? localStorage.getItem('ts_user_role') : null;
+    if (role !== 'Admin') {
+      window.location.href = '/login';
+    } else {
+      loadTournaments();
+    }
   }, []);
 
   const loadTournaments = async () => {
@@ -161,27 +168,27 @@ export default function TournamentManager() {
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
-  const handleCreateNew = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newName.trim()) return;
-
+  const handleSaveNewTournament = async (payload: Partial<Tournament>, isPublishing: boolean) => {
     setLoading(true);
     const newId = crypto.randomUUID(); // proper UUID — same key in IndexedDB AND Supabase
+    
+    // Create base tournament and merge with payload from modal
     const newDb: TournamentDatabase = {
       tournament: {
         id: newId,
-        name: newName.trim(),
-        organizer: newOrg.trim() || 'New Organizer',
-        date: newDate ? new Date(newDate).toLocaleDateString() : new Date().toLocaleDateString(),
-        date_iso: new Date(newDate || Date.now()).toISOString(),
-        venue: 'Main Stadium',
-        city: 'Local City',
-        registration_close: '',
-        registration_close_iso: '',
-        status: 'Draft',
+        name: payload.name || 'Unnamed Tournament',
+        organizer: payload.organizer || '',
+        date: payload.date || new Date().toLocaleDateString(),
+        date_iso: payload.date_iso || new Date().toISOString(),
+        venue: payload.venue || '',
+        city: payload.city || '',
+        registration_close: payload.registration_close || '',
+        registration_close_iso: payload.registration_close_iso || '',
+        status: payload.status || (isPublishing ? 'Published' : 'Draft'),
         created_at: new Date().toISOString(),
-        last_modified: new Date().toISOString()
-      },
+        last_modified: new Date().toISOString(),
+        ...payload
+      } as Tournament,
       participants: [],
       categories: [],
       clubs: [],
@@ -201,12 +208,30 @@ export default function TournamentManager() {
 
     await localStore.saveTournament(newDb);
     setShowNewModal(false);
-    setNewName('');
-    setNewOrg('');
-    setNewDate('');
     
     // Automatically open it
     await handleOpenTournament(newId);
+  };
+
+  const handleEditTournament = async (payload: Partial<Tournament>, isPublishing: boolean) => {
+    if (!editingTournament) return;
+    setLoading(true);
+    const db = await localStore.loadTournament(editingTournament.id);
+    if (!db) {
+      setLoading(false);
+      return;
+    }
+
+    db.tournament = {
+      ...db.tournament,
+      ...payload,
+      status: payload.status || (isPublishing ? 'Published' : db.tournament.status),
+      last_modified: new Date().toISOString()
+    } as Tournament;
+
+    await localStore.saveTournament(db);
+    setEditingTournament(null);
+    await loadTournaments();
   };
 
   const filteredTournaments = tournaments.filter(t => 
@@ -279,7 +304,7 @@ export default function TournamentManager() {
             </div>
           </div>
           
-          <div className="flex items-center gap-3 w-full md:w-auto z-10">
+          <div className="flex flex-wrap items-center justify-end gap-3 w-full md:w-auto z-10">
             <div className="relative flex-1 md:w-64">
               <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
               <input 
@@ -317,6 +342,16 @@ export default function TournamentManager() {
               className="bg-gradient-to-r from-red-600 to-red-700 hover:from-red-500 hover:to-red-600 text-white px-5 py-2.5 rounded-xl text-sm font-bold flex items-center gap-2 transition shadow-lg shadow-red-950/60 cursor-pointer"
             >
               <Plus size={16} /> <span>New Tournament</span>
+            </button>
+            <button
+              onClick={() => {
+                logout();
+                window.location.href = '/login';
+              }}
+              className="bg-slate-800/80 hover:bg-red-900/40 border border-slate-700 hover:border-red-500/50 text-slate-300 hover:text-red-400 px-4 py-2.5 rounded-xl text-sm font-bold flex items-center gap-2 transition cursor-pointer"
+              title="Log Out"
+            >
+              <LogOut size={16} /> <span className="hidden md:inline">Log Out</span>
             </button>
           </div>
         </header>
@@ -391,6 +426,14 @@ export default function TournamentManager() {
                     </button>
                     
                     <button
+                      onClick={() => setEditingTournament(t)}
+                      title="Edit Tournament Details"
+                      className="p-2.5 rounded-lg bg-sky-500/10 hover:bg-sky-600 text-sky-400 hover:text-white border border-sky-500/20 hover:border-sky-500 transition cursor-pointer"
+                    >
+                      <Edit3 size={16} />
+                    </button>
+                    
+                    <button
                       onClick={() => handleDelete(t.id, t.name)}
                       title="Delete Tournament Profile"
                       className="p-2.5 rounded-lg bg-red-500/10 hover:bg-red-600 text-red-400 hover:text-white border border-red-500/20 hover:border-red-500 transition cursor-pointer"
@@ -413,61 +456,22 @@ export default function TournamentManager() {
         )}
       </div>
 
-      {/* New Tournament Modal */}
-      {showNewModal && (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-slate-900 border border-white/10 rounded-2xl p-6 w-full max-w-md shadow-2xl">
-            <h2 className="text-xl font-bold mb-6">Create New Tournament</h2>
-            <form onSubmit={handleCreateNew} className="space-y-4">
-              <div>
-                <label className="block text-xs font-bold text-slate-400 mb-1">Tournament Name *</label>
-                <input 
-                  type="text" 
-                  required
-                  value={newName}
-                  onChange={e => setNewName(e.target.value)}
-                  className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 focus:border-indigo-500 focus:outline-none" 
-                  placeholder="e.g. National Open 2026"
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-bold text-slate-400 mb-1">Organizer</label>
-                <input 
-                  type="text" 
-                  value={newOrg}
-                  onChange={e => setNewOrg(e.target.value)}
-                  className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 focus:border-indigo-500 focus:outline-none" 
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-bold text-slate-400 mb-1">Event Date</label>
-                <input 
-                  type="date" 
-                  value={newDate}
-                  onChange={e => setNewDate(e.target.value)}
-                  className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 focus:border-indigo-500 focus:outline-none" 
-                />
-              </div>
-              
-              <div className="flex items-center gap-3 mt-8">
-                <button 
-                  type="button" 
-                  onClick={() => setShowNewModal(false)}
-                  className="flex-1 py-2 rounded-lg font-bold text-slate-400 hover:bg-white/5 transition"
-                >
-                  Cancel
-                </button>
-                <button 
-                  type="submit" 
-                  className="flex-1 bg-indigo-600 hover:bg-indigo-500 text-white py-2 rounded-lg font-bold transition shadow-lg shadow-indigo-900/50"
-                >
-                  Create & Open
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
+      {/* New / Edit Tournament Modal */}
+      <TournamentFormModal
+        isOpen={showNewModal || !!editingTournament}
+        onClose={() => {
+          setShowNewModal(false);
+          setEditingTournament(null);
+        }}
+        tournament={editingTournament}
+        onSave={(payload, isPublishing) => {
+          if (editingTournament) {
+            return handleEditTournament(payload, isPublishing);
+          } else {
+            return handleSaveNewTournament(payload, isPublishing);
+          }
+        }}
+      />
 
     </div>
   );

@@ -40,6 +40,9 @@ async function verifyCategoryLock(categoryId: string): Promise<void> {
   if (!supabase) return;
   if (typeof window === 'undefined') return;
 
+  const isUuid = categoryId && /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(categoryId);
+  if (!isUuid) return;
+
   // Admin bypass
   if (window.location.pathname.includes('/admin')) return;
   const adminTakeover = localStorage.getItem('kt_admin_tatami_takeover');
@@ -309,7 +312,14 @@ export const dbOriginal = {
       return mockStore.categories.list();
     },
     update: async (id: string, updates: Partial<Category>): Promise<Category> => {
+      if (activeTournamentDb) {
+        return mockStore.categories.update(id, updates);
+      }
       if (supabase) {
+        const isUuid = id && /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(id);
+        if (!isUuid) {
+          return mockStore.categories.update(id, updates);
+        }
         try {
           await verifyCategoryLock(id);
           const { data, error } = await supabase.from('categories').update(updates).eq('id', id).select().single();
@@ -1401,6 +1411,46 @@ export const dbOriginal = {
                         }).eq('id', nb.id);
                       }
                     }
+                  }
+                }
+              }
+              // Auto-complete category
+              const catBouts = dbBouts.filter(b => b.category_id === bout.category_id);
+              if (catBouts.length > 0) {
+                const allCompleted = catBouts.every(b => b.status === 'Completed' || b.status === 'Walkover');
+                if (allCompleted) {
+                  await supabase.from('categories').update({ draw_status: 'Completed' }).eq('id', bout.category_id);
+                  
+                  // Auto-save FINAL version via bracketVersions (local caching)
+                  const { data: catData } = await supabase.from('categories').select('*').eq('id', bout.category_id).single();
+                  const { data: parts } = await supabase.from('participants').select('*');
+                  
+                  if (catData && parts) {
+                    const { createVersion } = await import('./bracketVersions');
+                    const tId = getActiveTournamentIdSync();
+                    
+                    await createVersion({
+                      tournamentId: tId || catData.tournament_id || 'remote',
+                      category: catData,
+                      bouts: catBouts,
+                      participants: parts,
+                      reason: 'BOUT_RESULT_UPDATE',
+                      status: 'FINAL',
+                      createdBy: 'system'
+                    }).catch(e => console.warn('Remote auto-save version failed:', e));
+                  }
+                }
+              }
+              
+              // Check repechage
+              const { data: catData } = await supabase.from('categories').select('format').eq('id', bout.category_id).single();
+              if (catData?.format === 'wkf_repechage') {
+                const maxRound = Math.max(...catBouts.filter(b => b.round_no !== 99 && b.round_no !== 98).map(b => b.round_no), 1);
+                const finalBout = catBouts.find(b => b.round_no === maxRound && b.bout_no === 1);
+                if (finalBout && finalBout.participant_a_id && finalBout.participant_b_id) {
+                  const hasRepechage = catBouts.some(b => b.round_no === 98);
+                  if (!hasRepechage) {
+                    await db.bouts.generateRepechage(bout.category_id);
                   }
                 }
               }

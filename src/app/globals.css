@@ -373,6 +373,7 @@ input::-webkit-inner-spin-button {
   margin: 0;
 }
 input[type=number] {
+  appearance: textfield;
   -moz-appearance: textfield;
 }
 
@@ -1475,9 +1476,6 @@ html.text-scale-xl {
 .pt-page__footer {
   text-align: center;
   margin-top: 2rem;
-}
-.pt-section {
-  /* intentional empty */
 }
 
 /* ── Responsive ── */

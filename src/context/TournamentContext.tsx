@@ -13,6 +13,7 @@ export interface FilterState {
   club_id: string[];
   coach_id: string[];
   nationality_code: string[];
+  discipline: 'ALL' | 'KUMITE' | 'KATA';
 }
 
 export const INITIAL_ACCOUNT_RULES = {
@@ -80,11 +81,13 @@ interface TournamentContextType {
   setTournamentName: (name: string) => void;
   liveStreamUrl: string;
   setLiveStreamUrl: (url: string) => void;
-  userRole: 'Admin' | 'Co-Admin' | 'Viewer' | null;
+  userRole: 'Admin' | 'Co-Admin' | 'Viewer' | 'Club' | null;
   isLoggedIn: boolean;
-  login: (role: 'Admin' | 'Co-Admin' | 'Viewer', email?: string, pcId?: string | null, tatamiId?: number | null) => void;
+  isAuthInitialized: boolean;
+  login: (role: 'Admin' | 'Co-Admin' | 'Viewer' | 'Club', email?: string, pcId?: string | null, tatamiId?: number | null, clubId?: string | null) => void;
   logout: () => void;
   userEmail: string;
+  clubId: string | null;
   pcId: string | null;
   tatamiId: number | null;
   takeoverTatami: 1 | 2 | null;
@@ -125,10 +128,11 @@ export interface AccessibilitySettings {
 export interface SystemUser {
   name: string;
   email: string;
-  role: 'Admin' | 'Co-Admin' | 'Viewer';
+  role: 'Admin' | 'Co-Admin' | 'Viewer' | 'Club';
   status: 'Active' | 'Suspended';
   canModify: boolean;
   accessibility: AccessibilitySettings;
+  club_id?: string;
 }
 
 const defaultAccessibility: AccessibilitySettings = {
@@ -177,6 +181,19 @@ const defaultUsers: SystemUser[] = [
       reducedMotion: false,
       legibilityFont: 'standard'
     }
+  },
+  {
+    name: 'Senshi Karate Club',
+    email: 'club@senshikarate.com',
+    role: 'Club',
+    status: 'Active',
+    canModify: true,
+    accessibility: {
+      themeContrast: 'standard',
+      textScale: 'standard',
+      reducedMotion: false,
+      legibilityFont: 'standard'
+    }
   }
 ];
 
@@ -188,6 +205,7 @@ const initialFilters: FilterState = {
   club_id: [],
   coach_id: [],
   nationality_code: [],
+  discipline: 'ALL',
 };
 
 const TournamentContext = createContext<TournamentContextType | undefined>(undefined);
@@ -207,9 +225,11 @@ export function TournamentProvider({ children }: { children: React.ReactNode }) 
   const [logoUrl, setLogoUrlState] = useState(`${basePath}/karatetech-logo.png`);
 
   // Auth state
-  const [userRole, setUserRole] = useState<'Admin' | 'Co-Admin' | 'Viewer' | null>(null);
+  const [userRole, setUserRole] = useState<'Admin' | 'Co-Admin' | 'Viewer' | 'Club' | null>(null);
   const [userEmail, setUserEmail] = useState<string>('');
   const [isLoggedIn, setIsLoggedIn] = useState<boolean>(false);
+  const [isAuthInitialized, setIsAuthInitialized] = useState<boolean>(false);
+  const [clubId, setClubId] = useState<string | null>(null);
   const [pcId, setPcId] = useState<string | null>(null);
   const [tatamiId, setTatamiId] = useState<number | null>(null);
 
@@ -754,18 +774,21 @@ export function TournamentProvider({ children }: { children: React.ReactNode }) 
         setLogoUrlState(`${basePath}/karatetech-logo.png`);
       }
 
-      const storedRole = localStorage.getItem('ts_user_role') as 'Admin' | 'Co-Admin' | 'Viewer' | null;
+      const storedRole = localStorage.getItem('ts_user_role') as 'Admin' | 'Co-Admin' | 'Viewer' | 'Club' | null;
       const storedEmail = localStorage.getItem('ts_user_email') || '';
       const storedPcId = localStorage.getItem('ts_pc_id');
       const storedTatamiId = localStorage.getItem('ts_tatami_id');
+      const storedClubId = localStorage.getItem('ts_club_id');
       
       if (storedRole) {
         setUserRole(storedRole);
         setUserEmail(storedEmail);
         setPcId(storedPcId);
         setTatamiId(storedTatamiId ? parseInt(storedTatamiId, 10) : null);
+        setClubId(storedClubId || null);
         setIsLoggedIn(true);
       }
+      setIsAuthInitialized(true);
 
       // Initialize activeTournamentId from the explicitly-opened tournament
       // This is set by dbManager.setActiveTournament when the user opens a tournament from the Project Page
@@ -779,7 +802,12 @@ export function TournamentProvider({ children }: { children: React.ReactNode }) 
       let initialList = defaultUsers;
       if (storedUsers) {
         try {
-          initialList = JSON.parse(storedUsers);
+          const parsed = JSON.parse(storedUsers);
+          // Merge defaults if they are missing
+          initialList = [
+            ...parsed,
+            ...defaultUsers.filter(def => !parsed.some((p: any) => p.email === def.email))
+          ];
         } catch (e) {}
       }
       setUsersListState(initialList);
@@ -799,8 +827,15 @@ export function TournamentProvider({ children }: { children: React.ReactNode }) 
                 canModify: row.can_modify ?? (row.role === 'Admin'),
                 accessibility: row.accessibility
               }));
-              setUsersListState(mapped);
-              localStorage.setItem('ts_users_list', JSON.stringify(mapped));
+              
+              // Merge defaults if they are missing from Supabase
+              const finalMapped = [
+                ...mapped,
+                ...defaultUsers.filter(def => !mapped.some(m => m.email === def.email))
+              ];
+              
+              setUsersListState(finalMapped);
+              localStorage.setItem('ts_users_list', JSON.stringify(finalMapped));
             } else if (error) {
               console.warn('Could not load users from Supabase, using local fallback:', error.message);
             }
@@ -876,9 +911,10 @@ export function TournamentProvider({ children }: { children: React.ReactNode }) 
         if (email) {
           const storedEmail = localStorage.getItem('ts_user_email');
           if (storedEmail?.toLowerCase() !== email) {
-            let role: 'Admin' | 'Co-Admin' | 'Viewer' = 'Viewer';
+            let role: 'Admin' | 'Co-Admin' | 'Viewer' | 'Club' = 'Viewer';
             let newPcId: string | null = null;
             let newTatamiId: number | null = null;
+            let newClubId: string | null = null;
             
             // 1. Authoritative Identity Check
             if (email in INITIAL_ACCOUNT_RULES) {
@@ -895,6 +931,7 @@ export function TournamentProvider({ children }: { children: React.ReactNode }) 
                   const matched = list.find((u: any) => u.email.toLowerCase() === email);
                   if (matched) {
                     role = matched.role;
+                    newClubId = matched.club_id || null;
                   }
                 } catch(e){}
               }
@@ -904,6 +941,7 @@ export function TournamentProvider({ children }: { children: React.ReactNode }) 
             setUserEmail(email);
             setPcId(newPcId);
             setTatamiId(newTatamiId);
+            setClubId(newClubId);
             setIsLoggedIn(true);
             
             localStorage.setItem('ts_user_role', role);
@@ -912,6 +950,8 @@ export function TournamentProvider({ children }: { children: React.ReactNode }) 
             else localStorage.removeItem('ts_pc_id');
             if (newTatamiId !== null) localStorage.setItem('ts_tatami_id', newTatamiId.toString());
             else localStorage.removeItem('ts_tatami_id');
+            if (newClubId) localStorage.setItem('ts_club_id', newClubId);
+            else localStorage.removeItem('ts_club_id');
           }
         }
       } else if (event === 'SIGNED_OUT') {
@@ -921,11 +961,13 @@ export function TournamentProvider({ children }: { children: React.ReactNode }) 
           setUserEmail('');
           setPcId(null);
           setTatamiId(null);
+          setClubId(null);
           setIsLoggedIn(false);
           localStorage.removeItem('ts_user_role');
           localStorage.removeItem('ts_user_email');
           localStorage.removeItem('ts_pc_id');
           localStorage.removeItem('ts_tatami_id');
+          localStorage.removeItem('ts_club_id');
         }
       }
     });
@@ -1138,12 +1180,13 @@ export function TournamentProvider({ children }: { children: React.ReactNode }) 
     }
   };
 
-  const login = (role: 'Admin' | 'Co-Admin' | 'Viewer', email?: string, newPcId?: string | null, newTatamiId?: number | null) => {
+  const login = (role: 'Admin' | 'Co-Admin' | 'Viewer' | 'Club', email?: string, newPcId?: string | null, newTatamiId?: number | null, newClubId?: string | null) => {
     setUserRole(role);
     const emailStr = email || (role === 'Admin' ? 'admin@spsportdatasolution.org' : role === 'Co-Admin' ? 'tatami_1@spsportdatasolution.org' : 'spectator@senshikarate.com');
     setUserEmail(emailStr);
     setPcId(newPcId || null);
     setTatamiId(newTatamiId === undefined ? null : newTatamiId);
+    setClubId(newClubId || null);
     setIsLoggedIn(true);
     if (typeof window !== 'undefined') {
       localStorage.setItem('ts_user_role', role);
@@ -1152,6 +1195,8 @@ export function TournamentProvider({ children }: { children: React.ReactNode }) 
       else localStorage.removeItem('ts_pc_id');
       if (newTatamiId !== undefined && newTatamiId !== null) localStorage.setItem('ts_tatami_id', newTatamiId.toString());
       else localStorage.removeItem('ts_tatami_id');
+      if (newClubId) localStorage.setItem('ts_club_id', newClubId);
+      else localStorage.removeItem('ts_club_id');
     }
   };
 
@@ -1160,12 +1205,14 @@ export function TournamentProvider({ children }: { children: React.ReactNode }) 
     setUserEmail('');
     setPcId(null);
     setTatamiId(null);
+    setClubId(null);
     setIsLoggedIn(false);
     if (typeof window !== 'undefined') {
       localStorage.removeItem('ts_user_role');
       localStorage.removeItem('ts_user_email');
       localStorage.removeItem('ts_pc_id');
       localStorage.removeItem('ts_tatami_id');
+      localStorage.removeItem('ts_club_id');
     }
     if (supabase) {
       supabase.auth.signOut().catch(err => console.error("Error signing out from Supabase:", err));
@@ -1294,6 +1341,7 @@ export function TournamentProvider({ children }: { children: React.ReactNode }) 
         login,
         logout,
         userEmail,
+        clubId,
         pcId,
         tatamiId,
         takeoverTatami,
@@ -1322,6 +1370,7 @@ export function TournamentProvider({ children }: { children: React.ReactNode }) 
         setActiveTournamentId,
         acquireLock,
         releaseLock,
+        isAuthInitialized
       }}
     >
       {children}

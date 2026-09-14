@@ -9,10 +9,11 @@ import {
 } from 'lucide-react';
 import { formatLocalDate } from '@/lib/dateUtils';
 import { db } from '@/db/dbClient';
+import { createClient } from '@/utils/supabase/client';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-type TournamentStatus = 'Open' | 'Closing Soon' | 'Full';
+type TournamentStatus = 'Open' | 'Closing Soon' | 'Full' | 'Draft';
 
 interface EventCategory {
   name: string;
@@ -32,6 +33,8 @@ interface Tournament {
   categories: EventCategory[];
   status: TournamentStatus;
   bannerGradient: string;
+  banner_url?: string;
+  registrationStatus?: string;
   featured?: boolean;
 }
 
@@ -122,11 +125,13 @@ function StatusBadge({ status }: { status: TournamentStatus }) {
     Open: 'tournament-badge-open',
     'Closing Soon': 'tournament-badge-closing',
     Full: 'tournament-badge-full',
+    Draft: 'tournament-badge-full', // Fallback or new class
   };
   const dots: Record<TournamentStatus, string> = {
     Open: '#22c55e',
     'Closing Soon': '#f59e0b',
     Full: '#ef4444',
+    Draft: '#888',
   };
   return (
     <span className={`tournament-badge ${styles[status]}`}>
@@ -186,7 +191,7 @@ function TournamentCard({ tournament }: { tournament: Tournament }) {
       <div className="t-card__banner" style={{ background: tournament.bannerGradient }}>
         {tournament.featured && (
           <img
-            src="/tournament_banner_2026.png"
+            src={tournament.banner_url || "/tournament_banner_2026.png"}
             alt={tournament.name}
             className={`t-card__banner-img ${imgLoaded ? 't-card__banner-img--loaded' : ''}`}
             onLoad={() => setImgLoaded(true)}
@@ -285,25 +290,27 @@ function TournamentCard({ tournament }: { tournament: Tournament }) {
 
         {/* Register Button */}
         <div className="t-card__actions">
-          <Link
-            href="/public/register"
-            className="btn-register"
-            title="Register for this tournament"
-            aria-label={`Register for ${tournament.name}`}
-          >
-            <span className="btn-register__icon">
-              <ExternalLink size={15} />
-            </span>
-            Register Now
-            <ChevronRight size={16} className="btn-register__arrow" />
-          </Link>
+          {tournament.status !== 'Draft' && (
+            <Link
+              href={tournament.registrationStatus === 'Open' ? `/public/register?tournament=${tournament.id}` : '#'}
+              className={`btn-register ${tournament.registrationStatus !== 'Open' ? 'opacity-50 cursor-not-allowed' : ''}`}
+              title={tournament.registrationStatus === 'Open' ? "Register for this tournament" : "Registration closed"}
+              aria-label={`Register for ${tournament.name}`}
+            >
+              <span className="btn-register__icon">
+                <ExternalLink size={15} />
+              </span>
+              {tournament.registrationStatus === 'Open' ? 'Register Now' : 'Registration Closed'}
+              <ChevronRight size={16} className="btn-register__arrow" />
+            </Link>
+          )}
 
           <Link
-            href={`/public/past-tournaments`}
+            href={`/public/tournaments/details?id=${tournament.id}`}
             className="btn-secondary-link"
           >
             <Info size={14} />
-            Past Results
+            View Tournament
           </Link>
         </div>
       </div>
@@ -314,49 +321,70 @@ function TournamentCard({ tournament }: { tournament: Tournament }) {
 // ─── Page Component ────────────────────────────────────────────────────────
 
 export default function TournamentsPage() {
-  const [tournamentsList, setTournamentsList] = useState<Tournament[]>([]);
+  const [upcomingList, setUpcomingList] = useState<any[]>([]);
+  const [completedList, setCompletedList] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const fetchTournaments = async () => {
       try {
         setLoading(true);
-        const list = await db.tournaments.list();
-        // Convert to Page's expected Tournament structure
-        const upcoming = list
-          .filter(t => t.status !== 'Completed' && !t.deleted_at)
-          .map(t => {
-            return {
-              id: t.id,
-              name: t.name,
-              organizer: t.organizer,
-              date: t.date,
-              dateIso: t.date_iso || '2026-08-15T08:00:00Z',
-              venue: t.venue,
-              city: t.city,
-              registrationClose: t.registration_close,
-              registrationCloseIso: t.registration_close_iso || '2026-07-31T23:59:59Z',
-              categories: [
-                { name: 'Kata', color: '#d97706' },
-                { name: 'Kumite', color: '#dc2626' },
-                { name: 'Team Kata', color: '#7c3aed' },
-                { name: 'Team Kumite', color: '#0369a1' },
-              ],
-              status: (t.status || 'Open') as TournamentStatus,
-              bannerGradient: t.banner_gradient || 'linear-gradient(135deg, #0b0f19 0%, #1a1035 40%, #2d1a00 100%)',
-              featured: !!t.featured
-            };
-          });
+        const supabase = createClient();
+        const { data: dbData, error } = await supabase
+          .from('tournaments')
+          .select(`
+            id, name, discipline, poster_emoji, banner_gradient, organizer, date, date_iso, registration_close, registration_close_iso, venue, city, status, data
+          `)
+          .neq('status', 'Draft')
+          .neq('status', 'Deleted')
+          .neq('status', 'Archived')
+          .order('date_iso', { ascending: true });
 
-        // If DB list is empty, seed it with the default static one
-        if (upcoming.length === 0) {
-          setTournamentsList(TOURNAMENTS);
+        if (error) throw error;
+
+        let finalData: any[] = [];
+        if (dbData && dbData.length > 0) {
+          finalData = dbData.map(item => {
+            let dataObj = {};
+            if (item.data) {
+              try {
+                dataObj = typeof item.data === 'string' ? JSON.parse(item.data) : item.data;
+              } catch (e) {}
+            }
+            return { ...item, ...dataObj };
+          });
+        }
+        
+        if (finalData.length > 0) {
+          const mapped = finalData.map((t: any) => ({
+            id: t.id,
+            name: t.name,
+            organizer: t.organizer,
+            date: t.date,
+            dateIso: t.date_iso || t.date || '',
+            venue: t.venue,
+            city: t.city,
+            registrationClose: t.registration_close,
+            registrationCloseIso: t.registration_close_iso || t.registration_close || '',
+            registrationStatus: t.registration_status || 'Closed',
+            categories: [
+              { name: 'Kata', color: '#d97706' },
+              { name: 'Kumite', color: '#dc2626' }
+            ],
+            status: t.status,
+            bannerGradient: t.banner_gradient || 'linear-gradient(135deg, #0b0f19 0%, #1a1035 40%, #2d1a00 100%)',
+            bannerUrl: t.banner_url,
+            featured: true
+          }));
+          
+          setUpcomingList(mapped.filter((t: any) => t.status !== 'Completed' && t.status !== 'Canceled'));
+          setCompletedList(mapped.filter((t: any) => t.status === 'Completed'));
         } else {
-          setTournamentsList(upcoming);
+          setUpcomingList(TOURNAMENTS);
         }
       } catch (e) {
         console.error('Failed to load upcoming tournaments:', e);
-        setTournamentsList(TOURNAMENTS);
+        setUpcomingList(TOURNAMENTS);
       } finally {
         setLoading(false);
       }
@@ -408,16 +436,42 @@ export default function TournamentsPage() {
             <RefreshCw className="h-4 w-4 animate-spin text-amber-500 mx-auto mb-2" />
             <span>Loading upcoming tournaments...</span>
           </div>
-        ) : tournamentsList.length === 0 ? (
+        ) : upcomingList.length === 0 ? (
           <div className="col-span-full py-12 text-center text-xs text-gray-400">
             No upcoming tournaments scheduled at this time.
           </div>
         ) : (
-          tournamentsList.map((t) => (
+          upcomingList.map((t) => (
             <TournamentCard key={t.id} tournament={t} />
           ))
         )}
       </section>
+
+      {/* Completed Tournaments Small Box */}
+      {completedList.length > 0 && (
+        <section className="max-w-6xl mx-auto px-6 py-12">
+          <div className="flex items-center gap-3 mb-6 border-b border-white/10 pb-3">
+            <Trophy size={20} className="text-slate-400" />
+            <h2 className="text-xl font-bold text-slate-300">Completed Tournaments</h2>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+            {completedList.map(t => (
+              <div key={t.id} className="bg-[#111928] border border-white/5 rounded-xl p-4 flex flex-col hover:border-white/10 transition group">
+                <div className="flex justify-between items-start mb-2">
+                  <h3 className="font-bold text-sm text-slate-200 line-clamp-2 group-hover:text-sky-400 transition">{t.name}</h3>
+                </div>
+                <div className="text-xs text-slate-500 mb-4 flex items-center gap-1.5"><Calendar size={12} /> {t.date}</div>
+                <div className="mt-auto flex justify-between items-center">
+                  <span className="text-[10px] uppercase font-bold text-green-500 bg-green-500/10 px-2 py-0.5 rounded">Completed</span>
+                  <Link href={`/public/tournaments/details?id=${t.id}`} className="text-xs font-semibold text-sky-500 hover:text-sky-400 flex items-center gap-1">
+                    View <ChevronRight size={14} />
+                  </Link>
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
 
       {/* Footer note */}
       <div className="tournaments-footer-note">
