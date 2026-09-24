@@ -1,4 +1,4 @@
--- KarateTech 2.0
+-- KarateTech 3.0
 -- Fix RLS Policies for PC Control System
 
 -- tournament_pcs

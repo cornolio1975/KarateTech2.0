@@ -1,4 +1,4 @@
--- KarateTech 2.0
+-- KarateTech 3.0
 -- PC / Tatami Control System
 
 -- ============================================================

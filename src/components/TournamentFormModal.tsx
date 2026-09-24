@@ -350,10 +350,10 @@ export default function TournamentFormModal({ isOpen, onClose, tournament, onSav
                     <select value={tournamentStatus} onChange={e => setTournamentStatus(e.target.value as any)} className="w-full px-3 py-2 bg-[#0d1f3c]/50 border border-cyan-500/20 rounded focus:border-cyan-500 text-white">
                       <option value="Draft">Draft</option>
                       <option value="Published">Published</option>
-                      <option value="Registration Open">Registration Open</option>
-                      <option value="Registration Closed">Registration Closed</option>
+                      <option value="Active">Active</option>
                       <option value="Completed">Completed</option>
-                      <option value="Canceled">Canceled</option>
+                      <option value="Archived">Archived</option>
+                      <option value="Cancelled">Cancelled</option>
                     </select>
                   </div>
                 </div>

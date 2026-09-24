@@ -127,7 +127,7 @@ export const SportdataBracket: React.FC<SportdataBracketProps> = ({
             </div>
           </div>
 
-          {/* Right Side — KarateTech 2.0© Brand (matches main operator page) */}
+          {/* Right Side — KarateTech 3.0© Brand (matches main operator page) */}
           <div
             className="flex items-center gap-2 leading-none select-none shrink-0"
             style={{ maxWidth: "180px" }}
@@ -141,7 +141,7 @@ export const SportdataBracket: React.FC<SportdataBracketProps> = ({
               <div style={{ fontFamily: "'Montserrat', sans-serif", fontWeight: 900, fontSize: '8.5px', lineHeight: 1, letterSpacing: '0.01em' }}>
                 <span style={{ color: '#b91c2e' }}>Karate</span>
                 <span style={{ color: '#38bdf8' }}>Tech</span>
-                <span style={{ color: theme === 'dark' ? '#ffffff' : '#111827', marginLeft: '2px', fontSize: '7.5px' }}>2.0</span>
+                <span style={{ color: theme === 'dark' ? '#ffffff' : '#111827', marginLeft: '2px', fontSize: '7.5px' }}>3.0</span>
                 <span style={{ color: '#94a3b8', fontSize: '5px', marginLeft: '1px', verticalAlign: 'super' }}>©</span>
               </div>
               <div style={{ fontSize: '5px', color: '#64748b', fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', marginTop: '1px', lineHeight: 1 }}>
@@ -682,7 +682,7 @@ export const SportdataBracket: React.FC<SportdataBracketProps> = ({
             </div>
           </div>
 
-          {/* Rebranded Logo — KarateTech 2.0© Brand (matches main operator page) */}
+          {/* Rebranded Logo — KarateTech 3.0© Brand (matches main operator page) */}
           <div
             className="flex items-center gap-2 leading-none select-none shrink-0"
             style={{ maxWidth: "180px" }}
@@ -696,7 +696,7 @@ export const SportdataBracket: React.FC<SportdataBracketProps> = ({
               <div style={{ fontFamily: "'Montserrat', sans-serif", fontWeight: 900, fontSize: '8.5px', lineHeight: 1, letterSpacing: '0.01em' }}>
                 <span style={{ color: '#b91c2e' }}>Karate</span>
                 <span style={{ color: '#38bdf8' }}>Tech</span>
-                <span style={{ color: theme === 'dark' ? '#ffffff' : '#111827', marginLeft: '2px', fontSize: '7.5px' }}>2.0</span>
+                <span style={{ color: theme === 'dark' ? '#ffffff' : '#111827', marginLeft: '2px', fontSize: '7.5px' }}>3.0</span>
                 <span style={{ color: '#94a3b8', fontSize: '5px', marginLeft: '1px', verticalAlign: 'super' }}>©</span>
               </div>
               <div style={{ fontSize: '5px', color: '#64748b', fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', marginTop: '1px', lineHeight: 1 }}>

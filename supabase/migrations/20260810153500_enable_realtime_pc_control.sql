@@ -1,4 +1,4 @@
--- KarateTech 2.0
+-- KarateTech 3.0
 -- Enable Realtime for PC Control Tables
 
 -- Ensure tables are in the realtime publication

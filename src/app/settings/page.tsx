@@ -42,7 +42,7 @@ export default function SettingsPage() {
   const [isAddingUser, setIsAddingUser] = useState(false);
   const [newUserName, setNewUserName] = useState('');
   const [newUserEmail, setNewUserEmail] = useState('');
-  const [newUserRole, setNewUserRole] = useState<'Admin' | 'Co-Admin' | 'Viewer' | 'Club'>('Co-Admin');
+  const [newUserRole, setNewUserRole] = useState<'Admin' | 'Co-Admin' | 'Viewer' | 'Club' | 'Superadmin'>('Co-Admin');
   const [newUserStatus, setNewUserStatus] = useState<'Active' | 'Suspended'>('Active');
   const [newUserCanModify, setNewUserCanModify] = useState(false);
   
@@ -58,7 +58,7 @@ export default function SettingsPage() {
   // 3. User editing state
   const [editingUserEmail, setEditingUserEmail] = useState<string | null>(null);
   const [editUserName, setEditUserName] = useState('');
-  const [editUserRole, setEditUserRole] = useState<'Admin' | 'Co-Admin' | 'Viewer' | 'Club'>('Co-Admin');
+  const [editUserRole, setEditUserRole] = useState<'Admin' | 'Co-Admin' | 'Viewer' | 'Club' | 'Superadmin'>('Co-Admin');
   const [editUserStatus, setEditUserStatus] = useState<'Active' | 'Suspended'>('Active');
   const [editUserCanModify, setEditUserCanModify] = useState(false);
   const [editUserAccessibility, setEditUserAccessibility] = useState<AccessibilitySettings>({

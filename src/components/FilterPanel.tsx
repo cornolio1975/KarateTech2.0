@@ -41,9 +41,9 @@ export default function FilterPanel() {
 
   if (!isFilterOpen) return null;
 
-  const handleCheckboxChange = (key: keyof FilterState, value: string) => {
+  const handleCheckboxChange = (key: Exclude<keyof FilterState, 'discipline'>, value: string) => {
     setLocalFilters(prev => {
-      const currentValues = prev[key] || [];
+      const currentValues = (prev[key] as string[]) || [];
       const newValues = currentValues.includes(value)
         ? currentValues.filter(val => val !== value)
         : [...currentValues, value];

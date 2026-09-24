@@ -12,9 +12,10 @@ interface RecoveryConsoleModalProps {
   isOpen: boolean;
   onClose: () => void;
   categories: Category[];
+  initialCategoryId?: string;
 }
 
-export default function RecoveryConsoleModal({ isOpen, onClose, categories }: RecoveryConsoleModalProps) {
+export default function RecoveryConsoleModal({ isOpen, onClose, categories, initialCategoryId }: RecoveryConsoleModalProps) {
   const { activeTournamentId } = useTournament();
   
   const [selectedCategoryId, setSelectedCategoryId] = useState<string>('');
@@ -26,10 +27,14 @@ export default function RecoveryConsoleModal({ isOpen, onClose, categories }: Re
 
   useEffect(() => {
     // Reset state completely when modal opens or active tournament changes
-    setSelectedCategoryId('');
+    if (initialCategoryId) {
+      setSelectedCategoryId(initialCategoryId);
+    } else {
+      setSelectedCategoryId('');
+    }
     setVersions([]);
     setErrorMsg(null);
-  }, [isOpen, activeTournamentId]);
+  }, [isOpen, activeTournamentId, initialCategoryId]);
 
   useEffect(() => {
     if (selectedCategoryId && activeTournamentId) {
@@ -170,17 +175,19 @@ export default function RecoveryConsoleModal({ isOpen, onClose, categories }: Re
       category_id: categoryId,
     }));
 
-    if (supabase) {
-      const { error } = await supabase.from('bouts').insert(newBouts);
-      if (error) {
-        await db.bouts.clearDraw(categoryId);
-        if (currentLiveBouts.length > 0) {
-          await supabase.from('bouts').insert(currentLiveBouts);
-        }
-        throw new Error(`Failed to restore in database: ${error.message}. Rollback successful.`);
+    try {
+      await db.bouts.saveBouts(categoryId, newBouts);
+    } catch (error: any) {
+      // Rollback on fail
+      await db.bouts.clearDraw(categoryId);
+      if (currentLiveBouts.length > 0) {
+        await db.bouts.saveBouts(categoryId, currentLiveBouts);
       }
-    } else {
-      // Offline fallback: force sync via window reload since mockstore logic is complex
+      throw new Error(`Failed to restore in database: ${error.message || error}. Rollback successful.`);
+    }
+
+    // Force mockstore to hydrate sync
+    if (typeof window !== 'undefined' && !supabase) {
       console.warn("Restoring offline requires page reload for full data hydration.");
     }
 

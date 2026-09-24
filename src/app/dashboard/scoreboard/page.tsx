@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { db } from '@/db/dbClient';
 import { Bout, Participant, Category, Club, isKumiteCategory, isKataCategory } from '@/db/types';
-import { Zap, Play, Check, ShieldAlert, Award, ArrowRight, RefreshCw, Calendar, MapPin, Tv, RotateCcw, Maximize2, Minimize2 } from 'lucide-react';
+import { Zap, Play, Check, ShieldAlert, Award, ArrowRight, RefreshCw, Calendar, MapPin, Tv, RotateCcw, Maximize2, Minimize2, Activity, Video, Users, List, Flag, Clock } from 'lucide-react';
 import { useTournament } from '@/context/TournamentContext';
 
 export default function ScoreboardDashboardPage() {
@@ -16,6 +16,8 @@ export default function ScoreboardDashboardPage() {
   const [categories, setCategories] = useState<Category[]>([]);
   const [clubs, setClubs] = useState<Club[]>([]);
   const [isFullscreen, setIsFullscreen] = useState<boolean>(false);
+  // KT3.0 — tab navigation
+  const [scoreboardActiveTab, setScoreboardActiveTab] = useState<'live' | 'judges' | 'referee' | 'timer' | 'video_review' | 'events' | 'result'>('live');
 
   const toggleFullscreen = () => {
     if (!document.fullscreenElement) {
@@ -177,10 +179,62 @@ export default function ScoreboardDashboardPage() {
             </button>
           </div>
         </div>
+        
+        {/* ── KT3.0 Tab Bar ─────────────────────────────────────────────────── */}
+        <div className="flex items-center gap-0 overflow-x-auto scrollbar-none mt-2 -mb-8">
+          {[
+            { id: 'live', label: 'Live Scoring', icon: <Activity className="h-4 w-4" /> },
+            { id: 'judges', label: 'Judges', icon: <Users className="h-4 w-4" /> },
+            { id: 'referee', label: 'Referee', icon: <Flag className="h-4 w-4" /> },
+            { id: 'timer', label: 'Timer', icon: <Clock className="h-4 w-4" /> },
+            { id: 'video_review', label: 'Video Review', icon: <Video className="h-4 w-4" /> },
+            { id: 'events', label: 'Events', icon: <List className="h-4 w-4" /> },
+            { id: 'result', label: 'Result', icon: <Award className="h-4 w-4" /> },
+          ].map((tab) => (
+            <button
+              key={tab.id}
+              onClick={() => setScoreboardActiveTab(tab.id as any)}
+              className={`
+                flex items-center gap-2 px-5 py-3 text-sm font-bold
+                whitespace-nowrap border-b-2 transition-all duration-150
+                ${scoreboardActiveTab === tab.id
+                  ? 'border-yellow-400 text-yellow-400'
+                  : 'border-transparent text-gray-400 hover:text-white hover:border-white/20'
+                }
+              `}
+            >
+              {tab.icon}
+              {tab.label}
+            </button>
+          ))}
+        </div>
       </div>
 
-      {/* Main Grid */}
-      <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-4 gap-8">
+      {/* ── Tab Content ─────────────────────────────────────────────────── */}
+      
+      {/* PLACEHOLDER TABS */}
+      {scoreboardActiveTab !== 'live' && (
+        <div className="max-w-7xl mx-auto flex-1 flex flex-col items-center justify-center border border-white/10 bg-white/[0.02] rounded-2xl p-16 text-center mt-12 backdrop-blur-sm">
+          <Activity className="h-16 w-16 text-white/20 mb-6" />
+          <h2 className="text-2xl font-black text-white/80 mb-2 tracking-wide uppercase">
+            {scoreboardActiveTab.replace('_', ' ')} Console
+          </h2>
+          <p className="text-gray-400 max-w-lg mb-8">
+            This specialized KT3.0 console view is currently under development. 
+            All live scoring operations should be performed from the Live Scoring tab.
+          </p>
+          <button 
+            onClick={() => setScoreboardActiveTab('live')}
+            className="px-6 py-3 bg-yellow-400 text-black font-black uppercase text-sm rounded-xl tracking-wider hover:bg-yellow-300 transition-colors"
+          >
+            Return to Live Scoring
+          </button>
+        </div>
+      )}
+
+      {/* LIVE SCORING TAB (Original Page Content) */}
+      {scoreboardActiveTab === 'live' && (
+      <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-4 gap-8 mt-12">
         {/* Filters Panel */}
         <div className="lg:col-span-1 bg-white/[0.02] border border-white/5 rounded-2xl p-6 backdrop-blur-md h-fit">
           <h2 className="text-base font-black tracking-wider uppercase mb-6 text-gray-300">
@@ -372,6 +426,7 @@ export default function ScoreboardDashboardPage() {
           )}
         </div>
       </div>
+      )}
     </div>
   );
 }

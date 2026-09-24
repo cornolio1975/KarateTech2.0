@@ -204,7 +204,7 @@ export default function LocalServerHub({
         <div className="flex items-center gap-2">
           <Server className="w-6 h-6 text-indigo-400" />
           <div>
-            <h2 className="text-lg font-black text-foreground">KarateTech 2.0 Local Server Hub</h2>
+            <h2 className="text-lg font-black text-foreground">KarateTech 3.0 Local Server Hub</h2>
             <p className="text-xs text-muted-foreground">Offline SQLite Database • LAN Device Sync • Cloud Bridge</p>
           </div>
         </div>

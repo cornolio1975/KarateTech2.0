@@ -694,11 +694,35 @@ function SpectatorDisplayContent() {
       const key = isStream ? 'ts_show_point_history_stream' : 'ts_show_point_history_public';
       setShowPointHistory(searchParams.get('history') === 'true' || localStorage.getItem(key) === 'true');
 
+      // Sync KT3.0 Event Engine from Supabase Realtime
+      let eventEngineSubscription: any = null;
+      if (supabase && urlTournamentId) {
+        eventEngineSubscription = supabase
+          .channel(`public:karate_scoring_events:${urlTournamentId}`)
+          .on(
+            'postgres_changes',
+            { event: 'INSERT', schema: 'public', table: 'karate_scoring_events', filter: `tournament_id=eq.${urlTournamentId}` },
+            (payload) => {
+              const newEvent = payload.new;
+              console.log('KT3.0 Event Received:', newEvent);
+              // Extract data to update display if needed, falling back to standard broadcast sync for now.
+              if (newEvent.event_type === 'SCORE' && newEvent.animation_trigger) {
+                // E.g., trigger animation
+                const assetKey = newEvent.animation_trigger;
+              }
+            }
+          )
+          .subscribe();
+      }
+
       // Send initial connect notification
       channel.postMessage({ type: 'SPECTATOR_CONNECTED' });
 
       const handleUnload = () => {
         channel.postMessage({ type: 'SPECTATOR_DISCONNECTED' });
+        if (eventEngineSubscription) {
+          eventEngineSubscription.unsubscribe();
+        }
       };
       window.addEventListener('beforeunload', handleUnload);
 
@@ -2142,9 +2166,9 @@ function SpectatorDisplayContent() {
                 </div>
               )}
 
-              {/* Prominent Dual Brand Footer: KarateTech 2.0© & SP SportData Solution */}
+              {/* Prominent Dual Brand Footer: KarateTech 3.0© & SP SportData Solution */}
               <div className="mt-6 pt-5 border-t border-white/10 w-full flex flex-col md:flex-row items-center justify-between gap-4">
-                {/* KarateTech 2.0© Official Logo */}
+                {/* KarateTech 3.0© Official Logo */}
                 <div className="flex items-center gap-3">
                   <img
                     src={`${basePath}/karatetech-logo.png`}
@@ -2155,7 +2179,7 @@ function SpectatorDisplayContent() {
                     <div style={{ fontFamily: "'Montserrat', sans-serif", fontWeight: 900, fontSize: '1.05rem', lineHeight: 1, letterSpacing: '0.01em' }}>
                       <span style={{ color: '#b91c2e' }}>Karate</span>
                       <span style={{ color: '#38bdf8' }}>Tech</span>
-                      <span style={{ color: '#ffffff', marginLeft: '4px' }}>2.0</span>
+                      <span style={{ color: '#ffffff', marginLeft: '4px' }}>3.0</span>
                       <span style={{ color: '#94a3b8', fontSize: '0.65rem', marginLeft: '2px', verticalAlign: 'super' }}>©</span>
                     </div>
                     <div className="text-[7.5px] text-white/50 font-bold uppercase tracking-[0.2em] mt-0.5 leading-none">

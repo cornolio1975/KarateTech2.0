@@ -9,7 +9,7 @@ import { basePath, describeError } from '@/db/dbClient';
 import { mockStore } from '@/db/mockStore';
 import { buildCategoryCsv } from '@/utils/categoryCsv';
 import { 
-  Plus, Tags, Merge, Split, Move, X, Check, AlertCircle, RefreshCw, Trash2, Edit2, Monitor, ChevronRight, Upload, Search, Filter, Download, Users, UserPlus, Sparkles, Settings2, Save, Lock, Unlock, BarChart3, ShieldAlert
+  Plus, Tags, Merge, Split, Move, X, Check, AlertCircle, RefreshCw, Trash2, Edit2, Monitor, ChevronRight, Upload, Search, Filter, Download, Users, UserPlus, Sparkles, Settings2, Save, Lock, Unlock, BarChart3, ShieldAlert, Settings, LayoutList
 } from 'lucide-react';
 import ImportCategoryModal from '@/components/ImportCategoryModal';
 import RecoveryConsoleModal from '@/components/RecoveryConsoleModal';
@@ -57,6 +57,8 @@ export default function CategoriesPage() {
   const searchParams = useSearchParams();
 
   const [mounted, setMounted] = useState(false);
+  // KT3.0 — tab navigation state (does not affect any existing logic)
+  const [catActiveTab, setCatActiveTab] = useState<'all' | 'participants' | 'seeding' | 'bracket' | 'administration'>('all');
   const [loading, setLoading] = useState(true);
   
   const [categories, setCategories] = useState<Category[]>([]);
@@ -604,85 +606,311 @@ export default function CategoriesPage() {
     URL.revokeObjectURL(url);
   };
 
+  // ── KT3.0 Category Tabs definition ──────────────────────────────────────
+  const categoryTabs = [
+    { id: 'all',            label: 'All Categories',  icon: <LayoutList className="h-3.5 w-3.5" /> },
+    { id: 'participants',   label: 'Participants',     icon: <Users className="h-3.5 w-3.5" /> },
+    { id: 'seeding',        label: 'Seeding',          icon: <BarChart3 className="h-3.5 w-3.5" /> },
+    { id: 'bracket',        label: 'Bracket',          icon: <Monitor className="h-3.5 w-3.5" /> },
+    { id: 'administration', label: 'Administration',   icon: <Settings className="h-3.5 w-3.5" />, separator: true },
+  ] as const;
+
   return (
-    <div className="p-6 space-y-6 text-foreground w-full h-full overflow-y-auto">
-      {/* Title Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">Category Management</h1>
-          <p className="text-sm text-muted-foreground">Manage athlete weight brackets, trigger merges, splits, and custom overrides.</p>
+    <div className="flex flex-col text-foreground w-full h-full overflow-hidden">
+
+      {/* ── KT3.0 Page Header ─────────────────────────────────────────────── */}
+      <div className="no-print border-b border-border bg-card/50 px-6 py-3 shrink-0">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <div>
+            <div className="flex items-center gap-2">
+              <Tags className="h-5 w-5 text-primary" />
+              <h1 className="text-xl font-bold tracking-tight">Category Management</h1>
+            </div>
+            <p className="text-xs text-muted-foreground mt-0.5">Manage weight brackets, disciplines, participants, and category administration.</p>
+          </div>
+          {canModify && (
+            <div className="flex items-center gap-2 flex-wrap">
+              {/* PRIMARY — always visible */}
+              <button
+                onClick={() => setIsAddOpen(true)}
+                className="px-3.5 py-1.5 bg-primary text-primary-foreground hover:bg-primary/90 text-xs font-bold rounded-lg shadow-sm flex items-center gap-1.5 cursor-pointer transition-colors"
+              >
+                <Plus className="h-3.5 w-3.5" />
+                <span>+ Add Category</span>
+              </button>
+              {/* SECONDARY — Actions menu */}
+              <div className="relative group">
+                <button
+                  onClick={() => setIsAssignStatOpen(true)}
+                  className="px-3 py-1.5 bg-card hover:bg-secondary border border-border text-xs font-semibold rounded-lg flex items-center gap-1.5 cursor-pointer text-foreground transition-colors"
+                >
+                  <BarChart3 className="h-3.5 w-3.5 text-muted-foreground" />
+                  <span>Assign Stats</span>
+                </button>
+              </div>
+              <button
+                onClick={() => setIsImportOpen(true)}
+                className="px-3 py-1.5 bg-card hover:bg-secondary border border-border text-xs font-semibold rounded-lg flex items-center gap-1.5 cursor-pointer text-foreground transition-colors"
+              >
+                <Upload className="h-3.5 w-3.5 text-muted-foreground" />
+                <span>Import</span>
+              </button>
+              <button
+                onClick={handleExportCSV}
+                className="px-3 py-1.5 bg-card hover:bg-secondary border border-border text-xs font-semibold rounded-lg flex items-center gap-1.5 cursor-pointer text-foreground transition-colors"
+                title="Export current categories to CSV"
+              >
+                <Download className="h-3.5 w-3.5 text-muted-foreground" />
+                <span>Export</span>
+              </button>
+              {/* ADMINISTRATION — go to Administration tab */}
+              <button
+                onClick={() => setCatActiveTab('administration')}
+                className="px-3 py-1.5 bg-amber-500/10 border border-amber-500/30 hover:bg-amber-500/20 text-amber-500 rounded-lg text-xs font-bold flex items-center gap-1.5 cursor-pointer transition-colors"
+                title="Open Administration tab for advanced operations"
+              >
+                <Settings className="h-3.5 w-3.5" />
+                <span>Administration</span>
+              </button>
+            </div>
+          )}
         </div>
-        {canModify && (
-          <div className="flex items-center gap-2 self-start flex-wrap">
+      </div>
+
+      {/* ── KT3.0 Tab Bar ─────────────────────────────────────────────────── */}
+      <div className="no-print border-b border-border bg-card/30 px-6 shrink-0">
+        <div className="flex items-center gap-0 overflow-x-auto scrollbar-none -mb-px">
+          {categoryTabs.map((tab, idx) => {
+            const isActive = catActiveTab === tab.id;
+            return (
+              <button
+                key={tab.id}
+                onClick={() => setCatActiveTab(tab.id as any)}
+                className={`
+                  flex items-center gap-1.5 px-4 py-2.5 text-xs font-semibold
+                  whitespace-nowrap shrink-0 border-b-2 transition-all duration-150
+                  cursor-pointer select-none
+                  ${'separator' in tab && tab.separator && idx > 0 ? 'ml-4 border-l border-border pl-4' : ''}
+                  ${isActive
+                    ? 'border-primary text-foreground'
+                    : tab.id === 'administration'
+                      ? 'border-transparent text-amber-500/70 hover:text-amber-500 hover:border-amber-500/50'
+                      : 'border-transparent text-muted-foreground hover:text-foreground hover:border-border'
+                  }
+                `}
+                aria-selected={isActive}
+                role="tab"
+              >
+                {tab.icon}
+                {tab.label}
+                {tab.id === 'all' && categories.length > 0 && (
+                  <span className="ml-1 text-[9px] font-bold px-1 py-0.5 rounded bg-secondary text-muted-foreground">
+                    {categories.length}
+                  </span>
+                )}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* ── Tab Content ───────────────────────────────────────────────────── */}
+      <div className="flex-1 overflow-y-auto">
+
+      {/* ════════════════════════════════════════════════════════════════════
+          ADMINISTRATION TAB — surfaces existing admin functions in a clean
+          dedicated panel. All handlers are the exact same existing functions.
+          ════════════════════════════════════════════════════════════════════ */}
+      {catActiveTab === 'administration' && (
+        <div className="p-6 space-y-6">
+          <div className="border border-amber-500/20 bg-amber-500/5 rounded-xl p-4">
+            <div className="flex items-center gap-2 mb-1">
+              <Settings className="h-4 w-4 text-amber-400" />
+              <span className="text-sm font-bold text-amber-400">Category Administration</span>
+            </div>
+            <p className="text-xs text-muted-foreground">Advanced category management operations. These actions may be irreversible — proceed with caution.</p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+
+            {/* Merge Categories */}
+            <div className="bg-card border border-border rounded-xl p-5 space-y-3">
+              <div className="flex items-center gap-2">
+                <Merge className="h-4 w-4 text-blue-400" />
+                <span className="font-bold text-sm">Merge Categories</span>
+              </div>
+              <p className="text-xs text-muted-foreground">Combine two or more categories into a single unified bracket. Participants are consolidated.</p>
+              {canModify && (
+                <button
+                  onClick={() => setIsMergeOpen(true)}
+                  className="w-full px-3 py-2 bg-blue-500/10 border border-blue-500/30 hover:bg-blue-500/20 text-blue-400 rounded-lg text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer transition-colors"
+                >
+                  <Merge className="h-3.5 w-3.5" />
+                  Open Merge Tool
+                </button>
+              )}
+            </div>
+
+            {/* Split Category */}
+            <div className="bg-card border border-border rounded-xl p-5 space-y-3">
+              <div className="flex items-center gap-2">
+                <Split className="h-4 w-4 text-purple-400" />
+                <span className="font-bold text-sm">Split Category</span>
+              </div>
+              <p className="text-xs text-muted-foreground">Divide one category into two sub-categories with separate weight/age configurations.</p>
+              {canModify && (
+                <button
+                  onClick={() => setIsSplitOpen(true)}
+                  className="w-full px-3 py-2 bg-purple-500/10 border border-purple-500/30 hover:bg-purple-500/20 text-purple-400 rounded-lg text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer transition-colors"
+                >
+                  <Split className="h-3.5 w-3.5" />
+                  Open Split Tool
+                </button>
+              )}
+            </div>
+
+            {/* Reassign Participant */}
+            <div className="bg-card border border-border rounded-xl p-5 space-y-3">
+              <div className="flex items-center gap-2">
+                <Move className="h-4 w-4 text-emerald-400" />
+                <span className="font-bold text-sm">Reassign Athlete</span>
+              </div>
+              <p className="text-xs text-muted-foreground">Move an athlete from one category to another with eligibility validation.</p>
+              {canModify && (
+                <button
+                  onClick={() => setIsMoveOpen(true)}
+                  className="w-full px-3 py-2 bg-emerald-500/10 border border-emerald-500/30 hover:bg-emerald-500/20 text-emerald-400 rounded-lg text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer transition-colors"
+                >
+                  <Move className="h-3.5 w-3.5" />
+                  Open Reassign Tool
+                </button>
+              )}
+            </div>
+
+            {/* Bracket Recovery */}
+            <div className="bg-card border border-border rounded-xl p-5 space-y-3">
+              <div className="flex items-center gap-2">
+                <ShieldAlert className="h-4 w-4 text-orange-400" />
+                <span className="font-bold text-sm">Bracket Recovery</span>
+              </div>
+              <p className="text-xs text-muted-foreground">Access the recovery console to restore bracket snapshots, undo resets, or repair corrupt bracket states.</p>
+              {canModify && (
+                <button
+                  onClick={() => setIsRecoveryOpen(true)}
+                  className="w-full px-3 py-2 bg-orange-500/10 border border-orange-500/30 hover:bg-orange-500/20 text-orange-400 rounded-lg text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer transition-colors"
+                >
+                  <ShieldAlert className="h-3.5 w-3.5" />
+                  Open Recovery Console
+                </button>
+              )}
+            </div>
+
+            {/* Import / Export */}
+            <div className="bg-card border border-border rounded-xl p-5 space-y-3">
+              <div className="flex items-center gap-2">
+                <Upload className="h-4 w-4 text-sky-400" />
+                <span className="font-bold text-sm">Import / Export</span>
+              </div>
+              <p className="text-xs text-muted-foreground">Import categories from a CSV file or export the current category list for backup or transfer.</p>
+              <div className="flex gap-2">
+                {canModify && (
+                  <button
+                    onClick={() => setIsImportOpen(true)}
+                    className="flex-1 px-3 py-2 bg-sky-500/10 border border-sky-500/30 hover:bg-sky-500/20 text-sky-400 rounded-lg text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer transition-colors"
+                  >
+                    <Upload className="h-3.5 w-3.5" />
+                    Import CSV
+                  </button>
+                )}
+                <button
+                  onClick={handleExportCSV}
+                  className="flex-1 px-3 py-2 bg-secondary border border-border hover:bg-secondary/80 text-foreground rounded-lg text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer transition-colors"
+                >
+                  <Download className="h-3.5 w-3.5" />
+                  Export CSV
+                </button>
+              </div>
+            </div>
+
+            {/* Danger Zone — Delete All */}
+            {canModify && (
+              <div className="bg-red-500/5 border border-red-500/20 rounded-xl p-5 space-y-3">
+                <div className="flex items-center gap-2">
+                  <Trash2 className="h-4 w-4 text-red-400" />
+                  <span className="font-bold text-sm text-red-400">Danger Zone</span>
+                </div>
+                <p className="text-xs text-muted-foreground">Permanently delete all categories. This action cannot be undone. All related bracket and mapping data will be removed.</p>
+                <button
+                  onClick={handleDeleteAllCategories}
+                  className="w-full px-3 py-2 bg-red-500/15 border border-red-500/30 hover:bg-red-500/25 text-red-400 rounded-lg text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer transition-colors"
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                  Delete All Categories
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ════════════════════════════════════════════════════════════════════
+          PARTICIPANTS TAB — placeholder (links to Participants page)
+          ════════════════════════════════════════════════════════════════════ */}
+      {catActiveTab === 'participants' && (
+        <div className="p-6">
+          <div className="text-center py-16 border border-dashed border-border rounded-xl bg-card">
+            <Users className="h-10 w-10 text-muted-foreground mx-auto mb-3" />
+            <p className="text-sm font-semibold text-foreground mb-1">Participant Assignment</p>
+            <p className="text-xs text-muted-foreground mb-4">Use the category cards below (All Categories tab) to assign participants.<br/>Or navigate to the Participants module for full participant management.</p>
             <button
-              onClick={() => setIsImportOpen(true)}
-              className="px-3.5 py-2 bg-card hover:bg-secondary border border-border text-xs font-semibold rounded-lg shadow-xs flex items-center gap-1.5 cursor-pointer text-foreground"
+              onClick={() => setCatActiveTab('all')}
+              className="px-4 py-2 bg-primary text-primary-foreground rounded-lg text-xs font-bold cursor-pointer transition-colors"
             >
-              <Upload className="h-4 w-4 text-muted-foreground" />
-              <span>Import CSV</span>
-            </button>
-            <button
-              onClick={handleExportCSV}
-              className="px-3.5 py-2 bg-card hover:bg-secondary border border-border text-xs font-semibold rounded-lg shadow-xs flex items-center gap-1.5 cursor-pointer text-foreground"
-              title="Export current categories to CSV file"
-            >
-              <Download className="h-4 w-4 text-muted-foreground" />
-              <span>Export CSV</span>
-            </button>
-            <button
-              onClick={handleDeleteAllCategories}
-              className="px-3.5 py-2 bg-red-500/10 border border-red-500/30 hover:bg-red-500/20 text-red-500 rounded-lg text-xs font-bold shadow-xs flex items-center gap-1.5 cursor-pointer transition-colors"
-            >
-              <Trash2 className="h-4 w-4 text-red-500" />
-              <span>Delete All</span>
-            </button>
-            <button
-              onClick={() => setIsAddOpen(true)}
-              className="px-3.5 py-2 bg-card hover:bg-secondary border border-border text-xs font-semibold rounded-lg shadow-xs flex items-center gap-1.5 cursor-pointer text-foreground"
-            >
-              <Plus className="h-4 w-4 text-muted-foreground" />
-              <span>Add Category</span>
-            </button>
-            <button
-              onClick={() => setIsRecoveryOpen(true)}
-              className="px-3.5 py-2 bg-card hover:bg-secondary border border-border text-xs font-semibold rounded-lg shadow-xs flex items-center gap-1.5 cursor-pointer text-destructive"
-              title="Bracket & Bout Recovery Console"
-            >
-              <ShieldAlert className="h-4 w-4 text-destructive" />
-              <span>Bracket Recovery</span>
-            </button>
-            <button
-              onClick={() => setIsMergeOpen(true)}
-              className="px-3.5 py-2 bg-card hover:bg-secondary border border-border text-xs font-semibold rounded-lg shadow-xs flex items-center gap-1.5 cursor-pointer text-foreground"
-            >
-              <Merge className="h-4 w-4 text-muted-foreground" />
-              <span>Merge Categories</span>
-            </button>
-            <button
-              onClick={() => setIsSplitOpen(true)}
-              className="px-3.5 py-2 bg-card hover:bg-secondary border border-border text-xs font-semibold rounded-lg shadow-xs flex items-center gap-1.5 cursor-pointer text-foreground"
-            >
-              <Split className="h-4 w-4 text-muted-foreground" />
-              <span>Split Brackets</span>
-            </button>
-            <button
-              onClick={() => setIsMoveOpen(true)}
-              className="px-3.5 py-2 bg-primary text-primary-foreground hover:bg-primary/95 text-xs font-bold rounded-lg shadow-sm flex items-center gap-1.5 cursor-pointer"
-            >
-              <Move className="h-4 w-4" />
-              <span>Reassign Athlete</span>
-            </button>
-            <button
-              onClick={() => { setAssignStatSearch(''); setIsAssignStatOpen(true); }}
-              className="px-3.5 py-2 bg-card hover:bg-secondary border border-border text-xs font-semibold rounded-lg shadow-xs flex items-center gap-1.5 cursor-pointer text-foreground"
-              title="View full participant-to-category assignment details in a table"
-            >
-              <BarChart3 className="h-4 w-4 text-muted-foreground" />
-              <span>Category Assign Stats</span>
+              ← Back to All Categories
             </button>
           </div>
-        )}
-      </div>
+        </div>
+      )}
+
+      {/* ════════════════════════════════════════════════════════════════════
+          SEEDING TAB — placeholder
+          ════════════════════════════════════════════════════════════════════ */}
+      {catActiveTab === 'seeding' && (
+        <div className="p-6">
+          <div className="text-center py-16 border border-dashed border-border rounded-xl bg-card">
+            <BarChart3 className="h-10 w-10 text-muted-foreground mx-auto mb-3" />
+            <p className="text-sm font-semibold text-foreground mb-1">Seeding</p>
+            <p className="text-xs text-muted-foreground mb-4">Category seeding and ranking management. Coming in a future KT3.0 phase.</p>
+            <button onClick={() => setCatActiveTab('all')} className="px-4 py-2 bg-primary text-primary-foreground rounded-lg text-xs font-bold cursor-pointer">← Back to All Categories</button>
+          </div>
+        </div>
+      )}
+
+      {/* ════════════════════════════════════════════════════════════════════
+          BRACKET TAB — redirect to bracket hub
+          ════════════════════════════════════════════════════════════════════ */}
+      {catActiveTab === 'bracket' && (
+        <div className="p-6">
+          <div className="text-center py-16 border border-dashed border-border rounded-xl bg-card">
+            <Monitor className="h-10 w-10 text-muted-foreground mx-auto mb-3" />
+            <p className="text-sm font-semibold text-foreground mb-1">Bracket Management</p>
+            <p className="text-xs text-muted-foreground mb-4">Open the Bracket Console Hub to manage draws, seedings, and match advancement for each category.</p>
+            <a
+              href="/bracket-hub"
+              className="inline-flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg text-xs font-bold cursor-pointer transition-colors"
+            >
+              <Monitor className="h-3.5 w-3.5" />
+              Open Bracket Console Hub
+            </a>
+          </div>
+        </div>
+      )}
+
+      {/* ════════════════════════════════════════════════════════════════════
+          ALL CATEGORIES TAB — original filter + category grid (unchanged)
+          ════════════════════════════════════════════════════════════════════ */}
+      {catActiveTab === 'all' && (
+        <div className="p-6 space-y-6">
 
       {/* Filter & Search Bar */}
       <div className="bg-card border border-border p-4 rounded-xl shadow-xs grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3.5">
@@ -2412,12 +2640,20 @@ export default function CategoriesPage() {
         );
       })()}
 
-      {/* Modals & Portals here (if any exist below this code in the original, we just inject our modal at the end before closing tags) */}
+      {/* Close the All Categories tab div */}
+      </div>
+      )}
+
+      {/* Modals & Portals here */}
       <RecoveryConsoleModal
         isOpen={isRecoveryOpen}
         onClose={() => setIsRecoveryOpen(false)}
         categories={activeCategories}
       />
+
+      {/* Close the flex-1 overflow-y-auto tab content wrapper */}
+      </div>
+
     </div>
   );
 }

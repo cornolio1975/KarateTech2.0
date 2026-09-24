@@ -3,12 +3,13 @@
 import React, { useState, useEffect } from 'react';
 import { usePathname } from 'next/navigation';
 import { TournamentProvider, useTournament } from '@/context/TournamentContext';
-import Sidebar from './Sidebar';
+import Sidebar3 from './Sidebar3';
 import TopBar from './TopBar';
 import ImportModal from './ImportModal';
 import LoginPage from '@/app/login/page';
 
 function LayoutShellContent({ children }: { children: React.ReactNode }) {
+  const [mounted, setMounted] = useState(false);
   const [isImportOpen, setIsImportOpen] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const pathname = usePathname();
@@ -25,6 +26,8 @@ function LayoutShellContent({ children }: { children: React.ReactNode }) {
     } else {
       setIsSidebarOpen(mq.matches);
     }
+
+    setMounted(true);
 
     const handler = (e: MediaQueryListEvent) => {
       // Don't auto-open if we are on the control page
@@ -59,28 +62,61 @@ function LayoutShellContent({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (isPublicOrAuthRoute) return;
 
+    let isMounted = true;
+
+    // Safety timeout: If DB doesn't load within 5 seconds, force it to ready 
+    // so the user doesn't get stuck on an infinite spinner if network hangs.
+    const fallbackTimer = setTimeout(() => {
+      if (isMounted) {
+        console.warn("DB load timed out, forcing UI to render.");
+        setIsDbReady(true);
+      }
+    }, 5000);
+
     import('@/db/dbClient').then(async ({ dbManager }) => {
-      let activeDb = dbManager.getActiveTournament();
-      
-      // If memory was cleared by a hard reload, try to restore from localStorage
-      if (!activeDb) {
-        const activeId = localStorage.getItem('ts_active_tournament_id');
-        if (activeId) {
-          const { localStore } = await import('@/db/localStore');
-          activeDb = await localStore.loadTournament(activeId);
-          if (activeDb) {
-             const { setActiveTournamentDb } = await import('@/db/mockStore');
-             setActiveTournamentDb(activeDb);
+      try {
+        let activeDb = dbManager.getActiveTournament();
+        
+        // If memory was cleared by a hard reload, try to restore from localStorage
+        if (!activeDb) {
+          const activeId = localStorage.getItem('ts_active_tournament_id');
+          if (activeId) {
+            const { localStore } = await import('@/db/localStore');
+            activeDb = await localStore.loadTournament(activeId);
+            if (activeDb) {
+               const { setActiveTournamentDb } = await import('@/db/mockStore');
+               setActiveTournamentDb(activeDb);
+            }
           }
         }
-      }
 
-      if (!activeDb) {
-        window.location.href = '/';
-      } else {
+        if (!isMounted) return;
+        clearTimeout(fallbackTimer);
+
+        if (!activeDb) {
+          window.location.href = '/';
+        } else {
+          setIsDbReady(true);
+        }
+      } catch (err) {
+        console.error("Error loading tournament DB:", err);
+        if (isMounted) {
+          clearTimeout(fallbackTimer);
+          setIsDbReady(true); // Don't block the UI forever
+        }
+      }
+    }).catch(err => {
+      console.error("Failed to import DB modules:", err);
+      if (isMounted) {
+        clearTimeout(fallbackTimer);
         setIsDbReady(true);
       }
     });
+
+    return () => { 
+      isMounted = false; 
+      clearTimeout(fallbackTimer);
+    };
   }, [pathname, isPublicOrAuthRoute]);
 
   // If public or auth route, render directly without admin frame
@@ -91,6 +127,15 @@ function LayoutShellContent({ children }: { children: React.ReactNode }) {
           {children}
         </main>
       </div>
+    );
+  }
+
+  // Prevent rendering anything until mounted to avoid hydration mismatch on isLoggedIn
+  if (!mounted) {
+    return (
+       <div className="flex items-center justify-center h-screen bg-background text-foreground">
+          <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-primary"></div>
+       </div>
     );
   }
 
@@ -120,8 +165,8 @@ function LayoutShellContent({ children }: { children: React.ReactNode }) {
         />
       )}
 
-      {/* Sidebar */}
-      <Sidebar
+      {/* KarateTech 3.0 Sidebar */}
+      <Sidebar3
         isOpen={isSidebarOpen}
         onClose={() => setIsSidebarOpen(false)}
       />

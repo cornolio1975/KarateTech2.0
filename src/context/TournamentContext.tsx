@@ -81,10 +81,10 @@ interface TournamentContextType {
   setTournamentName: (name: string) => void;
   liveStreamUrl: string;
   setLiveStreamUrl: (url: string) => void;
-  userRole: 'Admin' | 'Co-Admin' | 'Viewer' | 'Club' | null;
+  userRole: 'Admin' | 'Co-Admin' | 'Superadmin' | 'Viewer' | 'Club' | null;
   isLoggedIn: boolean;
   isAuthInitialized: boolean;
-  login: (role: 'Admin' | 'Co-Admin' | 'Viewer' | 'Club', email?: string, pcId?: string | null, tatamiId?: number | null, clubId?: string | null) => void;
+  login: (role: 'Admin' | 'Co-Admin' | 'Superadmin' | 'Viewer' | 'Club', email?: string, pcId?: string | null, tatamiId?: number | null, clubId?: string | null) => void;
   logout: () => void;
   userEmail: string;
   clubId: string | null;
@@ -116,6 +116,17 @@ interface TournamentContextType {
   setActiveTournamentId: (id: string | null) => void;
   acquireLock: (categoryId: string) => Promise<{ success: boolean }>;
   releaseLock: (categoryId: string) => Promise<void>;
+  // KT3.0 — Superadmin flag
+  isSuperadmin: boolean;
+  // KT3.0 — Context Engine (Phase 5): active entity tracking
+  activeCategoryId: string | null;
+  setActiveCategoryId: (id: string | null) => void;
+  activeBracketId: string | null;
+  setActiveBracketId: (id: string | null) => void;
+  activeBoutId: string | null;
+  setActiveBoutId: (id: string | null) => void;
+  activeTatamiId: string | null;
+  setActiveTatamiId: (id: string | null) => void;
 }
 
 export interface AccessibilitySettings {
@@ -128,7 +139,7 @@ export interface AccessibilitySettings {
 export interface SystemUser {
   name: string;
   email: string;
-  role: 'Admin' | 'Co-Admin' | 'Viewer' | 'Club';
+  role: 'Admin' | 'Co-Admin' | 'Superadmin' | 'Viewer' | 'Club';
   status: 'Active' | 'Suspended';
   canModify: boolean;
   accessibility: AccessibilitySettings;
@@ -225,7 +236,12 @@ export function TournamentProvider({ children }: { children: React.ReactNode }) 
   const [logoUrl, setLogoUrlState] = useState(`${basePath}/karatetech-logo.png`);
 
   // Auth state
-  const [userRole, setUserRole] = useState<'Admin' | 'Co-Admin' | 'Viewer' | 'Club' | null>(null);
+  const [userRole, setUserRole] = useState<'Admin' | 'Co-Admin' | 'Superadmin' | 'Viewer' | 'Club' | null>(null);
+  // KT3.0 — Context Engine state (Phase 5)
+  const [activeCategoryId, setActiveCategoryId] = useState<string | null>(null);
+  const [activeBracketId, setActiveBracketId] = useState<string | null>(null);
+  const [activeBoutId, setActiveBoutId] = useState<string | null>(null);
+  const [activeTatamiId, setActiveTatamiId] = useState<string | null>(null);
   const [userEmail, setUserEmail] = useState<string>('');
   const [isLoggedIn, setIsLoggedIn] = useState<boolean>(false);
   const [isAuthInitialized, setIsAuthInitialized] = useState<boolean>(false);
@@ -1180,7 +1196,7 @@ export function TournamentProvider({ children }: { children: React.ReactNode }) 
     }
   };
 
-  const login = (role: 'Admin' | 'Co-Admin' | 'Viewer' | 'Club', email?: string, newPcId?: string | null, newTatamiId?: number | null, newClubId?: string | null) => {
+  const login = (role: 'Admin' | 'Co-Admin' | 'Superadmin' | 'Viewer' | 'Club', email?: string, newPcId?: string | null, newTatamiId?: number | null, newClubId?: string | null) => {
     setUserRole(role);
     const emailStr = email || (role === 'Admin' ? 'admin@spsportdatasolution.org' : role === 'Co-Admin' ? 'tatami_1@spsportdatasolution.org' : 'spectator@senshikarate.com');
     setUserEmail(emailStr);
@@ -1370,7 +1386,17 @@ export function TournamentProvider({ children }: { children: React.ReactNode }) 
         setActiveTournamentId,
         acquireLock,
         releaseLock,
-        isAuthInitialized
+        isAuthInitialized,
+        // KT3.0 — Phase 4+5 additions
+        isSuperadmin: userRole === 'Superadmin',
+        activeCategoryId,
+        setActiveCategoryId,
+        activeBracketId,
+        setActiveBracketId,
+        activeBoutId,
+        setActiveBoutId,
+        activeTatamiId,
+        setActiveTatamiId,
       }}
     >
       {children}

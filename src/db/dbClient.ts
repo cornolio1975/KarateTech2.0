@@ -1139,12 +1139,26 @@ export const dbOriginal = {
       return mockStore.bouts.listForCategory(catId);
     },
     clearDraw: async (catId: string): Promise<void> => {
+      if (activeTournamentDb) {
+        return mockStore.bouts.clearDraw(catId);
+      }
       if (supabase) {
         const { error } = await supabase.from('bouts').delete().eq('category_id', catId);
         if (error) throw new Error(describeError(error));
         return;
       }
       return mockStore.bouts.clearDraw(catId);
+    },
+    saveBouts: async (catId: string, newBouts: Bout[]): Promise<void> => {
+      if (activeTournamentDb) {
+        return mockStore.bouts.saveBouts(catId, newBouts);
+      }
+      if (supabase) {
+        const { error } = await supabase.from('bouts').insert(newBouts);
+        if (error) throw new Error(describeError(error));
+        return;
+      }
+      return mockStore.bouts.saveBouts(catId, newBouts);
     },
     clearAllBouts: async (): Promise<void> => {
       if (activeTournamentDb) {
